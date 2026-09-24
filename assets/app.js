@@ -158,8 +158,7 @@
   }
 
   function boot() {
-    const data = Registry.cached();
-    if (data) { state.data = data; init(); return; }
+    // 始终从 registry.json 获取最新配置，不使用本地缓存。
     Registry.load().then(function (d) {
       state.data = d; init();
     });
