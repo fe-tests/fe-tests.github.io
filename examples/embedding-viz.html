@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>向量可视化</title>
+<style>
+  body { margin: 0; font-family: system-ui, sans-serif; background: #0f1115; color: #e7eaf0; }
+  .box { max-width: 820px; margin: 40px auto; padding: 24px; background: #171a21; border: 1px solid #2a2f3a; border-radius: 16px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  p.sub { color: #9aa3b2; font-size: 13px; margin: 0 0 12px; }
+  .back { display: inline-block; margin-bottom: 16px; color: #6ea8fe; text-decoration: none; font-size: 13px; }
+  canvas { background: #0f1115; border: 1px solid #2a2f3a; border-radius: 10px; display: block; width: 100%; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 12px; font-size: 12px; color: #9aa3b2; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← 返回首页</a>
+<div class="box">
+  <h1>🧭 向量可视化</h1>
+  <p class="sub">把一组词的「小参数 embedding」通过 PCA 风格的降维投到 2D 平面，观察同类词是否自动聚成团。</p>
+  <canvas id="cv" width="760" height="440"></canvas>
+  <div class="legend" id="legend"></div>
+</div>
+<script>
+const clusters = [
+  { name: "动物", color: "#6ea8fe", words: ["猫", "狗", "鸟", "鱼", "鹿"] },
+  { name: "水果", color: "#4ade80", words: ["苹果", "香蕉", "葡萄", "梨", "桃"] },
+  { name: "家具", color: "#fbbf24", words: ["桌子", "椅子", "床", "沙发", "柜子"] }
+];
+function hash(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 100000; return h; }
+function embeds() {
+  const out = [];
+  const centers = [[2, 2], [8, 2], [5, 8]];
+  clusters.forEach((c, ci) => c.words.forEach(w => {
+    const r1 = (hash(w + "a") % 1000) / 1000 - 0.5;
+    const r2 = (hash(w + "b") % 1000) / 1000 - 0.5;
+    out.push({ word: w, cluster: ci, x: centers[ci][0] + r1 * 2.2, y: centers[ci][1] + r2 * 2.2 });
+  }));
+  return out;
+}
+function project(pts) {
+  return pts.map(p => {
+    const x = (p.x - 5) / 6, y = (p.y - 4) / 5;
+    const a = 20 * Math.PI / 180;
+    return { x: x * Math.cos(a) - y * Math.sin(a), y: x * Math.sin(a) + y * Math.cos(a) };
+  });
+}
+const data = embeds();
+const proj = project(data);
+const cv = document.getElementById("cv"), ctx = cv.getContext("2d");
+const W = cv.width, H = cv.height, pad = 30;
+function toCanvas(x, y) {
+  const minX = Math.min(...proj.map(p => p.x)), maxX = Math.max(...proj.map(p => p.x));
+  const minY = Math.min(...proj.map(p => p.y)), maxY = Math.max(...proj.map(p => p.y));
+  const nx = (x - minX) / (maxX - minX), ny = (y - minY) / (maxY - minY);
+  return { cx: pad + nx * (W - 2 * pad), cy: H - pad - ny * (H - 2 * pad) };
+}
+const colors = ["#6ea8fe", "#4ade80", "#fbbf24"];
+ctx.strokeStyle = "#2a2f3a"; ctx.lineWidth = 1;
+ctx.beginPath(); ctx.moveTo(pad, H - pad); ctx.lineTo(W - pad, H - pad); ctx.moveTo(pad, pad); ctx.lineTo(pad, H - pad); ctx.stroke();
+data.forEach((p, i) => {
+  const { cx, cy } = toCanvas(proj[i].x, proj[i].y);
+  ctx.beginPath(); ctx.fillStyle = colors[p.cluster]; ctx.arc(cx, cy, 6, 0, 7); ctx.fill();
+  ctx.fillStyle = "#9aa3b2"; ctx.font = "12px ui-monospace, monospace";
+  ctx.fillText(p.word, cx + 8, cy - 4);
+});
+document.getElementById("legend").innerHTML = clusters.map(c =>
+  '<span><span class="dot" style="background:' + c.color + '"></span>' + c.name + '</span>').join("");
+</script>
+</body>
+</html>
