@@ -36,13 +36,15 @@
 | `description` | string | — | 一句话简介（≤60 字最佳） | `""` |
 | `url` | string | ✅ | 页面相对路径，指向 `examples/xxx.html` | — |
 | `category` | string | — | 分类 id，须与 `categories[].id` 一致 | `未分类` |
-| `emoji` | string | — | 标注表情，建议 1 个 | `📄` |
+| `emoji` | string | — | 标注表情，建议 1 个（须为广泛支持的基础 emoji，见下方约束） | `📄` |
 | `tags` | string[] | — | 标签，用于搜索命中 | `[]` |
 | `status` | string | — | 状态：`stable`/`experimental`/`alpha` | `stable` |
 | `pinned` | boolean | — | 是否置顶 | `false` |
 | `thumbnail` | string \| null | — | 缩略图路径（预留） | `null` |
 | `createdAt` | string | — | 创建日期 `YYYY-MM-DD` | 当前日期 |
 | `updatedAt` | string | — | 更新日期 `YYYY-MM-DD` | 创建日期 |
+
+> **Emoji 约束（务必遵守）**：只选用被主流平台广泛支持的基础 emoji（建议 Unicode ≤ 11，即 2018 年及以前发布的符号）。禁止使用过新的 emoji（如 🦤 鸭嘴兽、🫏 驴、🫎 麋鹿等 2022 年才加入的符号）——它们在部分旧设备/旧浏览器中会渲染为空框或「无法查看」。选不定时优先用 🐦 🚀 🧭 📐 🐣 📊 等经典符号。
 
 状态颜色与含义：
 
