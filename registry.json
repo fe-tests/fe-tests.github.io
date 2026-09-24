@@ -59,6 +59,20 @@
       "thumbnail": null,
       "createdAt": "2025-01-03",
       "updatedAt": "2025-01-03"
+    },
+    {
+      "id": "pelican-bike",
+      "title": "鹈鹕骑车",
+      "description": "海边公路上骑自行车的 SVG 动画：车轮、踏板、腿部 IK、云与波纹实时运动。",
+      "url": "examples/pelican-bike.html",
+      "category": "experiment",
+      "emoji": "🦤",
+      "tags": ["svg", "animation", "demo"],
+      "status": "stable",
+      "pinned": false,
+      "thumbnail": null,
+      "createdAt": "2025-06-01",
+      "updatedAt": "2025-06-01"
     }
   ]
 }
