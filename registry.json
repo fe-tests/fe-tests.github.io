@@ -73,6 +73,20 @@
       "thumbnail": null,
       "createdAt": "2025-06-01",
       "updatedAt": "2025-06-01"
+    },
+    {
+      "id": "liankan",
+      "title": "Emoji 连连看",
+      "description": "emoji 素材的网页版连连看：多难度、连击、提示/洗牌/撤销、路径画线与粒子动画。",
+      "url": "examples/liankan.html",
+      "category": "tool",
+      "emoji": "🔗",
+      "tags": ["game", "emoji", "match"],
+      "status": "stable",
+      "pinned": false,
+      "thumbnail": null,
+      "createdAt": "2025-06-02",
+      "updatedAt": "2025-06-02"
     }
   ]
 }
