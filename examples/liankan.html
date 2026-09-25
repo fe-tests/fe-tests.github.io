@@ -30,12 +30,10 @@
         height: 100%;
         gap: 10px;
     }
-    .topbar {
-        display: flex;
-        align-items: center;
-        justify-content: flex-start;
-    }
     .home-link {
+        position: absolute;
+        left: 8px;
+        top: 8px;
         display: inline-flex;
         align-items: center;
         gap: 4px;
@@ -48,9 +46,13 @@
         font-weight: 600;
         box-shadow: 0 2px 6px rgba(0,0,0,.15);
         transition: .15s;
+        z-index: 5;
     }
     .home-link:hover { background: rgba(255,255,255,.28); }
-    header { text-align: center; }
+    header {
+        text-align: center;
+        position: relative;
+    }
     h1 {
         font-size: clamp(22px, 5vw, 32px);
         font-weight: 800;
@@ -264,10 +266,8 @@
 </head>
 <body>
 <div id="app">
-    <div class="topbar">
-        <a class="home-link" href="/" title="返回首页">🏠 首页</a>
-    </div>
     <header>
+        <a class="home-link" href="/" title="返回首页">🏠 首页</a>
         <h1>🔗 Emoji 连连看</h1>
         <div class="sub">相同图案 · 两节内相连即可消除</div>
     </header>
