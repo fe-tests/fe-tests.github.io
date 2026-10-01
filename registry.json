@@ -87,6 +87,20 @@
       "thumbnail": null,
       "createdAt": "2025-06-02",
       "updatedAt": "2025-06-02"
+    },
+    {
+      "id": "emoji-match",
+      "title": "Emoji 消消乐",
+      "description": "点击消除相邻同色 emoji 组，重力堆积、逐轮目标计分；每轮图形种类 3~5 种，连击越大越加分。",
+      "url": "examples/emoji-match.html",
+      "category": "experiment",
+      "emoji": "🍬",
+      "tags": ["game", "emoji", "match"],
+      "status": "stable",
+      "pinned": false,
+      "thumbnail": null,
+      "createdAt": "2026-10-01",
+      "updatedAt": "2026-10-01"
     }
   ]
 }

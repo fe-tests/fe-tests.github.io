@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🍬 Emoji 消消乐</title>
+<style>
+  :root { --cell: 42px; }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; min-height: 100%; font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+    background: linear-gradient(135deg, #1e293b, #0f172a); color: #e2e8f0;
+  }
+  body { display: flex; justify-content: center; padding: 20px; }
+  #app { width: 100%; max-width: 480px; }
+  h1 { text-align: center; margin: 0 0 12px; font-size: 24px; }
+  .hud {
+    display: flex; justify-content: space-between; gap: 6px;
+    background: rgba(255,255,255,0.06); border-radius: 12px; padding: 10px 12px; margin-bottom: 12px; font-size: 13px;
+  }
+  .hud > div { text-align: center; flex: 1; }
+  .hud span { display: block; font-size: 19px; font-weight: bold; color: #38bdf8; }
+  #board {
+    display: grid; gap: 4px; background: rgba(0,0,0,0.25); padding: 6px;
+    border-radius: 12px; touch-action: manipulation;
+  }
+  .cell {
+    width: var(--cell); height: var(--cell); border-radius: 8px;
+    background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center;
+    font-size: 25px; cursor: pointer; user-select: none; transition: transform .08s, background .15s;
+  }
+  .cell:hover { transform: scale(1.06); }
+  .cell.empty { background: rgba(255,255,255,0.02); }
+  .controls { margin-top: 14px; text-align: center; }
+  button {
+    font-size: 16px; padding: 10px 22px; border: none; border-radius: 10px;
+    background: #38bdf8; color: #0f172a; font-weight: bold; cursor: pointer;
+  }
+  button:disabled { opacity: .5; cursor: default; }
+  #message { margin-top: 12px; text-align: center; min-height: 24px; font-size: 14px; color: #fbbf24; }
+  .home-link {
+    display: inline-flex; align-items: center; gap: 4px; margin: 0 auto 12px;
+    width: fit-content; padding: 6px 12px; border-radius: 8px;
+    background: rgba(255,255,255,.12); color: #e2e8f0; font-size: 13px; text-decoration: none;
+    box-shadow: 0 2px 6px rgba(0,0,0,.2);
+  }
+  .home-link:hover { background: rgba(255,255,255,.22); }
+  .wrap { max-width: 480px; margin: 0 auto; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="home-link" href="../index.html" title="返回首页">← 返回门户</a>
+  <div id="app">
+    <h1>🍬 Emoji 消消乐</h1>
+    <div class="hud">
+      <div>总分<span id="score">0</span></div>
+      <div>本轮得分<span id="roundScore">0</span></div>
+      <div>目标<span id="target">0</span></div>
+      <div>轮次<span id="round">1</span></div>
+      <div>颜色<span id="colors">0</span></div>
+    </div>
+    <div id="board"></div>
+    <div class="controls"><button id="start">开始游戏</button></div>
+    <div id="message"></div>
+  </div>
+</div>
+
+<script>
+/* ============ 配置 ============ */
+const ROWS = 10;      // 行数
+const COLS = 8;       // 列数
+const EMOJI_POOL = ['🍎','🍊','🍋','🍇','🍉','🍓','🍑','🍒','🥝','🍍','🍐','🥥','🌰','🍆','🥕','🥦','🍄','🌽','🥑','🍩'];
+
+/* ============ 状态 ============ */
+let grid = [];          // grid[r][c] = emoji 或 null
+let currentColors = [];
+let totalScore = 0, roundScore = 0, round = 1, target = 0;
+let playing = false, busy = false;
+
+const $ = id => document.getElementById(id);
+const boardEl = $('board');
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+
+/* ============ 核心逻辑 ============ */
+// 获取 (r,c) 所在连通块（同色相邻，四连通）
+function getGroup(r, c){
+  const color = grid[r][c];
+  if(!color) return [];
+  const group = [], visited = Array.from({length:ROWS},()=>Array(COLS).fill(false));
+  const st = [[r,c]];
+  while(st.length){
+    const [cr,cc] = st.pop();
+    if(cr<0||cr>=ROWS||cc<0||cc>=COLS||visited[cr][cc]||grid[cr][cc]!==color) continue;
+    visited[cr][cc]=true; group.push([cr,cc]);
+    st.push([cr+1,cc],[cr-1,cc],[cr,cc+1],[cr,cc-1]);
+  }
+  return group;
+}
+
+// 是否还存在可消除的组（>=2）
+function hasAnyMove(){
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++)
+    if(grid[r][c] && getGroup(r,c).length>=2) return true;
+  return false;
+}
+
+// 重力下落 + 空列左移合并
+function applyGravity(){
+  for(let c=0;c<COLS;c++){
+    const col = [];
+    for(let r=0;r<ROWS;r++) if(grid[r][c]!=null) col.push(grid[r][c]);
+    const filled = Array(ROWS-col.length).fill(null).concat(col);
+    for(let r=0;r<ROWS;r++) grid[r][c]=filled[r];
+  }
+  const keep = [];
+  for(let c=0;c<COLS;c++){ let ok=false; for(let r=0;r<ROWS;r++) if(grid[r][c]!=null){ok=true;break;} if(ok) keep.push(c); }
+  const ng = Array.from({length:ROWS},()=>new Array(COLS).fill(null));
+  for(let i=0;i<keep.length;i++) for(let r=0;r<ROWS;r++) ng[r][i]=grid[r][keep[i]];
+  grid = ng;
+}
+
+/* ============ 回合 & 渲染 ============ */
+function startRound(){
+  const numColors = 3 + Math.floor(Math.random()*3);        // 3~5 种，每轮不同
+  currentColors = shuffle([...EMOJI_POOL]).slice(0, numColors);
+  target = 80 + (round-1)*80;                               // 逐轮加压（每轮均需清空到无法消除才结算）
+  roundScore = 0;
+  // 生成棋盘，保证至少存在一步可走
+  do {
+    grid = [];
+    for(let r=0;r<ROWS;r++){ const row=[]; for(let c=0;c<COLS;c++) row.push(currentColors[Math.floor(Math.random()*numColors)]); grid.push(row); }
+  } while(!hasAnyMove());
+
+  $('colors').textContent = numColors;
+  render(); updateHUD();
+  $('message').textContent = `第 ${round} 轮（${numColors} 种图形），目标 ${target} 分。玩到无法再消除才算本轮结束：达标进下一轮，不达标则游戏结束。`;
+}
+
+function render(){
+  boardEl.style.gridTemplateColumns = `repeat(${COLS}, var(--cell))`;
+  boardEl.innerHTML = '';
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+    const cell = document.createElement('div');
+    cell.className = 'cell' + (grid[r][c]?'' : ' empty');
+    cell.textContent = grid[r][c]||'';
+    cell.dataset.r=r; cell.dataset.c=c;
+    boardEl.appendChild(cell);
+  }
+}
+
+function updateHUD(){
+  $('score').textContent=totalScore; $('roundScore').textContent=roundScore;
+  $('target').textContent=target; $('round').textContent=round;
+}
+
+/* ============ 交互 ============ */
+async function handleCellClick(r, c){
+  if(!playing || busy || !grid[r][c]) return;
+  const group = getGroup(r,c);
+  if(group.length < 2){
+    $('message').textContent = '需要至少 2 个相邻相同图形才能消除～';
+    return;
+  }
+  busy = true;
+  const gained = (group.length-1)*(group.length-1);        // 越多越加分（大组合回报高）
+  roundScore += gained; totalScore += gained; updateHUD();
+
+  // 关键：先从数据模型 grid 中清除，重力与重绘才基于新数据
+  for(const [gr,gc] of group){ grid[gr][gc] = null; }
+  await sleep(140);
+
+  applyGravity(); render();
+
+  // 本轮玩到无法再消除才结算：达标进下一轮，不达标则游戏结束
+  if(!hasAnyMove()){
+    if(roundScore >= target){
+      await sleep(300);
+      round++;
+      startRound();
+    } else {
+      endGame();
+    }
+    busy = false;
+    return;
+  }
+  // 仍可继续：更新进度提示
+  $('message').textContent = `本轮得分 ${roundScore} / ${target} —— 继续消除，无法再消才进入下一轮`;
+  busy = false;
+}
+
+function endGame(){
+  playing = false;
+  $('start').disabled = false; $('start').textContent = '再来一局';
+  $('message').textContent = `游戏结束！总分 ${totalScore}，你坚持到了第 ${round} 轮。点击「再来一局」重新开始。`;
+}
+
+function initGame(){
+  totalScore = 0; round = 1; playing = true;
+  $('start').disabled = true; $('start').textContent = '进行中…';
+  $('message').textContent = '';
+  startRound();
+}
+
+/* ============ 事件 & 初始化 ============ */
+$('start').addEventListener('click', initGame);
+boardEl.addEventListener('click', e => {
+  const cell = e.target.closest('.cell');
+  if(cell) handleCellClick(+cell.dataset.r, +cell.dataset.c);
+});
+grid = Array.from({length:ROWS},()=>new Array(COLS).fill(null));
+render();
+</script>
+</body>
+</html>
