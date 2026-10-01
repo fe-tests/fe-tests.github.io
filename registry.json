@@ -15,7 +15,8 @@
   "categories": [
     { "id": "model", "name": "模型演示" },
     { "id": "tool", "name": "工具" },
-    { "id": "experiment", "name": "实验场" }
+    { "id": "experiment", "name": "实验场" },
+    { "id": "game", "name": "游戏" }
   ],
   "pages": [
     {
@@ -96,6 +97,20 @@
       "category": "experiment",
       "emoji": "🍬",
       "tags": ["game", "emoji", "match"],
+      "status": "stable",
+      "pinned": false,
+      "thumbnail": null,
+      "createdAt": "2026-10-01",
+      "updatedAt": "2026-10-01"
+    },
+    {
+      "id": "racing-game",
+      "title": "极速狂飙",
+      "description": "Canvas 移动端优先赛车游戏：点击转向/加速/刹车，避开来车并收集星形道具，速度越高分越高，含分数墙记录。",
+      "url": "examples/racing-game.html",
+      "category": "game",
+      "emoji": "🏎️",
+      "tags": ["game", "canvas", "racing", "mobile"],
       "status": "stable",
       "pinned": false,
       "thumbnail": null,
