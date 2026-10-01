@@ -116,6 +116,20 @@
       "thumbnail": null,
       "createdAt": "2026-10-01",
       "updatedAt": "2026-10-01"
+    },
+    {
+      "id": "2048",
+      "title": "2048",
+      "description": "经典数字合并益智游戏，Canvas 渲染带滑动/合并动画与缩放特效，支持方向键、触屏滑动和方向按钮。",
+      "url": "examples/2048.html",
+      "category": "game",
+      "emoji": "🔢",
+      "tags": ["game", "canvas", "puzzle", "2048"],
+      "status": "stable",
+      "pinned": false,
+      "thumbnail": null,
+      "createdAt": "2026-10-01",
+      "updatedAt": "2026-10-01"
     }
   ]
 }
