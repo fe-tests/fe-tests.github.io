@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#10131a">
+<title>数独 · Sudoku</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; }
+  :root {
+    --bg:#10131a; --panel:#161922; --panel2:#1b1f2b; --cell:#1d212b;
+    --line:#2a2f3a; --linebold:#3a4254; --fg:#e6e9ef; --muted:#8b93a7;
+    --accent:#f7b267; --accent2:#f28d3c; --given:#cdd3e0; --user:#8fd3ff;
+    --related:rgba(255,255,255,.05); --sel:rgba(247,178,103,.22); --same:#f7b267;
+    --conflict:#ff5d6c; --wrong:#ff5d6c; --ok:#4ade80;
+  }
+  html, body { height: 100%; }
+  body {
+    background: radial-gradient(120% 120% at 50% 0%, #1c2030 0%, #10131a 60%);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    display: flex; justify-content: center; padding: 16px; min-height: 100%;
+  }
+  #app { width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 14px; }
+
+  #topbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .brand { display: flex; align-items: baseline; gap: 8px; }
+  .brand h1 { font-size: 30px; font-weight: 900; letter-spacing: 1px; }
+  .brand .sub { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .back { color: var(--muted); text-decoration: none; font-size: 13px; font-weight: 700; }
+  .back:hover { color: var(--fg); }
+  #newgame {
+    background: linear-gradient(160deg, var(--accent), var(--accent2)); color: #1a1206; border: none;
+    font-size: 14px; font-weight: 800; padding: 10px 16px; border-radius: 12px; cursor: pointer;
+    box-shadow: 0 6px 18px rgba(247,178,103,.25); transition: transform .06s, filter .12s;
+  }
+  #newgame:active { transform: scale(.94); }
+  #newgame:hover { filter: brightness(1.05); }
+
+  .controls { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .diff { display: flex; gap: 4px; background: var(--panel); padding: 4px; border-radius: 12px; border: 1px solid var(--line); }
+  .diff-btn { border: none; background: transparent; color: var(--muted); padding: 7px 12px; border-radius: 9px; font-size: 13px; font-weight: 700; cursor: pointer; }
+  .diff-btn.active { background: var(--accent); color: #1a1206; }
+  .stats { display: flex; gap: 16px; }
+  .stat { display: flex; flex-direction: column; align-items: flex-end; }
+  .stat-lbl { font-size: 10px; color: var(--muted); letter-spacing: 1px; font-weight: 700; }
+  .stat-val { font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; }
+
+  .boardwrap { position: relative; }
+  .board {
+    display: grid; grid-template-columns: repeat(9, 1fr); gap: 1px;
+    background: var(--linebold); border: 3px solid var(--linebold); border-radius: 14px; overflow: hidden;
+    aspect-ratio: 1 / 1; box-shadow: 0 20px 50px rgba(0,0,0,.45);
+  }
+  .cell {
+    border: 1px solid var(--line); background: var(--cell); color: var(--fg);
+    font-size: clamp(17px, 5.1vw, 26px); font-weight: 600;
+    display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative;
+    transition: background .1s, color .12s; aspect-ratio: 1 / 1;
+  }
+  .br { border-right: 2px solid var(--linebold) !important; }
+  .bb { border-bottom: 2px solid var(--linebold) !important; }
+  .cell.given { color: var(--given); font-weight: 700; }
+  .cell:not(.given) { color: var(--user); }
+  .cell.related { background: var(--related); }
+  .cell.same { background: var(--same); color: #1a1206; font-weight: 800; }
+  .cell.sel { background: var(--sel); box-shadow: inset 0 0 0 2px var(--accent); }
+  .cell.conflict { color: var(--conflict); }
+  .cell.wrong { color: var(--wrong); background: rgba(255,93,108,.16); }
+  .cell.hintval { animation: pop .28s ease; }
+  @keyframes pop { 0% { transform: scale(.55); } 60% { transform: scale(1.18); } 100% { transform: scale(1); } }
+
+  .status { text-align: center; font-size: 13px; color: var(--accent); font-weight: 700; min-height: 18px; transition: color .2s; }
+  .status.ok { color: var(--ok); }
+
+  .numpad { display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px; }
+  .num {
+    border: 1px solid var(--line); background: var(--panel); color: var(--fg);
+    font-size: clamp(15px, 4.4vw, 21px); font-weight: 800; border-radius: 12px; cursor: pointer;
+    aspect-ratio: 1 / 1; transition: background .08s, transform .05s;
+  }
+  .num:active { transform: scale(.92); background: var(--panel2); }
+  .num:disabled { opacity: .35; }
+
+  .actionbar { display: flex; gap: 8px; }
+  .act { flex: 1; padding: 13px 0; border: 1px solid var(--line); background: var(--panel); color: var(--fg); border-radius: 12px; font-size: 14px; font-weight: 800; cursor: pointer; transition: transform .05s, background .12s, color .12s; }
+  .act:active { transform: scale(.96); }
+  .act.on { background: var(--accent); color: #1a1206; border-color: transparent; }
+
+  .hint-text { text-align: center; font-size: 11px; color: var(--muted); line-height: 1.6; }
+
+  #overlay { position: fixed; inset: 0; background: rgba(16,19,26,.86); backdrop-filter: blur(6px); display: none; align-items: center; justify-content: center; z-index: 10; }
+  #overlay.show { display: flex; }
+  .ov-card { text-align: center; padding: 34px 26px; max-width: 340px; }
+  .ov-card h2 { font-size: 34px; font-weight: 900; margin-bottom: 10px; }
+  .ov-card p { color: var(--muted); margin-bottom: 22px; line-height: 1.6; font-size: 14px; }
+  .ov-btns { display: flex; gap: 10px; justify-content: center; }
+  .ov-btns button { border: none; border-radius: 12px; padding: 13px 24px; font-size: 15px; font-weight: 800; cursor: pointer; }
+  .primary { background: linear-gradient(160deg, var(--accent), var(--accent2)); color: #1a1206; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="topbar">
+    <a class="back" href="../index.html">← 首页</a>
+    <div class="brand"><h1>Sudoku</h1><span class="sub">数独</span></div>
+    <button id="newgame">新游戏</button>
+  </div>
+
+  <div class="controls">
+    <div class="diff" role="group" aria-label="难度">
+      <button class="diff-btn active" data-diff="easy">简单</button>
+      <button class="diff-btn" data-diff="medium">中等</button>
+      <button class="diff-btn" data-diff="hard">困难</button>
+      <button class="diff-btn" data-diff="expert">专家</button>
+    </div>
+    <div class="stats">
+      <div class="stat"><span class="stat-lbl">时间</span><span class="stat-val" id="timer">00:00</span></div>
+      <div class="stat"><span class="stat-lbl">剩余</span><span class="stat-val" id="remaining">81</span></div>
+    </div>
+  </div>
+
+  <div class="boardwrap">
+    <div class="board" id="board"></div>
+    <div class="status" id="status"></div>
+  </div>
+
+  <div class="numpad" id="numpad"></div>
+
+  <div class="actionbar">
+    <button class="act" id="hint">💡 提示</button>
+    <button class="act" id="check">🔍 检查</button>
+    <button class="act" id="undo">↩ 撤销</button>
+  </div>
+
+  <div class="hint-text">点击格子再点击数字填入；或选中后按键盘 <span class="kbd">1</span>~<span class="kbd">9</span> 与方向键移动。<span class="kbd">⌫</span> 删除。</div>
+</div>
+
+<div id="overlay">
+  <div class="ov-card">
+    <h2>🎉 通关成功</h2>
+    <p id="ov-detail"></p>
+    <div class="ov-btns"><button class="primary" id="play-btn">再来一局</button></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var boardEl = document.getElementById("board");
+  var numpadEl = document.getElementById("numpad");
+  var statusEl = document.getElementById("status");
+
+  var DIFF = {
+    easy: { clues: 42, name: "简单" },
+    medium: { clues: 36, name: "中等" },
+    hard: { clues: 32, name: "困难" },
+    expert: { clues: 29, name: "专家" }
+  };
+
+  var given = [], answer = [], user = [];
+  var difficulty = "easy";
+  var selected = { r: -1, c: -1 };
+  var history = [];
+  var wrongSet = new Set();
+  var startTime = 0, elapsed = 0, timerId = null;
+
+  function shuffle(a) {
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+  function clone2(b) { return b.map(function (r) { return r.slice(); }); }
+
+  function isSafe(b, r, c, v) {
+    for (var i = 0; i < 9; i++) {
+      if (b[r][i] === v) return false;
+      if (b[i][c] === v) return false;
+    }
+    var br = Math.floor(r / 3) * 3, bc = Math.floor(c / 3) * 3;
+    for (var i2 = 0; i2 < 3; i2++)
+      for (var j2 = 0; j2 < 3; j2++)
+        if (b[br + i2][bc + j2] === v) return false;
+    return true;
+  }
+
+  // Fill a full valid board from a seeded diagonal then backtrack-solve.
+  function genFull() {
+    var b = [];
+    for (var i = 0; i < 9; i++) b.push([0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    for (var box = 0; box < 9; box += 3) {
+      var nums = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+      var k = 0;
+      for (var i3 = 0; i3 < 3; i3++)
+        for (var j3 = 0; j3 < 3; j3++) b[box + i3][box + j3] = nums[k++];
+    }
+    solve(b);
+    return b;
+  }
+
+  function solve(b) {
+    for (var r = 0; r < 9; r++) {
+      for (var c = 0; c < 9; c++) {
+        if (b[r][c] === 0) {
+          var cand = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+          for (var k = 0; k < 9; k++) {
+            var v = cand[k];
+            if (isSafe(b, r, c, v)) {
+              b[r][c] = v;
+              if (solve(b)) return true;
+              b[r][c] = 0;
+            }
+          }
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  // Count solutions up to `limit` (2 = check uniqueness), with a node cap so a
+  // pathological board can never hang the UI. Exceeding the cap => treated as
+  // non-unique, so the cell is kept (puzzle stays valid + unique).
+  function countSol(b, limit, cap) {
+    limit = limit || 2;
+    cap = cap || 500000;
+    var count = 0, nodes = 0;
+    (function rec(bd) {
+      if (count >= limit) return;
+      if (++nodes > cap) { count = limit; return; }
+      for (var rr = 0; rr < 9; rr++) {
+        for (var cc = 0; cc < 9; cc++) {
+          if (bd[rr][cc] === 0) {
+            for (var vv = 1; vv <= 9; vv++) {
+              if (isSafe(bd, rr, cc, vv)) {
+                bd[rr][cc] = vv;
+                rec(bd);
+                bd[rr][cc] = 0;
+                if (count >= limit) return;
+              }
+            }
+            return;
+          }
+        }
+      }
+      count++;
+    })(b);
+    return count;
+  }
+
+  function makePuzzle(sol, clues) {
+    var puzzle = clone2(sol);
+    var cells = [];
+    for (var r = 0; r < 9; r++)
+      for (var c = 0; c < 9; c++) cells.push([r, c]);
+    shuffle(cells);
+    var toRemove = 81 - clues;
+    for (var idx = 0; idx < cells.length; idx++) {
+      if (toRemove <= 0) break;
+      var cell = cells[idx];
+      var vr = cell[0], vc = cell[1];
+      var keep = puzzle[vr][vc];
+      puzzle[vr][vc] = 0;
+      if (countSol(puzzle, 2) === 1) {
+        toRemove--;
+      } else {
+        puzzle[vr][vc] = keep;
+      }
+    }
+    return puzzle;
+  }
+
+  function currentBoard() {
+    var cb = [];
+    for (var r = 0; r < 9; r++) {
+      cb.push([]);
+      for (var c = 0; c < 9; c++) cb[r].push(given[r][c] ? answer[r][c] : user[r][c]);
+    }
+    return cb;
+  }
+
+  function findConflicts(cb) {
+    var conflicts = new Set();
+    for (var r = 0; r < 9; r++) {
+      for (var c = 0; c < 9; c++) {
+        var v = cb[r][c];
+        if (v === 0 || given[r][c]) continue;
+        for (var j = 0; j < 9; j++) {
+          if (j !== c && cb[r][j] === v) conflicts.add(r * 9 + c);
+        }
+        for (var i = 0; i < 9; i++) {
+          if (i !== r && cb[i][c] === v) conflicts.add(r * 9 + c);
+        }
+        var br = Math.floor(r / 3) * 3, bc = Math.floor(c / 3) * 3;
+        for (var i2 = 0; i2 < 3; i2++)
+          for (var j2 = 0; j2 < 3; j2++) {
+            var rr = br + i2, cc = bc + j2;
+            if (rr === r && cc === c) continue;
+            if (cb[rr][cc] === v) conflicts.add(rr * 9 + cc);
+          }
+      }
+    }
+    return conflicts;
+  }
+
+  function buildBoard() {
+    boardEl.innerHTML = "";
+    for (var r = 0; r < 9; r++) {
+      for (var c = 0; c < 9; c++) {
+        var btn = document.createElement("button");
+        btn.className = "cell" + (c === 2 || c === 8 ? " br" : "") + (r === 2 || r === 8 ? " bb" : "");
+        (function (rr, cc) {
+          btn.addEventListener("click", function () { selectCell(rr, cc); });
+        })(r, c);
+        boardEl.appendChild(btn);
+      }
+    }
+  }
+
+  function buildNumpad() {
+    numpadEl.innerHTML = "";
+    for (var n = 1; n <= 9; n++) {
+      (function (num) {
+        var b = document.createElement("button");
+        b.className = "num";
+        b.textContent = num;
+        b.addEventListener("click", function () { placeNumber(num); });
+        numpadEl.appendChild(b);
+      })(n);
+    }
+    var er = document.createElement("button");
+    er.className = "num";
+    er.textContent = "⌫";
+    er.setAttribute("aria-label", "删除");
+    er.addEventListener("click", function () { placeNumber(0); });
+    numpadEl.appendChild(er);
+  }
+
+  function render() {
+    var sr = selected.r, sc = selected.c;
+    var cb = currentBoard();
+    var conf = findConflicts(cb);
+    var selVal = (sr >= 0) ? (given[sr][sc] ? answer[sr][sc] : user[sr][sc]) : 0;
+    for (var r = 0; r < 9; r++) {
+      for (var c = 0; c < 9; c++) {
+        var idx = r * 9 + c;
+        var cell = boardEl.children[idx];
+        var cls = "cell";
+        if (given[r][c]) cls += " given";
+        if (wrongSet.has(idx)) cls += " wrong";
+        if (conf.has(idx)) cls += " conflict";
+        if (sr >= 0) {
+          var related = r === sr || c === sc ||
+            (Math.floor(r / 3) === Math.floor(sr / 3) && Math.floor(c / 3) === Math.floor(sc / 3));
+          if (related) cls += " related";
+          var val = given[r][c] ? answer[r][c] : user[r][c];
+          if (val > 0 && val === selVal) cls += " same";
+        }
+        if (sr >= 0 && idx === sr * 9 + sc) cls += " sel";
+        cell.className = cls;
+        cell.textContent = given[r][c] ? String(answer[r][c]) : (user[r][c] ? String(user[r][c]) : "");
+      }
+    }
+  }
+
+  function updateStats() {
+    var cb = currentBoard(), empty = 0;
+    for (var r = 0; r < 9; r++)
+      for (var c = 0; c < 9; c++)
+        if (cb[r][c] === 0) empty++;
+    document.getElementById("remaining").textContent = String(empty);
+  }
+
+  function isComplete() {
+    var cb = currentBoard();
+    for (var r = 0; r < 9; r++)
+      for (var c = 0; c < 9; c++)
+        if (cb[r][c] !== answer[r][c]) return false;
+    return true;
+  }
+
+  function updateAfterMove() {
+    wrongSet = new Set();
+    render();
+    updateStats();
+    if (isComplete()) {
+      stopTimer();
+      showWin();
+    }
+  }
+
+  function selectCell(r, c) {
+    selected = { r: r, c: c };
+    render();
+  }
+
+  function findEmpty() {
+    for (var r = 0; r < 9; r++)
+      for (var c = 0; c < 9; c++)
+        if (user[r][c] === 0 && !given[r][c]) return { r: r, c: c };
+    return null;
+  }
+
+  function placeNumber(n) {
+    if (selected.r < 0) {
+      var e = findEmpty();
+      if (!e) return;
+      selectCell(e.r, e.c);
+    }
+    var r = selected.r, c = selected.c;
+    if (given[r][c]) return;
+    history.push({ r: r, c: c, val: user[r][c] });
+    user[r][c] = n;
+    updateAfterMove();
+  }
+
+  function moveSelection(key) {
+    if (selected.r < 0) {
+      var e = findEmpty();
+      if (!e) return;
+      selectCell(e.r, e.c);
+    }
+    var r = selected.r, c = selected.c;
+    if (key === "ArrowUp") r--;
+    else if (key === "ArrowDown") r++;
+    else if (key === "ArrowLeft") c--;
+    else if (key === "ArrowRight") c++;
+    else return;
+    r = Math.max(0, Math.min(8, r));
+    c = Math.max(0, Math.min(8, c));
+    selectCell(r, c);
+  }
+
+  function hint() {
+    if (selected.r < 0) {
+      var e = findEmpty();
+      if (!e) return;
+      selectCell(e.r, e.c);
+    }
+    var r = selected.r, c = selected.c;
+    if (given[r][c]) return;
+    history.push({ r: r, c: c, val: user[r][c] });
+    user[r][c] = answer[r][c];
+    wrongSet = new Set();
+    render();
+    boardEl.children[r * 9 + c].classList.add("hintval");
+    updateStats();
+    setStatus("已填入提示数字", false);
+    if (isComplete()) { stopTimer(); showWin(); }
+  }
+
+  function runCheck() {
+    wrongSet = new Set();
+    var cb = currentBoard();
+    var n = 0;
+    for (var r = 0; r < 9; r++)
+      for (var c = 0; c < 9; c++)
+        if (!given[r][c] && user[r][c] !== 0 && user[r][c] !== answer[r][c]) { wrongSet.add(r * 9 + c); n++; }
+    var btn = document.getElementById("check");
+    if (n > 0) {
+      btn.classList.add("on");
+      setStatus("有 " + n + " 个数字可能有误", false);
+    } else {
+      btn.classList.remove("on");
+      setStatus("暂无发现错误，继续加油！", false);
+    }
+    render();
+  }
+
+  function undo() {
+    var last = history.pop();
+    if (!last) { setStatus("没有可撤销的操作", false); return; }
+    user[last.r][last.c] = last.val;
+    wrongSet = new Set();
+    render();
+    updateStats();
+    setStatus("已撤销", false);
+  }
+
+  function setStatus(msg, ok) {
+    statusEl.textContent = msg;
+    statusEl.classList.toggle("ok", !!ok);
+  }
+
+  function formatTime(s) {
+    var m = String(Math.floor(s / 60)).padStart(2, "0");
+    var ss = String(s % 60).padStart(2, "0");
+    return m + ":" + ss;
+  }
+
+  function tick() {
+    var now = Math.floor((Date.now() - startTime) / 1000);
+    if (now >= 0) document.getElementById("timer").textContent = formatTime(now);
+  }
+  function startTimer() {
+    startTime = Date.now();
+    elapsed = 0;
+    clearInterval(timerId);
+    timerId = setInterval(tick, 1000);
+  }
+  function stopTimer() { clearInterval(timerId); }
+
+  function showWin() {
+    var ov = document.getElementById("overlay");
+    document.getElementById("ov-detail").textContent =
+      "难度 " + DIFF[difficulty].name + " · 用时 " + document.getElementById("timer").textContent + " · 零失误通关";
+    ov.classList.add("show");
+  }
+  function hideWin() { document.getElementById("overlay").classList.remove("show"); }
+
+  function newGame() {
+    var sol = genFull();
+    var puzzle = makePuzzle(sol, DIFF[difficulty].clues);
+    given = puzzle.map(function (row) { return row.map(function (v) { return v !== 0; }); });
+    answer = clone2(sol);
+    user = [];
+    for (var i = 0; i < 9; i++) user.push([0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    wrongSet = new Set();
+    history = [];
+    selected = { r: -1, c: -1 };
+    hideWin();
+    buildBoard();
+    render();
+    updateStats();
+    setStatus("", false);
+    startTimer();
+  }
+
+  // Wire up
+  document.querySelectorAll(".diff-btn").forEach(function (b) {
+    b.addEventListener("click", function () {
+      document.querySelectorAll(".diff-btn").forEach(function (x) { x.classList.remove("active"); });
+      b.classList.add("active");
+      difficulty = b.dataset.diff;
+      newGame();
+    });
+  });
+  document.getElementById("newgame").addEventListener("click", newGame);
+  document.getElementById("play-btn").addEventListener("click", function () { newGame(); });
+  document.getElementById("hint").addEventListener("click", hint);
+  document.getElementById("check").addEventListener("click", runCheck);
+  document.getElementById("undo").addEventListener("click", undo);
+
+  document.addEventListener("keydown", function (e) {
+    var k = e.key;
+    if (k.length === 1 && k >= "1" && k <= "9") { placeNumber(parseInt(k, 10)); e.preventDefault(); }
+    else if (k === "0" || k === "Backspace" || k === "Delete") { placeNumber(0); e.preventDefault(); }
+    else if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].indexOf(k) >= 0) { moveSelection(k); e.preventDefault(); }
+  });
+
+  buildNumpad();
+  newGame();
+})();
+</script>
+</body>
+</html>

@@ -130,6 +130,20 @@
       "thumbnail": null,
       "createdAt": "2026-10-01",
       "updatedAt": "2026-10-01"
+    },
+    {
+      "id": "sudoku",
+      "title": "数独",
+      "description": "经典 9x9 数独：自动生成含唯一解的谜题，多难度选择、冲突高亮、相同数字高亮、计时与通关提示。",
+      "url": "examples/sudoku.html",
+      "category": "game",
+      "emoji": "🧩",
+      "tags": ["game", "puzzle", "sudoku", "logic"],
+      "status": "stable",
+      "pinned": false,
+      "thumbnail": null,
+      "createdAt": "2026-10-02",
+      "updatedAt": "2026-10-02"
     }
   ]
 }
