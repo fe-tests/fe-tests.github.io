@@ -158,6 +158,20 @@
       "thumbnail": null,
       "createdAt": "2026-10-01",
       "updatedAt": "2026-10-01"
+    },
+    {
+      "id": "tetris",
+      "title": "俄罗斯方块",
+      "description": "经典俄罗斯方块：七种方块随机抽取，消行计分，逐级加速，含下一个/暂存预览、硬降软降、暂停与最高分记录。",
+      "url": "examples/tetris.html",
+      "category": "game",
+      "emoji": "🧱",
+      "tags": ["game", "canvas", "tetris", "blocks", "消除"],
+      "status": "stable",
+      "pinned": false,
+      "thumbnail": null,
+      "createdAt": "2026-10-03",
+      "updatedAt": "2026-10-03"
     }
   ]
 }
