@@ -172,6 +172,20 @@
       "thumbnail": null,
       "createdAt": "2026-10-03",
       "updatedAt": "2026-10-03"
+    },
+    {
+      "id": "space-warship",
+      "title": "太空战舰",
+      "description": "驾驶战舰自动开火，走位躲弹击落敌群与首领；火力升级、回血、护盾掉落，多波次挑战高分。",
+      "url": "examples/space-warship.html",
+      "category": "game",
+      "emoji": "🚀",
+      "tags": ["game", "canvas", "shootemup", "太空", "首领"],
+      "status": "stable",
+      "pinned": false,
+      "thumbnail": null,
+      "createdAt": "2026-10-04",
+      "updatedAt": "2026-10-04"
     }
   ]
 }
