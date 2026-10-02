@@ -144,6 +144,20 @@
       "thumbnail": null,
       "createdAt": "2026-10-02",
       "updatedAt": "2026-10-02"
+    },
+    {
+      "id": "archery",
+      "title": "移动靶射箭",
+      "description": "拖动拉弓瞄准，箭受重力呈抛物线飞行；越靠近靶心分越高，连续命中累积连击倍率，限时限箭挑战高分。",
+      "url": "examples/archery.html",
+      "category": "game",
+      "emoji": "🎯",
+      "tags": ["game", "canvas", "archery", "移动靶", "连击"],
+      "status": "stable",
+      "pinned": false,
+      "thumbnail": null,
+      "createdAt": "2026-10-01",
+      "updatedAt": "2026-10-01"
     }
   ]
 }

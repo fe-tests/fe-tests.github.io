@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>移动靶射箭</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #0b1020; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: #eaf0ff; user-select: none; -webkit-user-select: none;
+    overscroll-behavior: none; touch-action: none;
+  }
+  #game { display: block; position: fixed; inset: 0; touch-action: none; }
+
+  .back {
+    position: fixed; top: 12px; left: 12px; z-index: 20;
+    display: inline-block; color: #cfe0ff; text-decoration: none; font-size: 13px;
+    background: rgba(20,30,60,0.55); padding: 6px 12px; border-radius: 999px;
+    border: 1px solid rgba(120,150,255,0.25); backdrop-filter: blur(6px);
+  }
+  .back:active { transform: scale(0.95); }
+
+  /* 覆盖层：开始 / 结束 */
+  .overlay {
+    position: fixed; inset: 0; z-index: 30;
+    display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(circle at 50% 35%, rgba(30,44,90,0.85), rgba(8,11,26,0.94));
+    backdrop-filter: blur(8px); text-align: center; padding: 24px;
+  }
+  .overlay.hidden { display: none; }
+  .panel { max-width: 420px; }
+  .panel h1 { font-size: 34px; letter-spacing: 1px; margin-bottom: 6px; text-shadow: 0 4px 24px rgba(80,120,255,0.4); }
+  .panel .sub { color: #9fb2e6; font-size: 14px; margin-bottom: 18px; line-height: 1.6; }
+  .panel .hint {
+    background: rgba(90,120,220,0.14); border: 1px solid rgba(120,150,255,0.25);
+    border-radius: 14px; padding: 12px 14px; font-size: 13px; color: #cdd9ff; line-height: 1.8;
+    text-align: left; margin-bottom: 20px;
+  }
+  .panel .hint b { color: #ffd66b; }
+  .score-big { font-size: 56px; font-weight: 800; color: #ffe06b; margin: 4px 0 2px; text-shadow: 0 4px 30px rgba(255,210,90,0.35); }
+  .best { color: #9fb2e6; font-size: 14px; margin-bottom: 22px; }
+  .best span { color: #ffe06b; font-weight: 700; }
+  .btn {
+    display: inline-block; cursor: pointer; border: none;
+    background: linear-gradient(180deg, #5b7cff, #3a56e0); color: #fff;
+    font-size: 18px; font-weight: 700; padding: 13px 34px; border-radius: 999px;
+    box-shadow: 0 8px 26px rgba(58,86,224,0.5); transition: transform .08s ease;
+  }
+  .btn:active { transform: scale(0.95); }
+  .secondary { margin-top: 14px; }
+  .secondary a { color: #9fb2e6; font-size: 13px; text-decoration: none; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<a class="back" href="/">← 返回首页</a>
+
+<!-- 开始 / 结算 -->
+<div class="overlay" id="overlay">
+  <div class="panel" id="panel">
+    <h1 id="ov-title">🎯 移动靶射箭</h1>
+    <div class="sub" id="ov-sub">拖动瞄准 · 松开发射 · 命中靶心高分</div>
+    <div class="hint" id="ov-hint">
+      👆 在屏幕任意位置<b>按住并向反方向拖</b>（像拉弓一样），<b>松手</b>即射出的箭。<br>
+      🎯 箭会受重力呈抛物线飞行；<b>越靠近靶心分越高</b>（靶心 10 分）。<br>
+      🔥 连续命中可累积连击倍率，脱靶则重置。<br>
+      ⏱️ 限时 <b>60</b> 秒 / 共 <b>15</b> 支箭，先用完者游戏结束。
+    </div>
+    <button class="btn" id="ov-btn">开始射箭</button>
+    <div class="secondary"><a href="/">返回首页</a></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------- 画布与坐标 ----------
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+  let W = 0, H = 0, DPR = 1, cx = 0;
+
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth;
+    H = Math.max(window.innerHeight, document.documentElement.clientHeight || window.innerHeight);
+    canvas.width = Math.floor(W * DPR);
+    canvas.height = Math.floor(H * DPR);
+    canvas.style.width = W + "px";
+    canvas.style.height = H + "px";
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    cx = W / 2;
+  }
+  window.addEventListener("resize", resize);
+  window.addEventListener("orientationchange", resize);
+  resize();
+
+  // ---------- 游戏参数 ----------
+  const GRAV = 1050;        // 重力加速度 (px/s^2)
+  const SCALE = 7.0;        // 拖拽距离 -> 初速 放大系数
+  const MAX_DRAG = 250;     // 最大拖拽距离 (px)
+  const TOTAL_ARROWS = 15;  // 总箭数
+  const ROUND_TIME = 60;    // 局时(秒)
+  const MAX_TARGETS = 2;    // 场上最大靶数
+  const BOW_Y_RATIO = 0.90; // 弓箭手高度比例(相对 H)
+  const T_MIN_Y = 0.14, T_MAX_Y = 0.50; // 靶心 Y 区间比例
+  const T_R_MIN = 34, T_R_MAX = 54;    // 靶半径
+
+  // ---------- 游戏状态 ----------
+  const STATE = { READY: 0, PLAYING: 1, OVER: 2 };
+  let state = STATE.READY;
+
+  let score = 0, best = 0;
+  let arrowsLeft = 0, timeLeft = 0;
+  let combo = 0;       // 连续命中
+  let particles = [];  // 命中粒子
+  let texts = [];      // 飘分文字
+  let arrows = [];     // 飞行中的箭
+  let targets = [];
+  let spawnTimer = 0;
+  let elapsed = 0;
+
+  // 瞄准
+  let aiming = false;
+  let anchor = { x: 0, y: 0 };
+  let cur = { x: 0, y: 0 };
+  let aimAngle = -Math.PI / 2;
+  let aimPower = 0; // 0..1
+
+  // ---------- 持久化最高分 ----------
+  const LS_KEY = "mobile-archery-best-v1";
+  try { best = parseInt(localStorage.getItem(LS_KEY) || "0", 10) || 0; } catch (e) {}
+
+  // ---------- 工具 ----------
+  const rand = (a, b) => a + Math.random() * (b - a);
+  const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+  function now() { return performance.now(); }
+
+  // ---------- 目标 ----------
+  function spawnTarget() {
+    const r = rand(T_R_MIN, T_R_MAX);
+    const dir = Math.random() < 0.5 ? 1 : -1;
+    // 随时间推移略加速
+    const speed = Math.min(rand(46, 118) + elapsed * 1.1, 230);
+    // 在可视区域内随机生成；目标在屏幕内来回移动（经过靶心），不瞬移
+    const minX = r + 8, maxX = W - r - 8;
+    const x = maxX > minX ? rand(minX, maxX) : W / 2;
+    targets.push({
+      x: x,
+      y: rand(H * T_MIN_Y, H * T_MAX_Y),
+      r: r,
+      vx: dir * speed,
+      flash: 0,
+      wobble: 0
+    });
+  }
+
+  function resetGame() {
+    score = 0; combo = 0;
+    arrowsLeft = TOTAL_ARROWS;
+    timeLeft = ROUND_TIME;
+    elapsed = 0;
+    particles = []; texts = []; arrows = []; targets = [];
+    spawnTimer = 0.4;
+    spawnTarget();
+  }
+
+  // ---------- 弓箭手位置 ----------
+  function bowPos() { return { x: cx, y: H * BOW_Y_RATIO }; }
+
+  // ---------- 发射 ----------
+  function fire(vx, vy) {
+    const b = bowPos();
+    arrows.push({ x: b.x, y: b.y - 6, vx: vx, vy: vy, angle: Math.atan2(vy, vx) });
+  }
+
+  function doFireFromAim() {
+    const dx = cur.x - anchor.x;
+    const dy = cur.y - anchor.y;
+    let power = Math.min(Math.hypot(dx, dy), MAX_DRAG);
+    const ang = Math.atan2(dy, dx);
+    const speed = power * SCALE;
+    if (speed < 60) return false; // 拖得太短不算
+    fire(Math.cos(ang) * speed, Math.sin(ang) * speed);
+    return true;
+  }
+
+  // ---------- 命中处理 ----------
+  function pointsAt(t, dist) {
+    const f = dist / t.r;
+    if (f <= 0.2) return 10;
+    if (f <= 0.4) return 8;
+    if (f <= 0.6) return 6;
+    if (f <= 0.8) return 4;
+    return 2;
+  }
+
+  function onHit(t, hx, hy) {
+    const dist = Math.hypot(hx - t.x, hy - t.y);
+    const base = pointsAt(t, dist);
+    combo += 1;
+    const mult = Math.min(1 + 0.5 * combo, 4);
+    const gained = Math.round(base * mult);
+    score += gained;
+
+    // 粒子
+    const cols = ["#ffe06b", "#ff7b7b", "#7bd8ff", "#b69cff"];
+    for (let i = 0; i < 18; i++) {
+      const a = rand(0, Math.PI * 2), sp = rand(60, 320);
+      particles.push({
+        x: hx, y: hy,
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 60,
+        life: rand(0.4, 0.85), max: 0.85,
+        color: cols[(Math.random() * cols.length) | 0],
+        size: rand(2.5, 5.5)
+      });
+    }
+    // 飘分
+    const big = mult > 1;
+    texts.push({
+      x: t.x, y: t.y - t.r, life: 0, max: big ? 1.3 : 0.9,
+      text: "+" + gained + (mult > 1 ? "  " + mult.toFixed(1) + "x" : ""),
+      color: big ? "#ffe06b" : "#eaf0ff", size: big ? 26 : 20
+    });
+
+    t.flash = 1;
+    t.wobble = 1;
+    t.x += Math.sign(t.vx) * 4;
+  }
+
+  function onMiss() {
+    combo = 0;
+  }
+
+  // ---------- 更新 ----------
+  function update(dt) {
+    elapsed += dt;
+    if (state !== STATE.PLAYING) return;
+
+    timeLeft -= dt;
+    if (timeLeft <= 0) { timeLeft = 0; endGame(); return; }
+
+    // 生成新靶
+    spawnTimer -= dt;
+    if (spawnTimer <= 0 && targets.length < MAX_TARGETS) {
+      spawnTarget();
+      const interval = clamp(2.6 - elapsed * 0.02, 1.0, 2.6);
+      spawnTimer = interval;
+    }
+
+    // 目标移动
+    for (const t of targets) {
+      t.x += t.vx * dt;
+      t.flash = Math.max(0, t.flash - dt * 3.2);
+      t.wobble = Math.max(0, t.wobble - dt * 4);
+      // 到达左右边界反弹，目标在屏幕内来回移动（经过靶心），不瞬移
+      if (t.x < t.r) { t.x = t.r; t.vx = Math.abs(t.vx); }
+      if (t.x > W - t.r) { t.x = W - t.r; t.vx = -Math.abs(t.vx); }
+    }
+
+    // 箭
+    const groundY = H - 8;
+    for (let i = arrows.length - 1; i >= 0; i--) {
+      const a = arrows[i];
+      const ox = a.x, oy = a.y;
+      a.vy += GRAV * dt;
+      a.x += a.vx * dt;
+      a.y += a.vy * dt;
+      a.angle = Math.atan2(a.vy, a.vx);
+
+      // 与靶碰撞（检查前一点与后一点，避免穿模）
+      let hit = false;
+      for (const t of targets) {
+        const d1 = Math.hypot(ox - t.x, oy - t.y);
+        const d2 = Math.hypot(a.x - t.x, a.y - t.y);
+        if (d1 < t.r || d2 < t.r) {
+          onHit(t, a.x, a.y);
+          hit = true;
+          break;
+        }
+      }
+      if (hit) { arrows.splice(i, 1); continue; }
+
+      // 落地理
+      if (a.y >= groundY || a.x < -40 || a.x > W + 40 || a.y < -H) {
+        arrows.splice(i, 1);
+        if (hit) continue;
+        onMiss();
+        // 箭落地小特效
+        for (let k = 0; k < 6; k++) {
+          const ang = rand(-Math.PI, 0), sp = rand(30, 120);
+          particles.push({
+            x: clamp(a.x, 0, W), y: Math.min(a.y, groundY),
+            vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp,
+            life: 0.4, max: 0.4, color: "#c8b78a", size: rand(2, 4)
+          });
+        }
+        if (arrows.length === 0 && arrowsLeft <= 0) endGame();
+      }
+    }
+
+    // 粒子
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.life -= dt;
+      p.vy += 520 * dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      if (p.life <= 0) particles.splice(i, 1);
+    }
+    // 飘字
+    for (let i = texts.length - 1; i >= 0; i--) {
+      const t = texts[i];
+      t.life += dt;
+      t.y -= 34 * dt;
+      if (t.life >= t.max) texts.splice(i, 1);
+    }
+  }
+
+  // ---------- 结束 ----------
+  function endGame() {
+    state = STATE.OVER;
+    if (score > best) {
+      best = score;
+      try { localStorage.setItem(LS_KEY, String(best)); } catch (e) {}
+    }
+    showEnd();
+  }
+
+  // ---------- 渲染 ----------
+  function drawBackground() {
+    // 天空渐变
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, "#1b2340");
+    g.addColorStop(0.5, "#2a3a6b");
+    g.addColorStop(0.78, "#4a5f9e");
+    g.addColorStop(1, "#6b7fb8");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+
+    // 太阳/光晕
+    ctx.save();
+    ctx.globalAlpha = 0.5;
+    const sg = ctx.createRadialGradient(W * 0.72, H * 0.24, 10, W * 0.72, H * 0.24, 150);
+    sg.addColorStop(0, "rgba(255,236,160,0.9)");
+    sg.addColorStop(1, "rgba(255,236,160,0)");
+    ctx.fillStyle = sg;
+    ctx.fillRect(W * 0.5, 0, W * 0.6, H * 0.5);
+    ctx.restore();
+
+    // 远山
+    ctx.fillStyle = "#3a4a7d";
+    hill(H * 0.72, 60);
+    ctx.fillStyle = "#2f3e6b";
+    hill(H * 0.78, 40);
+
+    // 地面
+    const gg = ctx.createLinearGradient(0, H * 0.84, 0, H);
+    gg.addColorStop(0, "#4b8f4b");
+    gg.addColorStop(1, "#2f6b36");
+    ctx.fillStyle = gg;
+    ctx.fillRect(0, H * 0.84, W, H * 0.16);
+    // 草纹
+    ctx.strokeStyle = "rgba(255,255,255,0.06)";
+    ctx.lineWidth = 2;
+    for (let i = 0; i < W; i += 22) {
+      ctx.beginPath();
+      ctx.moveTo(i, H);
+      ctx.lineTo(i + 6, H * 0.86);
+      ctx.stroke();
+    }
+  }
+
+  function hill(baseY, amp) {
+    ctx.beginPath();
+    ctx.moveTo(0, H);
+    ctx.lineTo(0, baseY);
+    const step = 60;
+    for (let x = 0; x <= W; x += step) {
+      const y = baseY - Math.abs(Math.sin(x * 0.012)) * amp - Math.sin(x * 0.03) * (amp * 0.3);
+      ctx.lineTo(x, y);
+    }
+    ctx.lineTo(W, H);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function drawTarget(t) {
+    const wob = t.wobble;
+    const scaleR = t.r * (1 + wob * 0.06);
+    const rings = [
+      { f: 1.00, c: "#d64545", p: 2 },
+      { f: 0.80, c: "#f4f4f4", p: 4 },
+      { f: 0.60, c: "#d64545", p: 6 },
+      { f: 0.40, c: "#f4f4f4", p: 8 },
+      { f: 0.20, c: "#2e86de", p: 10 }
+    ];
+    ctx.save();
+    ctx.translate(t.x, t.y);
+    ctx.scale(1, 1 - wob * 0.25); // 命中时压扁
+    // 阴影
+    ctx.globalAlpha = 0.25;
+    ctx.beginPath(); ctx.arc(4, 6, scaleR, 0, Math.PI * 2); ctx.fillStyle = "#000"; ctx.fill();
+    ctx.globalAlpha = 1;
+    for (const ring of rings) {
+      ctx.beginPath();
+      ctx.arc(0, 0, scaleR * ring.f, 0, Math.PI * 2);
+      ctx.fillStyle = ring.c;
+      ctx.fill();
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = "rgba(0,0,0,0.18)";
+      ctx.stroke();
+    }
+    // 靶心点
+    ctx.beginPath(); ctx.arc(0, 0, scaleR * 0.06, 0, Math.PI * 2);
+    ctx.fillStyle = "#fff"; ctx.fill();
+    // 命中闪光
+    if (t.flash > 0) {
+      ctx.globalAlpha = t.flash * 0.5;
+      ctx.beginPath(); ctx.arc(0, 0, scaleR, 0, Math.PI * 2);
+      ctx.fillStyle = "#ffffff"; ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    ctx.restore();
+
+    // 靶架
+    ctx.strokeStyle = "rgba(90,70,40,0.85)";
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(t.x, t.y + scaleR);
+    ctx.lineTo(t.x - 8, t.y + scaleR + 34);
+    ctx.moveTo(t.x, t.y + scaleR);
+    ctx.lineTo(t.x + 8, t.y + scaleR + 34);
+    ctx.stroke();
+  }
+
+  function drawBow(angle, power) {
+    const b = bowPos();
+    ctx.save();
+    ctx.translate(b.x, b.y - 6);
+    ctx.rotate(angle);
+
+    // 弓身（朝 +x）
+    ctx.strokeStyle = "#8a5a2b";
+    ctx.lineWidth = 6;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(26, -24);
+    ctx.quadraticCurveTo(-16, 0, 26, 24);
+    ctx.stroke();
+    // 弓弦
+    ctx.strokeStyle = "rgba(230,230,240,0.9)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(26, -24);
+    ctx.lineTo(-6, 0);
+    ctx.lineTo(26, 24);
+    ctx.stroke();
+    // 弓弦张力随 power 外凸
+    if (power > 0.02) {
+      ctx.beginPath();
+      ctx.moveTo(-6, 0);
+      ctx.quadraticCurveTo(-6 - power * 10, 0, -6, 0);
+    }
+    // 箭矢
+    ctx.strokeStyle = "#5a3b1f";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(-8, 0);
+    ctx.lineTo(34, 0);
+    ctx.stroke();
+    // 箭头
+    ctx.fillStyle = "#cfd6e6";
+    ctx.beginPath();
+    ctx.moveTo(40, 0);
+    ctx.lineTo(30, -4.5);
+    ctx.lineTo(30, 4.5);
+    ctx.closePath();
+    ctx.fill();
+    // 箭羽
+    ctx.fillStyle = "#ff7b7b";
+    ctx.beginPath();
+    ctx.moveTo(-8, 0);
+    ctx.lineTo(-16, -6);
+    ctx.lineTo(-10, 0);
+    ctx.lineTo(-16, 6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawArrow(a) {
+    ctx.save();
+    ctx.translate(a.x, a.y);
+    ctx.rotate(a.angle);
+    // 尾羽
+    ctx.fillStyle = "rgba(255,120,120,0.9)";
+    ctx.beginPath();
+    ctx.moveTo(-4, 0);
+    ctx.lineTo(-13, -5);
+    ctx.lineTo(-7, 0);
+    ctx.lineTo(-13, 5);
+    ctx.closePath();
+    ctx.fill();
+    // 箭杆
+    ctx.strokeStyle = "#5a3b1f";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(-12, 0);
+    ctx.lineTo(14, 0);
+    ctx.stroke();
+    // 箭头
+    ctx.fillStyle = "#e7ecf6";
+    ctx.beginPath();
+    ctx.moveTo(20, 0);
+    ctx.lineTo(10, -4.5);
+    ctx.lineTo(10, 4.5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawTrajectory() {
+    if (state !== STATE.PLAYING || !aiming) return;
+    const dx = cur.x - anchor.x, dy = cur.y - anchor.y;
+    const power = Math.min(Math.hypot(dx, dy), MAX_DRAG);
+    const ang = Math.atan2(dy, dx);
+    const speed = power * SCALE;
+    const b = bowPos();
+    let x = b.x, y = b.y - 6;
+    let vx = Math.cos(ang) * speed, vy = Math.sin(ang) * speed;
+    const dt = 1 / 60;
+    ctx.save();
+    for (let i = 0; i < 55; i++) {
+      x += vx * dt; y += vy * dt; vy += GRAV * dt;
+      if (y > H - 8 || x < 0 || x > W) break;
+      if (i % 2 !== 0) continue;
+      const alpha = clamp(1 - i / 55, 0.05, 0.6);
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = aimPower > 0.85 ? "#ff8a8a" : "#ffe06b";
+      ctx.beginPath();
+      ctx.arc(x, y, 2.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawAimGuide() {
+    if (!aiming) return;
+    const b = bowPos();
+    const dx = cur.x - anchor.x, dy = cur.y - anchor.y;
+    const ang = Math.atan2(dy, dx);
+    // 拖拽指示线
+    ctx.save();
+    ctx.strokeStyle = "rgba(255,255,255,0.25)";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 8]);
+    ctx.beginPath();
+    ctx.moveTo(b.x, b.y - 6);
+    ctx.lineTo(cur.x, cur.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // 拖拽点
+    ctx.fillStyle = "rgba(255,255,255,0.5)";
+    ctx.beginPath(); ctx.arc(cur.x, cur.y, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+  function drawPowerMeter() {
+    if (!aiming) return;
+    const w = Math.min(180, W * 0.5);
+    const h = 10, x = (W - w) / 2, y = 76;
+    ctx.save();
+    ctx.fillStyle = "rgba(0,0,0,0.35)";
+    roundRect(x - 4, y - 4, w + 8, h + 8, 8);
+    ctx.fill();
+    const p = aimPower;
+    const col = p > 0.85 ? "#ff6b6b" : p > 0.55 ? "#ffd16b" : "#7be07b";
+    ctx.fillStyle = col;
+    roundRect(x, y, w * p, h, 5);
+    ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,0.85)";
+    ctx.font = "bold 12px system-ui";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText("力量 " + Math.round(p * 100) + "%", W / 2, y + h / 2);
+    ctx.restore();
+  }
+
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function drawHUD() {
+    ctx.save();
+    ctx.font = "bold 22px system-ui";
+    ctx.textAlign = "left"; ctx.textBaseline = "top";
+    // 得分
+    ctx.fillStyle = "rgba(0,0,0,0.35)";
+    roundRect(12, 12, 150, 44, 10); ctx.fill();
+    ctx.fillStyle = "#fff";
+    ctx.fillText("得分 " + score, 24, 18);
+    ctx.font = "12px system-ui";
+    ctx.fillStyle = "#9fb2e6";
+    ctx.fillText("最高 " + best, 24, 44);
+
+    // 剩余箭
+    ctx.font = "bold 22px system-ui";
+    const aw = 118;
+    ctx.fillStyle = "rgba(0,0,0,0.35)";
+    roundRect(W - aw - 12, 12, aw, 44, 10); ctx.fill();
+    ctx.fillStyle = arrowsLeft <= 3 ? "#ff8a8a" : "#fff";
+    ctx.textAlign = "right";
+    ctx.fillText("🏹 " + arrowsLeft, W - 22, 18);
+    ctx.font = "12px system-ui";
+    ctx.fillStyle = "#9fb2e6";
+    ctx.fillText("剩余箭", W - 22, 44);
+
+    // 时间条
+    const tbw = Math.min(260, W - 24);
+    const tbx = (W - tbw) / 2, tby = 16, tbh = 8;
+    ctx.fillStyle = "rgba(0,0,0,0.35)";
+    roundRect(tbx - 3, tby - 3, tbw + 6, tbh + 6, 6); ctx.fill();
+    const frac = clamp(timeLeft / ROUND_TIME, 0, 1);
+    ctx.fillStyle = timeLeft <= 10 ? "#ff6b6b" : "#7be07b";
+    roundRect(tbx, tby, tbw * frac, tbh, 4); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,0.85)";
+    ctx.font = "bold 13px system-ui";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText("⏱ " + Math.ceil(timeLeft) + "s", W / 2, tby + tbh + 14);
+
+    // 连击倍率
+    if (combo > 0 && state === STATE.PLAYING) {
+      const mult = Math.min(1 + 0.5 * combo, 4);
+      ctx.font = "bold 18px system-ui";
+      ctx.textAlign = "center";
+      ctx.fillStyle = mult > 1 ? "#ffe06b" : "#cfe0ff";
+      ctx.globalAlpha = clamp(1 - elapsed / 2, 0.3, 1); // 简单淡出用 elapsed 不准，用固定
+      ctx.globalAlpha = 1;
+      ctx.fillText("连击 x" + combo + "  " + (mult > 1 ? "×" + mult.toFixed(1) : ""), W / 2, 62);
+    }
+    ctx.restore();
+  }
+
+  function drawParticles() {
+    for (const p of particles) {
+      ctx.globalAlpha = clamp(p.life / p.max, 0, 1);
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawTexts() {
+    for (const t of texts) {
+      const alpha = clamp(1 - t.life / t.max, 0, 1);
+      ctx.globalAlpha = alpha;
+      ctx.font = "bold " + t.size + "px system-ui";
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.lineWidth = 4; ctx.strokeStyle = "rgba(0,0,0,0.55)";
+      ctx.strokeText(t.text, t.x, t.y);
+      ctx.fillStyle = t.color;
+      ctx.fillText(t.text, t.x, t.y);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function render() {
+    drawBackground();
+    for (const t of targets) drawTarget(t);
+    drawTrajectory();
+    for (const a of arrows) drawArrow(a);
+    drawParticles();
+    drawTexts();
+    // 弓箭手（瞄准时跟随方向，不aiming 时直直向上）
+    drawBow(aiming ? aimAngle : -Math.PI / 2, aiming ? aimPower : 0);
+    drawAimGuide();
+    drawPowerMeter();
+    drawHUD();
+  }
+
+  // ---------- 主循环 ----------
+  let last = now();
+  function loop() {
+    const t = now();
+    let dt = (t - last) / 1000;
+    last = t;
+    if (dt > 0.05) dt = 0.05; // 限幅
+    update(dt);
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  // ---------- 输入 ----------
+  function canvasXY(e) {
+    const r = canvas.getBoundingClientRect();
+    return { x: (e.clientX - r.left), y: (e.clientY - r.top) };
+  }
+
+  function onDown(e) {
+    if (state !== STATE.PLAYING) return;
+    e.preventDefault();
+    const p = canvasXY(e);
+    aiming = true;
+    anchor.x = p.x; anchor.y = p.y;
+    cur.x = p.x; cur.y = p.y;
+    canvas.setPointerCapture && canvas.setPointerCapture(e.pointerId);
+  }
+  function onMove(e) {
+    if (!aiming) return;
+    e.preventDefault();
+    const p = canvasXY(e);
+    cur.x = p.x; cur.y = p.y;
+    const dx = cur.x - anchor.x, dy = cur.y - anchor.y;
+    aimAngle = Math.atan2(dy, dx);
+    aimPower = clamp(Math.hypot(dx, dy) / MAX_DRAG, 0, 1);
+  }
+  function onUp(e) {
+    if (!aiming) return;
+    e.preventDefault();
+    aiming = false;
+    const fired = doFireFromAim();
+    if (!fired) { aimPower = 0; }
+  }
+
+  canvas.addEventListener("pointerdown", onDown, { passive: false });
+  canvas.addEventListener("pointermove", onMove, { passive: false });
+  canvas.addEventListener("pointerup", onUp, { passive: false });
+  canvas.addEventListener("pointercancel", onUp, { passive: false });
+
+  // ---------- 覆盖层控制 ----------
+  const overlay = document.getElementById("overlay");
+  const ovTitle = document.getElementById("ov-title");
+  const ovSub = document.getElementById("ov-sub");
+  const ovHint = document.getElementById("ov-hint");
+  const ovBtn = document.getElementById("ov-btn");
+  const panel = document.getElementById("panel");
+
+  function showStart() {
+    overlay.classList.remove("hidden");
+    ovTitle.textContent = "🎯 移动靶射箭";
+    ovSub.textContent = "拖动瞄准 · 松开发射 · 命中靶心高分";
+    ovHint.style.display = "block";
+    ovBtn.textContent = "开始射箭";
+  }
+
+  function showEnd() {
+    overlay.classList.remove("hidden");
+    ovTitle.textContent = "⏱ 时间到！";
+    ovSub.innerHTML = "本局得分<br><span class='score-big'>" + score + "</span>";
+    ovHint.style.display = "none";
+    ovBtn.textContent = "再来一局";
+    // 最高分提示
+    if (score >= best) {
+      ovSub.innerHTML += '<div class="best">🏆 新纪录！最高 <span>' + best + '</span></div>';
+    } else {
+      ovSub.innerHTML += '<div class="best">最高分 <span>' + best + '</span></div>';
+    }
+  }
+
+  function startGame() {
+    overlay.classList.add("hidden");
+    resetGame();
+    state = STATE.PLAYING;
+  }
+
+  ovBtn.addEventListener("click", function () {
+    if (state === STATE.OVER) startGame();
+    else if (state === STATE.READY) startGame();
+  });
+
+  showStart();
+  loop();
+})();
+</script>
+</body>
+</html>
