@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#070a12">
+<title>弹球对决 · 单机</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+
+  html,body{
+    width:100%;
+    height:100%;
+    position:fixed;
+    inset:0;
+    overflow:hidden;
+    background:#070a12;
+    overscroll-behavior:none;
+    -webkit-user-select:none;
+    user-select:none;
+    -webkit-tap-highlight-color:transparent;
+    -webkit-touch-callout:none;
+    touch-action:none;
+    font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  }
+
+  /* 画布铺满整个屏幕，忽略安全区，默认全屏 */
+  #c{
+    position:fixed;
+    top:0;
+    left:0;
+    width:100vw;
+    height:100vh;
+    display:block;
+    touch-action:none;
+    background:#070a12;
+  }
+
+  /* 返回首页按钮：保留安全区避让，避免被刘海遮挡 */
+  #home{
+    position:fixed;
+    top:calc(env(safe-area-inset-top,0px) + 12px);
+    left:calc(env(safe-area-inset-left,0px) + 12px);
+    z-index:20;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    min-height:44px;
+    padding:0 18px;
+    border-radius:999px;
+    background:rgba(255,255,255,0.10);
+    border:1px solid rgba(255,255,255,0.22);
+    backdrop-filter:blur(10px);
+    -webkit-backdrop-filter:blur(10px);
+    color:#dff2ff;
+    font-size:15px;
+    font-weight:600;
+    letter-spacing:0.5px;
+    text-decoration:none;
+    white-space:nowrap;
+    touch-action:manipulation;
+    box-shadow:0 4px 18px rgba(0,0,0,0.35);
+    transition:background .15s ease, transform .12s ease;
+  }
+  #home:active{
+    background:rgba(255,255,255,0.24);
+    transform:scale(0.95);
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<a id="home" href="/">← 首页</a>
+<script>
+(() => {
+'use strict';
+
+// ============ 画布 ============
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+let W = 360, H = 640;
+let DPR = 1;
+let BASE = 360;
+
+// ============ 常量 ============
+const REST          = 0.92;   // 弹性恢复系数
+const MAX_CHARGE_MS = 900;    // 满蓄力时长
+const WIN_SCORE     = 10;     // 胜利分数
+
+// —— 随机扰动强度 ——
+const JITTER_WALL   = 0.07;   // 墙壁 / 中线边界碰撞的方向偏差
+const JITTER_BALL   = 0.06;   // 球与球碰撞的方向偏差
+const JITTER_LAUNCH = 0.035;  // 发射角度偏差（弧度，约 ±2°）
+
+// —— 空气阻尼 ——
+const DRAG_STRIKER  = 1.30;   // 击打球每秒衰减（指数）
+const DRAG_PUCK     = 0.28;   // 中心球每秒衰减（很轻）
+const STOP_THRESH   = 0.075;  // 停止阈值（相对 BASE）
+
+let MIN_SPEED = 240;
+let MAX_SPEED = 720;
+let MAX_BALL_SPEED = 1200;
+
+// 场地几何
+const G = { midY:0, goalL:0, goalR:0, goalW:0 };
+
+// ============ 状态 ============
+let puck, pStriker, aStriker;
+const state = { scoreP:0, scoreA:0, over:false, winner:null };
+
+let playerCharging = false;
+let playerChargeStart = 0;
+let activePointerId = null;
+
+let aiCharging = false;
+let aiChargeStart = 0;
+let aiCooldown = 1.2;
+let aiPower = 0.5;
+
+let pendingGoal = null;
+let flash = 0;
+
+// ============ 尺寸 & 几何 ============
+function computeGeometry() {
+  const goalW = Math.max(80, Math.min(W * 0.30, 320));
+  G.midY  = H / 2;
+  G.goalL = W / 2 - goalW / 2;
+  G.goalR = W / 2 + goalW / 2;
+  G.goalW = goalW;
+}
+
+const puckRadius    = () => Math.max(10, BASE * 0.032);
+const strikerRadius = () => Math.max(15, BASE * 0.048);
+
+// —— 直接读取整个屏幕宽高，默认全屏 ——
+function getScreenSize() {
+  // 优先使用 visualViewport（更准确反映可见区域）
+  const vv = window.visualViewport;
+  if (vv && vv.width && vv.height) {
+    return { w: vv.width, h: vv.height };
+  }
+  return {
+    w: window.innerWidth  || document.documentElement.clientWidth  || 360,
+    h: window.innerHeight || document.documentElement.clientHeight || 640
+  };
+}
+
+function resize() {
+  const oldW = W, oldH = H;
+
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+
+  const size = getScreenSize();
+  W = size.w;
+  H = size.h;
+
+  // 显式指定画布样式尺寸与像素尺寸，确保铺满
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
+  canvas.width  = Math.round(W * DPR);
+  canvas.height = Math.round(H * DPR);
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+  BASE = Math.min(W, H);
+  MIN_SPEED      = BASE * 0.62;
+  MAX_SPEED      = BASE * 1.90;
+  MAX_BALL_SPEED = BASE * 3.00;
+
+  computeGeometry();
+
+  if (puck && oldW > 0 && oldH > 0) {
+    const sx = W / oldW, sy = H / oldH;
+    for (const b of [puck, pStriker, aStriker]) {
+      b.x *= sx; b.y *= sy;
+      b.vx *= sx; b.vy *= sy;
+    }
+    puck.r = puckRadius();
+    pStriker.r = aStriker.r = strikerRadius();
+    clampInside(puck); clampInside(pStriker); clampInside(aStriker);
+    halfCourtConstraint(pStriker);
+    halfCourtConstraint(aStriker);
+  } else {
+    resetPositions();
+  }
+}
+
+function clampInside(b) {
+  b.x = Math.max(b.r, Math.min(W - b.r, b.x));
+  b.y = Math.max(b.r, Math.min(H - b.r, b.y));
+}
+
+// ============ 初始化 ============
+function resetPositions() {
+  const rp = puckRadius();
+  const rs = strikerRadius();
+
+  puck     = { x: W/2, y: H/2,    vx:0, vy:0, r:rp, m:1, type:'puck'   };
+  pStriker = { x: W/2, y: H*0.78, vx:0, vy:0, r:rs, m:2, type:'player' };
+  aStriker = { x: W/2, y: H*0.22, vx:0, vy:0, r:rs, m:2, type:'ai'     };
+
+  playerCharging = false;
+  activePointerId = null;
+  aiCharging = false;
+  aiCooldown = 1.1;
+  pendingGoal = null;
+}
+
+function restart() {
+  state.scoreP = 0;
+  state.scoreA = 0;
+  state.over = false;
+  state.winner = null;
+  flash = 0;
+  resetPositions();
+}
+
+// ============ 随机扰动 ============
+function addJitter(b, amount) {
+  const speed = Math.hypot(b.vx, b.vy);
+  if (speed < 1) return;
+
+  const nx = -b.vy / speed;
+  const ny =  b.vx / speed;
+
+  const kick = (Math.random() * 2 - 1) * amount * speed;
+  b.vx += nx * kick;
+  b.vy += ny * kick;
+}
+
+// ============ 发射 ============
+function launch(ball, power) {
+  const dx = puck.x - ball.x;
+  const dy = puck.y - ball.y;
+
+  const baseAngle = Math.atan2(dy, dx);
+  const angle = baseAngle + (Math.random() * 2 - 1) * JITTER_LAUNCH;
+
+  const speed = MIN_SPEED + power * (MAX_SPEED - MIN_SPEED);
+  ball.vx = Math.cos(angle) * speed;
+  ball.vy = Math.sin(angle) * speed;
+}
+
+// ============ 半场约束（击打球不能越中线） ============
+function halfCourtConstraint(b) {
+  if (b.type === 'puck') return;   // 中心球可以自由穿越
+
+  if (b.type === 'player') {
+    // 玩家球：只能在下半场
+    const minY = G.midY + b.r;
+    if (b.y < minY) {
+      b.y = minY;
+      if (b.vy < 0) {
+        b.vy = -b.vy * REST;
+        addJitter(b, JITTER_WALL);
+      }
+    }
+  } else if (b.type === 'ai') {
+    // 电脑球：只能在上半场
+    const maxY = G.midY - b.r;
+    if (b.y > maxY) {
+      b.y = maxY;
+      if (b.vy > 0) {
+        b.vy = -b.vy * REST;
+        addJitter(b, JITTER_WALL);
+      }
+    }
+  }
+}
+
+// ============ 物理 ============
+function capSpeed(b, max) {
+  const s = Math.hypot(b.vx, b.vy);
+  if (s > max) { b.vx *= max / s; b.vy *= max / s; }
+}
+
+function applyDrag(b, dt) {
+  const drag = (b.type === 'puck') ? DRAG_PUCK : DRAG_STRIKER;
+  const f = Math.exp(-drag * dt);
+  b.vx *= f;
+  b.vy *= f;
+
+  const minSp = BASE * STOP_THRESH;
+  if (Math.hypot(b.vx, b.vy) < minSp) {
+    b.vx = 0;
+    b.vy = 0;
+  }
+}
+
+function wallCollide(b) {
+  if (b.x - b.r < 0) {
+    b.x = b.r;
+    if (b.vx < 0) { b.vx = -b.vx * REST; addJitter(b, JITTER_WALL); }
+  }
+  if (b.x + b.r > W) {
+    b.x = W - b.r;
+    if (b.vx > 0) { b.vx = -b.vx * REST; addJitter(b, JITTER_WALL); }
+  }
+
+  const isPuck = (b.type === 'puck');
+
+  // 上边界（电脑球门）
+  if (b.y - b.r < 0) {
+    if (isPuck && b.x > G.goalL && b.x < G.goalR) {
+      pendingGoal = 'player';
+      return;
+    }
+    b.y = b.r;
+    if (b.vy < 0) { b.vy = -b.vy * REST; addJitter(b, JITTER_WALL); }
+  }
+
+  // 下边界（玩家球门）
+  if (b.y + b.r > H) {
+    if (isPuck && b.x > G.goalL && b.x < G.goalR) {
+      pendingGoal = 'ai';
+      return;
+    }
+    b.y = H - b.r;
+    if (b.vy > 0) { b.vy = -b.vy * REST; addJitter(b, JITTER_WALL); }
+  }
+}
+
+// 球与球
+function ballCollide(a, b) {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const dist = Math.hypot(dx, dy);
+  const minDist = a.r + b.r;
+
+  if (dist === 0 || dist >= minDist) return;
+
+  const nx = dx / dist;
+  const ny = dy / dist;
+
+  const invA = 1 / a.m;
+  const invB = 1 / b.m;
+  const invSum = invA + invB;
+
+  const overlap = minDist - dist;
+  a.x -= nx * overlap * (invA / invSum);
+  a.y -= ny * overlap * (invA / invSum);
+  b.x += nx * overlap * (invB / invSum);
+  b.y += ny * overlap * (invB / invSum);
+
+  const rvx = b.vx - a.vx;
+  const rvy = b.vy - a.vy;
+  const velN = rvx * nx + rvy * ny;
+
+  if (velN > 0) return;
+
+  const j = -(1 + REST) * velN / invSum;
+
+  a.vx -= j * nx * invA;
+  a.vy -= j * ny * invA;
+  b.vx += j * nx * invB;
+  b.vy += j * ny * invB;
+
+  addJitter(a, JITTER_BALL);
+  addJitter(b, JITTER_BALL);
+}
+
+function substep(dt) {
+  const balls = [puck, pStriker, aStriker];
+
+  for (const b of balls) applyDrag(b, dt);
+
+  for (const b of balls) {
+    b.x += b.vx * dt;
+    b.y += b.vy * dt;
+  }
+
+  for (const b of balls) {
+    wallCollide(b);
+    if (pendingGoal) return;
+  }
+
+  halfCourtConstraint(pStriker);
+  halfCourtConstraint(aStriker);
+
+  ballCollide(pStriker, puck);
+  ballCollide(aStriker, puck);
+  ballCollide(pStriker, aStriker);
+
+  halfCourtConstraint(pStriker);
+  halfCourtConstraint(aStriker);
+
+  for (const b of balls) capSpeed(b, MAX_BALL_SPEED);
+}
+
+// ============ 进球 ============
+function handleGoal(who) {
+  if (who === 'player') state.scoreP++;
+  else                  state.scoreA++;
+
+  flash = 1;
+
+  if (state.scoreP >= WIN_SCORE || state.scoreA >= WIN_SCORE) {
+    state.over = true;
+    state.winner = (state.scoreP >= WIN_SCORE) ? 'player' : 'ai';
+    playerCharging = false;
+    activePointerId = null;
+    aiCharging = false;
+    for (const b of [puck, pStriker, aStriker]) { b.vx = 0; b.vy = 0; }
+  } else {
+    resetPositions();
+  }
+}
+
+// ============ AI ============
+function updateAI(dt) {
+  const now = performance.now();
+
+  if (aiCharging) {
+    const dur = Math.max(90, aiPower * MAX_CHARGE_MS);
+    if (now - aiChargeStart >= dur) {
+      aiCharging = false;
+      launch(aStriker, aiPower);
+      aiCooldown = 0.45 + Math.random() * 0.65;
+    }
+    return;
+  }
+
+  aiCooldown -= dt;
+  if (aiCooldown > 0) return;
+
+  // 中心球若不在可击打范围（太靠下半场），等待
+  if (puck.y > G.midY + puck.r * 0.9) {
+    aiCooldown = 0.10;
+    return;
+  }
+
+  const dx = puck.x - aStriker.x;
+  const dy = puck.y - aStriker.y;
+  const d  = Math.hypot(dx, dy);
+
+  let power = (d * 1.7 - MIN_SPEED) / (MAX_SPEED - MIN_SPEED);
+  power = Math.max(0.20, Math.min(1, power));
+  power *= 0.80 + Math.random() * 0.35;
+  power = Math.max(0.15, Math.min(1, power));
+
+  aiPower = power;
+  aiCharging = true;
+  aiChargeStart = now;
+}
+
+// ============ 主更新 ============
+function update(dt) {
+  const steps = 2;
+  const h = dt / steps;
+
+  for (let i = 0; i < steps && !pendingGoal; i++) {
+    substep(h);
+  }
+
+  if (pendingGoal) {
+    const g = pendingGoal;
+    pendingGoal = null;
+    handleGoal(g);
+  }
+
+  if (!state.over) updateAI(dt);
+
+  if (flash > 0) flash = Math.max(0, flash - dt * 3.5);
+}
+
+// ============ 渲染 ============
+function drawBall(b, color, glow) {
+  ctx.save();
+
+  ctx.shadowColor = glow;
+  ctx.shadowBlur = b.r * 1.6;
+
+  ctx.beginPath();
+  ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+
+  ctx.shadowBlur = 0;
+
+  const g = ctx.createRadialGradient(
+    b.x - b.r * 0.35, b.y - b.r * 0.35, b.r * 0.05,
+    b.x, b.y, b.r
+  );
+  g.addColorStop(0,    'rgba(255,255,255,0.85)');
+  g.addColorStop(0.45, 'rgba(255,255,255,0.10)');
+  g.addColorStop(1,    'rgba(0,0,0,0.35)');
+
+  ctx.beginPath();
+  ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+  ctx.fillStyle = g;
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.arc(b.x, b.y, Math.max(0.5, b.r - 1), 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+function drawScore() {
+  const fs = Math.min(W, H) * 0.085;
+  ctx.save();
+  ctx.font = `800 ${fs}px system-ui, -apple-system, sans-serif`;
+
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = 'rgba(255,60,110,0.30)';
+  ctx.fillText(String(state.scoreA), W * 0.06, H * 0.03);
+
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'bottom';
+  ctx.fillStyle = 'rgba(60,200,255,0.30)';
+  ctx.fillText(String(state.scoreP), W * 0.94, H * 0.97);
+
+  ctx.restore();
+}
+
+function render() {
+  const now = performance.now();
+
+  ctx.fillStyle = '#070a12';
+  ctx.fillRect(0, 0, W, H);
+
+  // 上半场（电脑）
+  let g = ctx.createLinearGradient(0, 0, 0, G.midY);
+  g.addColorStop(0, 'rgba(255,60,110,0.16)');
+  g.addColorStop(1, 'rgba(255,60,110,0.01)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, G.midY);
+
+  // 下半场（玩家）
+  g = ctx.createLinearGradient(0, G.midY, 0, H);
+  g.addColorStop(0, 'rgba(60,200,255,0.01)');
+  g.addColorStop(1, 'rgba(60,200,255,0.16)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, G.midY, W, H - G.midY);
+
+  // 球门区域
+  const gz = Math.min(H * 0.13, 95);
+
+  ctx.fillStyle = 'rgba(255,60,110,0.10)';
+  ctx.fillRect(G.goalL, 0, G.goalW, gz);
+
+  ctx.fillStyle = 'rgba(60,200,255,0.10)';
+  ctx.fillRect(G.goalL, H - gz, G.goalW, gz);
+
+  ctx.save();
+  ctx.shadowBlur = 22;
+
+  ctx.shadowColor = '#ff3b6b';
+  ctx.fillStyle = '#ff3b6b';
+  ctx.fillRect(G.goalL, 0, G.goalW, 6);
+
+  ctx.shadowColor = '#3bc9ff';
+  ctx.fillStyle = '#3bc9ff';
+  ctx.fillRect(G.goalL, H - 6, G.goalW, 6);
+  ctx.restore();
+
+  // 中线：仅作视觉分界，无碰撞
+  ctx.save();
+  ctx.strokeStyle = 'rgba(140,170,230,0.20)';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([10, 14]);
+  ctx.beginPath();
+  ctx.moveTo(0, G.midY);
+  ctx.lineTo(W, G.midY);
+  ctx.stroke();
+  ctx.restore();
+
+  // 瞄准线
+  if (playerCharging) {
+    const power = Math.min(1, (now - playerChargeStart) / MAX_CHARGE_MS);
+    ctx.save();
+    ctx.setLineDash([9, 11]);
+    ctx.strokeStyle = `rgba(90,220,255,${0.22 + power * 0.55})`;
+    ctx.lineWidth = 2 + power * 3;
+    ctx.beginPath();
+    ctx.moveTo(pStriker.x, pStriker.y);
+    ctx.lineTo(puck.x, puck.y);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // 三颗球
+  drawBall(puck,     '#ffd54a', '#ffb300');
+  drawBall(aStriker, '#ff3b6b', '#ff0a4a');
+  drawBall(pStriker, '#3bc9ff', '#00a8ff');
+
+  // 玩家蓄力环
+  if (playerCharging) {
+    const power = Math.min(1, (now - playerChargeStart) / MAX_CHARGE_MS);
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(
+      pStriker.x, pStriker.y, pStriker.r + 12,
+      -Math.PI / 2, -Math.PI / 2 + power * Math.PI * 2
+    );
+    const hue = 190 - power * 155;
+    ctx.strokeStyle = `hsl(${hue},100%,62%)`;
+    ctx.lineWidth = 5;
+    ctx.lineCap = 'round';
+    ctx.shadowColor = `hsl(${hue},100%,62%)`;
+    ctx.shadowBlur = 14;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // 电脑蓄力环
+  if (aiCharging) {
+    const dur = Math.max(90, aiPower * MAX_CHARGE_MS);
+    const p = Math.min(1, (now - aiChargeStart) / dur);
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(
+      aStriker.x, aStriker.y, aStriker.r + 12,
+      -Math.PI / 2, -Math.PI / 2 + p * Math.PI * 2
+    );
+    ctx.strokeStyle = 'rgba(255,90,130,0.85)';
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'round';
+    ctx.shadowColor = 'rgba(255,60,110,0.9)';
+    ctx.shadowBlur = 12;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  drawScore();
+
+  // 进球闪光
+  if (flash > 0) {
+    ctx.fillStyle = `rgba(255,255,255,${flash * 0.45})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // 结束画面
+  if (state.over) {
+    ctx.fillStyle = 'rgba(4,6,14,0.82)';
+    ctx.fillRect(0, 0, W, H);
+
+    const win = state.winner === 'player';
+    const fs = Math.min(W, H) * 0.09;
+
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    ctx.shadowColor = win ? '#3bc9ff' : '#ff3b6b';
+    ctx.shadowBlur = 30;
+    ctx.fillStyle = win ? '#7fe3ff' : '#ff7a9c';
+    ctx.font = `800 ${fs}px system-ui, -apple-system, sans-serif`;
+    ctx.fillText(win ? '你赢了！' : '电脑获胜', W / 2, H / 2 - fs * 0.7);
+
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(255,255,255,0.72)';
+    ctx.font = `500 ${Math.min(W, H) * 0.038}px system-ui, -apple-system, sans-serif`;
+    ctx.fillText(`${state.scoreP} : ${state.scoreA}`, W / 2, H / 2 + fs * 0.25);
+
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.font = `500 ${Math.min(W, H) * 0.030}px system-ui, -apple-system, sans-serif`;
+    ctx.fillText('点击屏幕重新开始', W / 2, H / 2 + fs * 1.1);
+
+    ctx.restore();
+  }
+}
+
+// ============ 输入 ============
+function onPointerDown(e) {
+  e.preventDefault();
+
+  if (state.over) {
+    restart();
+    return;
+  }
+
+  if (activePointerId !== null) return;
+  activePointerId = e.pointerId;
+
+  playerCharging = true;
+  playerChargeStart = performance.now();
+}
+
+function onPointerUp(e) {
+  if (activePointerId === null || e.pointerId !== activePointerId) return;
+  activePointerId = null;
+
+  if (!playerCharging) return;
+  playerCharging = false;
+
+  if (state.over) return;
+
+  const power = Math.min(1, (performance.now() - playerChargeStart) / MAX_CHARGE_MS);
+  launch(pStriker, power);
+}
+
+function onPointerCancel(e) {
+  if (activePointerId !== null && e.pointerId === activePointerId) {
+    activePointerId = null;
+    playerCharging = false;
+  }
+}
+
+canvas.addEventListener('pointerdown', onPointerDown, { passive: false });
+window.addEventListener('pointerup', onPointerUp);
+window.addEventListener('pointercancel', onPointerCancel);
+window.addEventListener('contextmenu', e => e.preventDefault());
+
+document.addEventListener('touchmove', e => {
+  if (e.cancelable) e.preventDefault();
+}, { passive: false });
+
+const homeBtn = document.getElementById('home');
+homeBtn.addEventListener('pointerdown', e => e.stopPropagation());
+homeBtn.addEventListener('pointerup', e => e.stopPropagation());
+
+// ============ 主循环 ============
+let lastT = 0;
+
+function loop(t) {
+  if (!lastT) lastT = t;
+  let dt = (t - lastT) / 1000;
+  lastT = t;
+
+  if (dt > 0.05) dt = 0.05;
+  if (dt < 0)    dt = 0;
+
+  if (!state.over) update(dt);
+
+  render();
+  requestAnimationFrame(loop);
+}
+
+// ============ 启动 ============
+window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', () => {
+  setTimeout(resize, 120);
+  setTimeout(resize, 400);
+});
+
+// visualViewport 用于精确响应移动端浏览器地址栏收放
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', () => resize());
+  window.visualViewport.addEventListener('scroll', () => resize());
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) setTimeout(resize, 80);
+});
+
+resize();
+requestAnimationFrame(loop);
+
+})();
+</script>
+</body>
+</html>

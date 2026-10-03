@@ -200,6 +200,20 @@
       "thumbnail": null,
       "createdAt": "2026-10-05",
       "updatedAt": "2026-10-05"
+    },
+    {
+      "id": "strike-pong",
+      "title": "弹球对决",
+      "description": "Canvas 弹球对决：按住蓄力击打中心球，与 AI 对线抢分，先到 10 分获胜，支持触控与全屏。",
+      "url": "examples/strike-pong.html",
+      "category": "game",
+      "emoji": "🏒",
+      "tags": ["game", "canvas", "弹球", "对战", "触控"],
+      "status": "stable",
+      "pinned": false,
+      "thumbnail": null,
+      "createdAt": "2026-10-03",
+      "updatedAt": "2026-10-03"
     }
   ]
 }
