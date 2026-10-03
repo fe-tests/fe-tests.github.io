@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>倒水排序 · Canvas</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    height: 100%;
+    background: radial-gradient(circle at 50% 0%, #101d33 0%, #060b14 70%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+  canvas {
+    display: block;
+    border-radius: 22px;
+    box-shadow: 0 30px 90px rgba(0,0,0,.8), 0 0 0 1px rgba(56,189,248,.08);
+    touch-action: none;
+  }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<script>
+(function () {
+  'use strict';
+
+  /* ============================================================
+     基础
+  ============================================================ */
+  const cvs = document.getElementById('game');
+  const ctx = cvs.getContext('2d');
+  const W = 900, H = 640;
+  const FONT = '"PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, -apple-system, sans-serif';
+
+  let scale = 1;
+  function layout() {
+    const dpr = window.devicePixelRatio || 1;
+    const aw = window.innerWidth - 24;
+    const ah = window.innerHeight - 24;
+    scale = Math.min(aw / W, ah / H);
+    cvs.style.width  = (W * scale) + 'px';
+    cvs.style.height = (H * scale) + 'px';
+    cvs.width  = Math.round(W * scale * dpr);
+    cvs.height = Math.round(H * scale * dpr);
+    ctx.setTransform(scale * dpr, 0, 0, scale * dpr, 0, 0);
+  }
+  window.addEventListener('resize', layout);
+
+  /* ============================================================
+     调色板 & 关卡
+  ============================================================ */
+  const PALETTE = [
+    '#3b82f6', // 蓝
+    '#ef4444', // 红
+    '#22c55e', // 绿
+    '#eab308', // 黄
+    '#a855f7', // 紫
+    '#f97316', // 橙
+    '#06b6d4', // 青
+    '#ec4899', // 粉
+  ];
+
+  const LEVELS = [
+    { colors: 3, capacity: 4, empties: 2 },
+    { colors: 4, capacity: 4, empties: 2 },
+    { colors: 5, capacity: 4, empties: 2 },
+    { colors: 6, capacity: 4, empties: 2 },
+  ];
+
+  /* ============================================================
+     求解器（验证可解性）
+  ============================================================ */
+  function isSolvedState(tubes, capacity) {
+    for (let i = 0; i < tubes.length; i++) {
+      const t = tubes[i];
+      if (t.length === 0) continue;
+      if (t.length !== capacity) return false;
+      for (let k = 1; k < t.length; k++) if (t[k] !== t[0]) return false;
+    }
+    return true;
+  }
+
+  function canSolve(tubes, capacity, nodeLimit) {
+    nodeLimit = nodeLimit || 20000;
+    const seen = new Set();
+    let nodes = 0;
+    const n = tubes.length;
+    const cur = tubes.map(t => t.slice());
+
+    function enc() {
+      const parts = [];
+      for (let i = 0; i < n; i++) parts.push(cur[i].join(''));
+      parts.sort();
+      return parts.join('|');
+    }
+
+    function dfs(depth) {
+      if (++nodes > nodeLimit) return false;
+      if (isSolvedState(cur, capacity)) return true;
+      if (depth > 60) return false;
+
+      const key = enc();
+      if (seen.has(key)) return false;
+      seen.add(key);
+
+      for (let i = 0; i < n; i++) {
+        const src = cur[i];
+        if (!src.length) continue;
+        const top = src[src.length - 1];
+        let run = 0;
+        for (let j = src.length - 1; j >= 0 && src[j] === top; j--) run++;
+
+        for (let j = 0; j < n; j++) {
+          if (i === j) continue;
+          const dst = cur[j];
+          const space = capacity - dst.length;
+          if (space <= 0) continue;
+          if (dst.length && dst[dst.length - 1] !== top) continue;
+
+          const mv = Math.min(run, space);
+          for (let k = 0; k < mv; k++) dst.push(src.pop());
+          if (dfs(depth + 1)) return true;
+          for (let k = 0; k < mv; k++) src.push(dst.pop());
+        }
+      }
+      return false;
+    }
+
+    return dfs(0);
+  }
+
+  /* ============================================================
+     谜题生成
+  ============================================================ */
+  function shuffleArr(a) {
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  function randomFill(nColors, capacity, nEmpty) {
+    const units = [];
+    for (let c = 0; c < nColors; c++)
+      for (let k = 0; k < capacity; k++) units.push(c);
+    shuffleArr(units);
+
+    const nTubes = nColors + nEmpty;
+    const tubes = [];
+    for (let i = 0; i < nTubes; i++) tubes.push([]);
+
+    // 随机槽位分配
+    const order = [];
+    for (let i = 0; i < nTubes; i++)
+      for (let k = 0; k < capacity; k++) order.push(i);
+    shuffleArr(order);
+
+    for (let i = 0; i < units.length; i++) {
+      tubes[order[i]].push(units[i]);
+    }
+    return tubes;
+  }
+
+  function generatePuzzle(nColors, capacity, nEmpty) {
+    let fallback = null;
+    for (let attempt = 0; attempt < 25; attempt++) {
+      const tubes = randomFill(nColors, capacity, nEmpty);
+      if (isSolvedState(tubes, capacity)) continue;
+      if (!fallback) fallback = tubes;
+      if (canSolve(tubes, capacity, 20000)) return tubes;
+    }
+    return fallback || randomFill(nColors, capacity, nEmpty);
+  }
+
+  /* ============================================================
+     状态
+  ============================================================ */
+  const state = {
+    levelIndex: 0,
+    colors: 3,
+    capacity: 4,
+    tubes: [],
+    initial: [],
+    selected: -1,
+    moves: 0,
+    solved: false,
+    winProgress: 0,
+    history: [],
+    hover: -1,
+    hoverBtn: null,
+    lifts: [],
+    time: 0,
+  };
+
+  let geo = [];
+
+  const BTN_RESET = { x: 330, y: 578, w: 110, h: 44 };
+  const BTN_UNDO  = { x: 460, y: 578, w: 110, h: 44 };
+  const BTN_NEXT  = { x: 360, y: 364, w: 180, h: 48 };
+
+  /* ============================================================
+     几何
+  ============================================================ */
+  function computeGeometry() {
+    const n = state.tubes.length;
+    const gap = 22;
+    const maxW = 780;
+    const tw = Math.min(100, (maxW - (n - 1) * gap) / n);
+    const total = n * tw + (n - 1) * gap;
+    const left = (W - total) / 2;
+
+    const unitH = 44;
+    const bodyH = state.capacity * unitH;
+    const bottomY = 524;
+
+    geo = [];
+    for (let i = 0; i < n; i++) {
+      geo.push({
+        x: left + i * (tw + gap),
+        y: bottomY - bodyH,
+        w: tw,
+        h: bodyH,
+        unitH: unitH,
+        r: Math.min(tw / 2, 42),
+        bottomY: bottomY,
+      });
+    }
+  }
+
+  /* ============================================================
+     关卡控制
+  ============================================================ */
+  function loadLevel(idx) {
+    const L = LEVELS[idx];
+    state.levelIndex = idx;
+    state.colors = L.colors;
+    state.capacity = L.capacity;
+
+    const tubes = generatePuzzle(L.colors, L.capacity, L.empties);
+    state.tubes = tubes;
+    state.initial = tubes.map(t => t.slice());
+
+    state.selected = -1;
+    state.moves = 0;
+    state.solved = false;
+    state.winProgress = 0;
+    state.history = [];
+    state.hover = -1;
+    state.hoverBtn = null;
+
+    computeGeometry();
+    state.lifts = state.tubes.map(() => 0);
+  }
+
+  /* ============================================================
+     核心逻辑
+  ============================================================ */
+  function pushHistory() {
+    state.history.push({
+      tubes: state.tubes.map(t => t.slice()),
+      moves: state.moves,
+    });
+    if (state.history.length > 300) state.history.shift();
+  }
+
+  function canPour(from, to) {
+    const src = state.tubes[from], dst = state.tubes[to];
+    if (!src || !src.length) return false;
+    if (dst.length >= state.capacity) return false;
+    if (dst.length === 0) return true;
+    return dst[dst.length - 1] === src[src.length - 1];
+  }
+
+  function pour(from, to) {
+    const src = state.tubes[from], dst = state.tubes[to];
+    const top = src[src.length - 1];
+    let run = 0;
+    for (let j = src.length - 1; j >= 0 && src[j] === top; j--) run++;
+    const space = state.capacity - dst.length;
+    const mv = Math.min(run, space);
+    for (let k = 0; k < mv; k++) dst.push(src.pop());
+    return mv;
+  }
+
+  function checkSolved() {
+    if (state.solved) return;
+    if (isSolvedState(state.tubes, state.capacity)) {
+      state.solved = true;
+      state.winProgress = 0;
+    }
+  }
+
+  function clickTube(i) {
+    if (state.solved) return;
+
+    if (state.selected === -1) {
+      if (state.tubes[i].length > 0) state.selected = i;
+      return;
+    }
+    if (state.selected === i) {
+      state.selected = -1;
+      return;
+    }
+
+    const from = state.selected;
+    if (canPour(from, i)) {
+      pushHistory();
+      pour(from, i);
+      state.moves++;
+      state.selected = -1;
+      checkSolved();
+    } else {
+      state.selected = state.tubes[i].length > 0 ? i : -1;
+    }
+  }
+
+  function undo() {
+    if (!state.history.length) return;
+    const h = state.history.pop();
+    state.tubes = h.tubes;
+    state.moves = h.moves;
+    state.selected = -1;
+    state.solved = false;
+    state.winProgress = 0;
+  }
+
+  function resetLevel() {
+    state.tubes = state.initial.map(t => t.slice());
+    state.selected = -1;
+    state.moves = 0;
+    state.solved = false;
+    state.winProgress = 0;
+    state.history = [];
+  }
+
+  function nextLevel() {
+    loadLevel((state.levelIndex + 1) % LEVELS.length);
+  }
+
+  /* ============================================================
+     绘图工具
+  ============================================================ */
+  function tubePath(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x, y + h - r);
+    ctx.arc(x + r, y + h - r, r, Math.PI, 0, true);
+    ctx.lineTo(x + w, y);
+  }
+
+  function rr(x, y, w, h, r) {
+    r = Math.min(r, Math.abs(w) / 2, Math.abs(h) / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function hitRect(r, p) {
+    return p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h;
+  }
+
+  /* ============================================================
+     背景 & UI
+  ============================================================ */
+  function drawBg() {
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#0d1729');
+    g.addColorStop(0.5, '#0a1220');
+    g.addColorStop(1, '#060b14');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+
+    const rg = ctx.createRadialGradient(W / 2, 60, 10, W / 2, 60, 560);
+    rg.addColorStop(0, 'rgba(56,189,248,0.10)');
+    rg.addColorStop(1, 'rgba(56,189,248,0)');
+    ctx.fillStyle = rg;
+    ctx.fillRect(0, 0, W, H);
+
+    // 桌面高光线
+    const lg = ctx.createLinearGradient(90, 0, 810, 0);
+    lg.addColorStop(0, 'rgba(56,189,248,0)');
+    lg.addColorStop(0.5, 'rgba(56,189,248,0.20)');
+    lg.addColorStop(1, 'rgba(56,189,248,0)');
+    ctx.fillStyle = lg;
+    ctx.fillRect(90, 524, 720, 2);
+  }
+
+  function drawHeader() {
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+
+    ctx.fillStyle = '#e8f1fb';
+    ctx.font = `bold 33px ${FONT}`;
+    ctx.shadowColor = 'rgba(56,189,248,0.45)';
+    ctx.shadowBlur = 22;
+    ctx.fillText('倒水排序', W / 2, 60);
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = '#64748b';
+    ctx.font = `15px ${FONT}`;
+    ctx.fillText('点击试管选中，再点另一支倒水 · 只能倒入同色液体或空试管', W / 2, 92);
+
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = `bold 16px ${FONT}`;
+    ctx.fillText(`第 ${state.levelIndex + 1} 关  /  ${LEVELS.length}`, W / 2, 124);
+    ctx.restore();
+
+    // 右上步数
+    ctx.save();
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = `bold 17px ${FONT}`;
+    ctx.fillText(`步数 ${state.moves}`, 858, 58);
+    ctx.fillStyle = '#475569';
+    ctx.font = `13px ${FONT}`;
+    ctx.fillText(`共 ${state.colors} 种颜色`, 858, 82);
+    ctx.restore();
+
+    // 左上角图例
+    ctx.save();
+    ctx.textAlign = 'left';
+    for (let c = 0; c < state.colors; c++) {
+      const x = 46 + c * 22;
+      ctx.beginPath();
+      ctx.arc(x + 8, 62, 8, 0, Math.PI * 2);
+      ctx.fillStyle = PALETTE[c];
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  /* ============================================================
+     绘制试管
+  ============================================================ */
+  function drawTube(i) {
+    const g = geo[i];
+    const lift = state.lifts[i] || 0;
+    const x = g.x, y = g.y - lift, w = g.w, h = g.h, r = g.r;
+    const contents = state.tubes[i];
+    const isSel = state.selected === i;
+    const isHover = state.hover === i;
+
+    // ---- 地面阴影 ----
+    const scy = g.bottomY + 10;
+    const sg = ctx.createRadialGradient(x + w / 2, scy, 0, x + w / 2, scy, w * 0.85);
+    sg.addColorStop(0, 'rgba(0,0,0,' + (0.45 - lift * 0.008) + ')');
+    sg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = sg;
+    ctx.beginPath();
+    ctx.ellipse(x + w / 2, scy, w * 0.85, 13, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // ---- 玻璃底 ----
+    ctx.save();
+    tubePath(x, y, w, h, r);
+    ctx.fillStyle = 'rgba(255,255,255,0.045)';
+    ctx.fill();
+    ctx.restore();
+
+    // ---- 液体 ----
+    ctx.save();
+    tubePath(x, y, w, h, r);
+    ctx.clip();
+
+    const bottomY = y + h;
+    for (let k = 0; k < contents.length; k++) {
+      const cy0 = bottomY - (k + 1) * g.unitH;
+      const cy1 = bottomY - k * g.unitH;
+      const col = PALETTE[contents[k] % PALETTE.length];
+
+      ctx.fillStyle = col;
+      ctx.fillRect(x - 1, cy0, w + 2, cy1 - cy0 + 1);
+
+      // 立体光影
+      const lg = ctx.createLinearGradient(x, 0, x + w, 0);
+      lg.addColorStop(0, 'rgba(255,255,255,0.30)');
+      lg.addColorStop(0.18, 'rgba(255,255,255,0.06)');
+      lg.addColorStop(0.72, 'rgba(0,0,0,0.06)');
+      lg.addColorStop(1, 'rgba(0,0,0,0.22)');
+      ctx.fillStyle = lg;
+      ctx.fillRect(x - 1, cy0, w + 2, cy1 - cy0 + 1);
+
+      // 层间分隔
+      if (k > 0) {
+        ctx.fillStyle = 'rgba(0,0,0,0.12)';
+        ctx.fillRect(x - 1, cy0, w + 2, 1.5);
+      }
+    }
+
+    // 液面高光
+    if (contents.length > 0) {
+      const surfaceY = bottomY - contents.length * g.unitH;
+      ctx.fillStyle = 'rgba(255,255,255,0.30)';
+      ctx.fillRect(x - 1, surfaceY, w + 2, 2);
+    }
+
+    // 玻璃高光
+    const hg = ctx.createLinearGradient(x, 0, x + w, 0);
+    hg.addColorStop(0, 'rgba(255,255,255,0.16)');
+    hg.addColorStop(0.10, 'rgba(255,255,255,0.02)');
+    hg.addColorStop(0.85, 'rgba(255,255,255,0)');
+    hg.addColorStop(1, 'rgba(255,255,255,0.07)');
+    ctx.fillStyle = hg;
+    ctx.fillRect(x, y, w, h);
+
+    ctx.restore();
+
+    // ---- 完成时的光晕 ----
+    const done = contents.length === state.capacity &&
+                 contents.every(c => c === contents[0]);
+    if (done && !state.solved) {
+      ctx.save();
+      tubePath(x, y, w, h, r);
+      ctx.shadowColor = 'rgba(56,189,248,0.9)';
+      ctx.shadowBlur = 18;
+      ctx.strokeStyle = 'rgba(125,211,252,0.55)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // ---- 玻璃描边 ----
+    ctx.save();
+    tubePath(x, y, w, h, r);
+    if (isSel) {
+      ctx.shadowColor = 'rgba(56,189,248,0.95)';
+      ctx.shadowBlur = 26;
+      ctx.strokeStyle = '#7dd3fc';
+      ctx.lineWidth = 3;
+    } else if (isHover) {
+      ctx.shadowColor = 'rgba(56,189,248,0.5)';
+      ctx.shadowBlur = 14;
+      ctx.strokeStyle = 'rgba(125,211,252,0.85)';
+      ctx.lineWidth = 2.5;
+    } else {
+      ctx.strokeStyle = 'rgba(148,163,184,0.42)';
+      ctx.lineWidth = 2;
+    }
+    ctx.stroke();
+    ctx.restore();
+
+    // ---- 选中箭头 ----
+    if (isSel) {
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillStyle = '#7dd3fc';
+      ctx.font = `15px ${FONT}`;
+      ctx.fillText('▼', x + w / 2, y - 6);
+      ctx.restore();
+    }
+  }
+
+  /* ============================================================
+     按钮
+  ============================================================ */
+  function drawBtn(rect, label, hovered, disabled, fs) {
+    fs = fs || 16;
+    ctx.save();
+    rr(rect.x, rect.y, rect.w, rect.h, 10);
+
+    if (disabled) {
+      ctx.fillStyle = 'rgba(148,163,184,0.06)';
+    } else if (hovered) {
+      ctx.fillStyle = 'rgba(56,189,248,0.26)';
+    } else {
+      ctx.fillStyle = 'rgba(148,163,184,0.12)';
+    }
+    ctx.fill();
+
+    ctx.strokeStyle = disabled
+      ? 'rgba(148,163,184,0.14)'
+      : (hovered ? 'rgba(56,189,248,0.9)' : 'rgba(148,163,184,0.32)');
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.fillStyle = disabled ? 'rgba(148,163,184,0.30)' : '#e2e8f0';
+    ctx.font = `500 ${fs}px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, rect.x + rect.w / 2, rect.y + rect.h / 2 + 1);
+    ctx.restore();
+  }
+
+  function drawBottomButtons() {
+    const canUndo = state.history.length > 0 && !state.solved;
+    drawBtn(BTN_RESET, '重来', state.hoverBtn === 'reset', state.solved, 17);
+    drawBtn(BTN_UNDO,  '撤销', state.hoverBtn === 'undo', !canUndo, 17);
+  }
+
+  /* ============================================================
+     胜利遮罩
+  ============================================================ */
+  function drawWinOverlay() {
+    const p = state.winProgress;
+    if (p <= 0) return;
+    const e = 1 - Math.pow(1 - p, 3);
+
+    ctx.save();
+    ctx.globalAlpha = e;
+
+    ctx.fillStyle = 'rgba(4,9,18,0.80)';
+    ctx.fillRect(0, 0, W, H);
+
+    const pw = 440, ph = 250;
+    const px = (W - pw) / 2, py = 190;
+
+    ctx.save();
+    ctx.shadowColor = 'rgba(56,189,248,0.5)';
+    ctx.shadowBlur = 55;
+    rr(px, py, pw, ph, 24);
+    const pg = ctx.createLinearGradient(px, py, px, py + ph);
+    pg.addColorStop(0, '#16233c');
+    pg.addColorStop(1, '#0b1322');
+    ctx.fillStyle = pg;
+    ctx.fill();
+    ctx.restore();
+
+    rr(px, py, pw, ph, 24);
+    ctx.strokeStyle = 'rgba(56,189,248,0.5)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+
+    ctx.fillStyle = '#7dd3fc';
+    ctx.font = `bold 32px ${FONT}`;
+    ctx.shadowColor = 'rgba(56,189,248,0.6)';
+    ctx.shadowBlur = 22;
+    ctx.fillText('🎉 完成！', W / 2, py + 82);
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = `17px ${FONT}`;
+    ctx.fillText(`一共用了 ${state.moves} 步`, W / 2, py + 132);
+
+    ctx.fillStyle = '#64748b';
+    ctx.font = `14px ${FONT}`;
+    ctx.fillText(state.levelIndex + 1 < LEVELS.length ? '准备好挑战下一关了吗？' : '已通关全部关卡，试试重玩？', W / 2, py + 162);
+
+    drawBtn(BTN_NEXT, state.levelIndex + 1 < LEVELS.length ? '下一关' : '重新开始',
+            state.hoverBtn === 'next', false, 17);
+
+    ctx.restore();
+  }
+
+  /* ============================================================
+     渲染
+  ============================================================ */
+  function render() {
+    ctx.clearRect(0, 0, W, H);
+    drawBg();
+    drawHeader();
+
+    for (let i = 0; i < geo.length; i++) drawTube(i);
+
+    drawBottomButtons();
+    drawWinOverlay();
+  }
+
+  /* ============================================================
+     更新
+  ============================================================ */
+  function update(dt) {
+    state.time += dt;
+
+    for (let i = 0; i < state.tubes.length; i++) {
+      let target = 0;
+      if (!state.solved) {
+        if (state.selected === i) target = -26;
+        else if (state.hover === i) target = -8;
+      }
+      state.lifts[i] += (target - state.lifts[i]) * Math.min(1, dt * 14);
+    }
+
+    if (state.solved) {
+      state.winProgress = Math.min(1, state.winProgress + dt * 3.2);
+    }
+  }
+
+  /* ============================================================
+     主循环
+  ============================================================ */
+  let last = performance.now();
+  function loop(now) {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    update(dt);
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  /* ============================================================
+     输入
+  ============================================================ */
+  function getPos(e) {
+    const r = cvs.getBoundingClientRect();
+    return {
+      x: (e.clientX - r.left) / scale,
+      y: (e.clientY - r.top) / scale,
+    };
+  }
+
+  function hitTube(p) {
+    for (let i = 0; i < geo.length; i++) {
+      const g = geo[i];
+      const lift = state.lifts[i] || 0;
+      const x = g.x, y = g.y - lift, w = g.w, h = g.h;
+      if (p.x >= x - 6 && p.x <= x + w + 6 && p.y >= y - 16 && p.y <= y + h + 6) return i;
+    }
+    return -1;
+  }
+
+  cvs.addEventListener('pointerdown', function (e) {
+    e.preventDefault();
+    const p = getPos(e);
+
+    if (state.solved) {
+      if (hitRect(BTN_NEXT, p)) nextLevel();
+      return;
+    }
+
+    if (hitRect(BTN_RESET, p)) { resetLevel(); return; }
+    if (hitRect(BTN_UNDO, p))  { undo(); return; }
+
+    const i = hitTube(p);
+    if (i >= 0) clickTube(i);
+    else state.selected = -1;
+  });
+
+  cvs.addEventListener('pointermove', function (e) {
+    const p = getPos(e);
+
+    // 试管 hover
+    state.hover = hitTube(p);
+
+    // 按钮 hover
+    state.hoverBtn = null;
+    if (state.solved) {
+      if (hitRect(BTN_NEXT, p)) state.hoverBtn = 'next';
+    } else {
+      if (hitRect(BTN_RESET, p)) state.hoverBtn = 'reset';
+      else if (hitRect(BTN_UNDO, p)) state.hoverBtn = 'undo';
+    }
+
+    cvs.style.cursor = (state.hover >= 0 || state.hoverBtn) ? 'pointer' : 'default';
+  });
+
+  cvs.addEventListener('pointerleave', function () {
+    state.hover = -1;
+    state.hoverBtn = null;
+    cvs.style.cursor = 'default';
+  });
+
+  /* ============================================================
+     启动
+  ============================================================ */
+  layout();
+  loadLevel(0);
+  requestAnimationFrame(loop);
+
+})();
+</script>
+</body>
+</html>

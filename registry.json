@@ -186,6 +186,20 @@
       "thumbnail": null,
       "createdAt": "2026-10-04",
       "updatedAt": "2026-10-04"
+    },
+    {
+      "id": "daoshui",
+      "title": "倒水排序",
+      "description": "经典倒水益智游戏：同色倒满各管通关，4 关难度递进，支持撤销与重开，含可解性求解器保证每关有解。",
+      "url": "examples/daoshui.html",
+      "category": "game",
+      "emoji": "💧",
+      "tags": ["game", "canvas", "puzzle", "倒水", "排序"],
+      "status": "stable",
+      "pinned": false,
+      "thumbnail": null,
+      "createdAt": "2026-10-05",
+      "updatedAt": "2026-10-05"
     }
   ]
 }
