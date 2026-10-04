@@ -69,11 +69,43 @@
     background:rgba(255,255,255,0.24);
     transform:scale(0.95);
   }
+
+  /* 音效开关按钮 */
+  #sound{
+    position:fixed;
+    top:calc(env(safe-area-inset-top,0px) + 12px);
+    right:calc(env(safe-area-inset-right,0px) + 12px);
+    z-index:20;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:44px;
+    height:44px;
+    border-radius:999px;
+    background:rgba(255,255,255,0.10);
+    border:1px solid rgba(255,255,255,0.22);
+    backdrop-filter:blur(10px);
+    -webkit-backdrop-filter:blur(10px);
+    color:#dff2ff;
+    font-size:20px;
+    line-height:1;
+    cursor:pointer;
+    touch-action:manipulation;
+    box-shadow:0 4px 18px rgba(0,0,0,0.35);
+    transition:background .15s ease, transform .12s ease, opacity .15s ease;
+  }
+  #sound:active{
+    transform:scale(0.95);
+  }
+  #sound.off{
+    opacity:0.4;
+  }
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
 <a id="home" href="/">← 首页</a>
+<button id="sound" type="button" aria-label="音效" title="音效">🎵</button>
 <script>
 (() => {
 'use strict';
@@ -81,6 +113,160 @@
 // ============ 画布 ============
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
+
+// ============ 音效引擎 (Web Audio 实时合成，无需外部文件) ============
+let audioCtx = null;
+let masterGain = null;
+let soundOn = true;
+const lastSnd = { wall: 0, hit: 0 };
+
+function initAudio() {
+  if (audioCtx) return audioCtx;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return null;
+  audioCtx = new AC();
+  masterGain = audioCtx.createGain();
+  masterGain.gain.value = 0.85;
+  masterGain.connect(audioCtx.destination);
+  return audioCtx;
+}
+function resumeAudio() {
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+}
+function noiseBuffer() {
+  const n = Math.floor(audioCtx.sampleRate * 0.4);
+  const buf = audioCtx.createBuffer(1, n, audioCtx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+  return buf;
+}
+function tone(freq, type, dur, peak, sweepTo, attack) {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  osc.type = type || 'sine';
+  osc.frequency.setValueAtTime(Math.max(1, freq), t);
+  if (sweepTo != null) osc.frequency.exponentialRampToValueAtTime(Math.max(1, sweepTo), t + dur);
+  const end = t + dur;
+  const rv = 0.0001;
+  const atk = attack != null ? attack : 0.004;
+  g.gain.setValueAtTime(rv, t);
+  g.gain.linearRampToValueAtTime(Math.max(0.0001, peak), t + atk);
+  g.gain.exponentialRampToValueAtTime(rv, end);
+  osc.connect(g).connect(masterGain || audioCtx.destination);
+  osc.start(t);
+  osc.stop(end + 0.02);
+}
+function noise(dur, peak, filtFreq, q, filterType) {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  const src = audioCtx.createBufferSource();
+  src.buffer = noiseBuffer();
+  const bp = audioCtx.createBiquadFilter();
+  bp.type = filterType || 'bandpass';
+  bp.frequency.value = filtFreq || 1200;
+  bp.Q.value = q || 1;
+  const g = audioCtx.createGain();
+  const rv = 0.0001;
+  g.gain.setValueAtTime(rv, t);
+  g.gain.linearRampToValueAtTime(Math.max(0.0001, peak), t + 0.003);
+  g.gain.exponentialRampToValueAtTime(rv, t + dur);
+  src.connect(bp).connect(g).connect(masterGain || audioCtx.destination);
+  src.start(t);
+  src.stop(t + dur + 0.02);
+}
+function sndHit(impactSpeed, isStrikerStriker) {
+  if (!soundOn || !audioCtx) return;
+  resumeAudio();
+  const now = audioCtx.currentTime;
+  if (now - lastSnd.hit < 0.03) return;
+  lastSnd.hit = now;
+  const s = Math.min(1, impactSpeed / 900);
+  const base = isStrikerStriker ? 320 : 190;
+  tone(base + s * 220, 'triangle', 0.09, 0.26 + s * 0.32, base * 0.4, 0.002);
+  noise(0.045, 0.12 + s * 0.16, isStrikerStriker ? 2600 : 1500, 0.7);
+  if (isStrikerStriker) tone(base * 2, 'sine', 0.08, 0.10 + s * 0.1, base, 0.002);
+}
+function sndWall(speed) {
+  if (!soundOn || !audioCtx) return;
+  resumeAudio();
+  const now = audioCtx.currentTime;
+  if (now - lastSnd.wall < 0.02) return;
+  lastSnd.wall = now;
+  const s = Math.min(1, speed / 900);
+  tone(520 + s * 380, 'sine', 0.05, 0.10 + s * 0.16, 300, 0.001);
+  noise(0.03, 0.05 + s * 0.08, 2400, 0.5);
+}
+function sndSwing(power, isPlayer) {
+  if (!soundOn || !audioCtx) return;
+  resumeAudio();
+  const t = audioCtx.currentTime;
+  const s = Math.max(0.05, Math.min(1, power));
+  const fStart = isPlayer ? 320 : 220;
+  const fEnd   = isPlayer ? 680 : 470;
+  tone(fStart + s * 120, 'sawtooth', 0.12, 0.05 + s * 0.06, fStart * 0.5, 0.01);
+  noise(0.09 + s * 0.07, 0.05 + s * 0.09, fStart + s * (fEnd - fStart), 0.6, 'highpass');
+}
+function sndGoal(isPlayer) {
+  if (!soundOn || !audioCtx) return;
+  resumeAudio();
+  const t = audioCtx.currentTime;
+  if (isPlayer) {
+    const notes = [523.25, 659.25, 783.99, 1046.5];
+    notes.forEach((f, i) => {
+      const st = t + i * 0.07;
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = 'triangle';
+      o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, st);
+      g.gain.linearRampToValueAtTime(0.22, st + 0.008);
+      g.gain.exponentialRampToValueAtTime(0.0001, st + 0.24);
+      o.connect(g).connect(masterGain);
+      o.start(st); o.stop(st + 0.26);
+    });
+  } else {
+    const notes = [440, 349.23, 293.66];
+    notes.forEach((f, i) => {
+      const st = t + i * 0.09;
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(f, st);
+      o.frequency.exponentialRampToValueAtTime(f * 0.6, st + 0.2);
+      g.gain.setValueAtTime(0.0001, st);
+      g.gain.linearRampToValueAtTime(0.16, st + 0.006);
+      g.gain.exponentialRampToValueAtTime(0.0001, st + 0.3);
+      o.connect(g).connect(masterGain);
+      o.start(st); o.stop(st + 0.32);
+    });
+  }
+}
+function sndOver(isPlayerWin) {
+  if (!soundOn || !audioCtx) return;
+  resumeAudio();
+  const t = audioCtx.currentTime;
+  const wave = isPlayerWin ? [523.25, 659.25, 783.99, 1046.5, 783.99, 1046.5] : [392, 349.23, 311.13, 261.63];
+  const type = isPlayerWin ? 'triangle' : 'sawtooth';
+  wave.forEach((f, i) => {
+    const st = t + i * 0.11;
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = type;
+    o.frequency.value = f;
+    g.gain.setValueAtTime(0.0001, st);
+    g.gain.linearRampToValueAtTime(0.2, st + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, st + 0.36);
+    o.connect(g).connect(masterGain);
+    o.start(st); o.stop(st + 0.38);
+  });
+}
+function sndToggle(on) {
+  if (!audioCtx) return;
+  resumeAudio();
+  tone(on ? 660 : 330, 'square', 0.05, 0.12, on ? 880 : 220, 0.001);
+}
 
 let W = 360, H = 640;
 let DPR = 1;
@@ -242,6 +428,8 @@ function launch(ball, power) {
   const speed = MIN_SPEED + power * (MAX_SPEED - MIN_SPEED);
   ball.vx = Math.cos(angle) * speed;
   ball.vy = Math.sin(angle) * speed;
+
+  sndSwing(power, ball.type === 'player');
 }
 
 // ============ 半场约束（击打球不能越中线） ============
@@ -293,11 +481,11 @@ function applyDrag(b, dt) {
 function wallCollide(b) {
   if (b.x - b.r < 0) {
     b.x = b.r;
-    if (b.vx < 0) { b.vx = -b.vx * REST; addJitter(b, JITTER_WALL); }
+    if (b.vx < 0) { b.vx = -b.vx * REST; addJitter(b, JITTER_WALL); sndWall(Math.hypot(b.vx, b.vy)); }
   }
   if (b.x + b.r > W) {
     b.x = W - b.r;
-    if (b.vx > 0) { b.vx = -b.vx * REST; addJitter(b, JITTER_WALL); }
+    if (b.vx > 0) { b.vx = -b.vx * REST; addJitter(b, JITTER_WALL); sndWall(Math.hypot(b.vx, b.vy)); }
   }
 
   const isPuck = (b.type === 'puck');
@@ -309,7 +497,7 @@ function wallCollide(b) {
       return;
     }
     b.y = b.r;
-    if (b.vy < 0) { b.vy = -b.vy * REST; addJitter(b, JITTER_WALL); }
+    if (b.vy < 0) { b.vy = -b.vy * REST; addJitter(b, JITTER_WALL); sndWall(Math.hypot(b.vx, b.vy)); }
   }
 
   // 下边界（玩家球门）
@@ -319,7 +507,7 @@ function wallCollide(b) {
       return;
     }
     b.y = H - b.r;
-    if (b.vy > 0) { b.vy = -b.vy * REST; addJitter(b, JITTER_WALL); }
+    if (b.vy > 0) { b.vy = -b.vy * REST; addJitter(b, JITTER_WALL); sndWall(Math.hypot(b.vx, b.vy)); }
   }
 }
 
@@ -360,6 +548,8 @@ function ballCollide(a, b) {
 
   addJitter(a, JITTER_BALL);
   addJitter(b, JITTER_BALL);
+
+  sndHit(-velN, a.type !== 'puck' && b.type !== 'puck');
 }
 
 function substep(dt) {
@@ -396,6 +586,7 @@ function handleGoal(who) {
   else                  state.scoreA++;
 
   flash = 1;
+  sndGoal(who === 'player');
 
   if (state.scoreP >= WIN_SCORE || state.scoreA >= WIN_SCORE) {
     state.over = true;
@@ -404,6 +595,7 @@ function handleGoal(who) {
     activePointerId = null;
     aiCharging = false;
     for (const b of [puck, pStriker, aStriker]) { b.vx = 0; b.vy = 0; }
+    sndOver(state.winner === 'player');
   } else {
     resetPositions();
   }
@@ -671,6 +863,8 @@ function render() {
 // ============ 输入 ============
 function onPointerDown(e) {
   e.preventDefault();
+  initAudio();
+  resumeAudio();
 
   if (state.over) {
     restart();
@@ -716,6 +910,15 @@ document.addEventListener('touchmove', e => {
 const homeBtn = document.getElementById('home');
 homeBtn.addEventListener('pointerdown', e => e.stopPropagation());
 homeBtn.addEventListener('pointerup', e => e.stopPropagation());
+
+const soundBtn = document.getElementById('sound');
+soundBtn.addEventListener('pointerdown', e => e.stopPropagation());
+soundBtn.addEventListener('click', () => {
+  soundOn = !soundOn;
+  soundBtn.classList.toggle('off', !soundOn);
+  soundBtn.textContent = soundOn ? '🎵' : '🔇';
+  sndToggle(soundOn);
+});
 
 // ============ 主循环 ============
 let lastT = 0;
