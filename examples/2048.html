@@ -258,7 +258,7 @@
   // ---------- layout / render ----------
   function layout() {
     const dpr = window.devicePixelRatio || 1;
-    const size = Math.min(wrap.clientWidth, Math.min(window.innerWidth, window.innerHeight) * 0.62);
+    const size = wrap.clientWidth;
     const w = Math.max(240, Math.floor(size));
     PAD = Math.max(8, Math.round(w * 0.035));
     CELL = (w - PAD * (GRID + 1)) / GRID;
