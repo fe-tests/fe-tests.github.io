@@ -448,6 +448,7 @@ function findAnyMove() {
 function render() {
     boardEl.style.gridTemplateColumns = `repeat(${cols}, var(--cell))`;
     pathSvg.innerHTML = '';
+    boardEl.innerHTML = '';
     for (let r = 1; r <= rows; r++) {
         for (let c = 1; c <= cols; c++) {
             const cell = document.createElement('div');
