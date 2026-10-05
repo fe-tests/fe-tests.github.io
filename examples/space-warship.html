@@ -136,6 +136,96 @@
   const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
   const dist2 = (ax, ay, bx, by) => { const dx = ax - bx, dy = ay - by; return dx * dx + dy * dy; };
 
+  // ---------- 音效 (Web Audio API 合成，无需外部文件) ----------
+  let audioCtx = null, masterGain = null, soundOn = true, soundBtn = null;
+
+  function initAudio() {
+    try {
+      if (audioCtx) return;
+      const AC = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new AC();
+      masterGain = audioCtx.createGain();
+      masterGain.gain.value = 0.35;
+      masterGain.connect(audioCtx.destination);
+    } catch (e) { audioCtx = null; }
+  }
+  function resumeAudio() {
+    if (audioCtx && audioCtx.state === "suspended") { try { audioCtx.resume(); } catch (e) {} }
+  }
+  function makeNoiseBuffer(seconds) {
+    const len = Math.floor(audioCtx.sampleRate * seconds);
+    const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+    return buf;
+  }
+  // 单音：freq/Hz, waveType, 时长, 音量, 起音, 衰减, 目标频率(滑音), 滤波器频率(可选)
+  function playTone(freq, type, dur, vol, attack, decay, detuneTo, filterFreq) {
+    if (!audioCtx || !soundOn) return;
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, t);
+    if (detuneTo) osc.frequency.exponentialRampToValueAtTime(Math.max(1, detuneTo), t + dur);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + attack);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + decay);
+    if (filterFreq) {
+      const lp = audioCtx.createBiquadFilter();
+      lp.type = "lowpass"; lp.frequency.value = filterFreq;
+      g.connect(lp); lp.connect(masterGain);
+    } else { g.connect(masterGain); }
+    osc.start(t); osc.stop(t + decay + 0.02);
+  }
+  // 噪声（爆炸用）：dur, 音量, 起始滤波, 目标滤波(扫频)
+  function playNoise(dur, vol, startFilter, toFilter) {
+    if (!audioCtx || !soundOn) return;
+    const t = audioCtx.currentTime;
+    const src = audioCtx.createBufferSource();
+    src.buffer = makeNoiseBuffer(dur);
+    const bp = audioCtx.createBiquadFilter();
+    bp.type = "lowpass";
+    bp.frequency.setValueAtTime(startFilter, t);
+    if (toFilter) bp.frequency.exponentialRampToValueAtTime(Math.max(40, toFilter), t + dur);
+    const g = audioCtx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(bp); bp.connect(g); g.connect(masterGain);
+    src.start(t); src.stop(t + dur + 0.02);
+  }
+  // 琶音（升级/开始用）：频率数组, waveType, 每音时长
+  function sfxChirp(freqs, type, per) {
+    if (!audioCtx || !soundOn) return;
+    const t = audioCtx.currentTime;
+    for (let i = 0; i < freqs.length; i++) {
+      const st = t + i * per;
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freqs[i], st);
+      g.gain.setValueAtTime(0.0001, st);
+      g.gain.exponentialRampToValueAtTime(0.16, st + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, st + per * 0.9);
+      osc.connect(g); g.connect(masterGain);
+      osc.start(st); osc.stop(st + per + 0.05);
+    }
+  }
+  // 各音效
+  function sfxShoot() { playTone(900, "square", 0.08, 0.10, 0.001, 0.08, 320); }          // 开火：轻亮短促
+  function sfxExplode(small) {                                   // 爆炸
+    playNoise(small ? 0.26 : 0.6, small ? 0.3 : 0.45, 1600, small ? 260 : 120);
+    playTone(small ? 160 : 95, "sawtooth", small ? 0.2 : 0.5, small ? 0.12 : 0.18, 0.006, small ? 0.2 : 0.5, small ? 80 : 45, 500);
+  }
+  function sfxPlayerHit() { playTone(180, "sawtooth", 0.22, 0.22, 0.005, 0.22, 70, 700); }   // 玩家受击
+  function sfxPowerup() { playTone(520, "square", 0.1, 0.14, 0.001, 0.1, 880); }            // 拾取
+  function sfxLevelUp() { sfxChirp([523, 659, 784], "square", 0.1); }                        // 升级
+  function sfxBoss() { playTone(110, "sawtooth", 0.6, 0.24, 0.05, 0.6, 150, 320); playNoise(0.5, 0.18, 900, 420); } // Boss降临
+  function sfxStart() { sfxChirp([392, 523, 659, 784], "square", 0.1); }                     // 开始
+  function sfxGameOver() { playTone(420, "sine", 0.75, 0.18, 0.02, 0.75, 150); }            // 结束
+  function toggleSound() { soundOn = !soundOn; }
+
   function roundRect(x, y, w, h, r) {
     r = Math.min(r, w / 2, h / 2);
     ctx.beginPath();
@@ -153,6 +243,7 @@
     for (let i = 0; i < 130; i++) {
       stars.push({ x: Math.random() * W, y: Math.random() * H, z: Math.random() * 0.8 + 0.2 });
     }
+    soundBtn = { x: Math.max(30, W - 22), y: 26, r: 15 };
   }
 
   // ---------- 玩家 ----------
@@ -218,6 +309,7 @@
     return { x, y, vx, vy, r: r || 4, color: color || "#8fd4ff", dmg: dmg || 1 };
   }
   function playerFire() {
+    if (soundOn) sfxShoot();
     const spd = H * 1.9;
     const bx = player.x, by = player.y - player.size * 0.6;
     if (weapon === 1) {
@@ -264,6 +356,7 @@
       hp: 90 + currentLevel * 24, maxHp: 90 + currentLevel * 24, type: "boss", color: "#ff5478", score: 500,
       shootCd: rand(0.7, 1.3), t: 0, freq: 0.5, amp: 0, phase: 0, drift: 1, onScreen: false
     });
+    if (soundOn) sfxBoss();
     texts.push({ x: W / 2, y: H * 0.22, txt: "⚠ BOSS", color: "#ff7a9c", life: 1.8, size: Math.max(26, Math.min(42, W * 0.09)) });
   }
 
@@ -336,11 +429,13 @@
   function damagePlayer(d) {
     if (shieldTimer > 0 || player.invuln > 0) return;
     hp -= d; player.invuln = 0.9; shake = 12;
+    if (soundOn) sfxPlayerHit();
     spawnParticles(player.x, player.y, "#ff5566", 16);
     if (hp <= 0) { hp = 0; loseLife(); }
   }
   function loseLife() {
     lives--;
+    if (soundOn) sfxExplode(false);
     spawnParticles(player.x, player.y, "#ffd66b", 26);
     shake = 16;
     if (lives <= 0) { gameOver(); return; }
@@ -350,6 +445,7 @@
   function killEnemy(e) {
     e.dead = true;
     score += e.score;
+    if (soundOn) sfxExplode(e.type !== "boss");
     spawnParticles(e.x, e.y, e.color, e.type === "boss" ? 44 : 16);
     shake = Math.min(shake + (e.type === "boss" ? 16 : 4), 22);
     spawnText(e.x, e.y, "+" + e.score, "#ffd66b", e.type === "boss" ? 22 : 15);
@@ -360,6 +456,7 @@
     const lv = 1 + Math.floor(score / LEVEL_STEP);
     if (lv <= currentLevel) return;
     currentLevel = lv;
+    if (soundOn) sfxLevelUp();
     spawnText(W / 2, H * 0.30, "等级提升 → 等级 " + lv, "#6ea8fe", Math.max(22, Math.min(34, W * 0.07)));
     if (lv % 5 === 0 && !bossActive && lastBossLevel < lv) {
       lastBossLevel = lv;
@@ -527,6 +624,7 @@
       shieldTimer = 5;
       spawnText(player.x, player.y - player.size, "护盾!", "#7aa8ff", 16);
     }
+    if (soundOn) sfxPowerup();
     spawnParticles(player.x, player.y, "#fff", 12);
   }
 
@@ -623,6 +721,30 @@
       if (shieldTimer > 0) { ctx.fillStyle = "#7aa8ff"; ctx.fillText("护盾 " + shieldTimer.toFixed(1) + "s", W - 16, 86); }
       if (weaponTimer > 0) { ctx.fillStyle = "#66e0ff"; ctx.fillText("火力 Lv" + weapon + " " + weaponTimer.toFixed(0) + "s", W - 16, shieldTimer > 0 ? 104 : 86); }
     }
+
+    // 声音开关按钮 (右上角)
+    if (soundBtn) {
+      ctx.save();
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      const bx = soundBtn.x, by = soundBtn.y, br = soundBtn.r;
+      ctx.fillStyle = "rgba(20,30,60,0.55)";
+      ctx.beginPath(); ctx.arc(bx, by, br, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = "rgba(120,150,255,0.6)"; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(bx, by, br, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = "#cfe0ff"; ctx.strokeStyle = "#cfe0ff"; ctx.lineWidth = 1.5;
+      if (soundOn) {
+        ctx.fillRect(bx - 6, by - 3, 4, 6);
+        ctx.beginPath(); ctx.moveTo(bx - 2, by - 3); ctx.lineTo(bx + 2, by - 6); ctx.lineTo(bx + 2, by + 6); ctx.lineTo(bx - 2, by + 3); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.arc(bx + 5, by, 3, -Math.PI * 0.5, Math.PI * 0.5); ctx.stroke();
+        ctx.beginPath(); ctx.arc(bx + 8, by, 5, -Math.PI * 0.5, Math.PI * 0.5); ctx.stroke();
+      } else {
+        ctx.fillRect(bx - 6, by - 3, 4, 6);
+        ctx.beginPath(); ctx.moveTo(bx - 2, by - 3); ctx.lineTo(bx + 2, by - 6); ctx.lineTo(bx + 2, by + 6); ctx.lineTo(bx - 2, by + 3); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = "#ff7a7a"; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(bx + 1, by - 6); ctx.lineTo(bx + 9, by + 6); ctx.stroke();
+      }
+      ctx.restore();
+    }
     ctx.restore();
   }
 
@@ -659,18 +781,32 @@
 
   function clientX(e) { return e.touches && e.touches[0] ? e.touches[0].clientX : e.clientX; }
   function clientY(e) { return e.touches && e.touches[0] ? e.touches[0].clientY : e.clientY; }
-  function onDown(e) { e.preventDefault(); touchActive = true; touchX = clientX(e); touchY = clientY(e); if (state !== STATE.PLAYING) startGame(); }
+  function onDown(e) {
+    const cx = clientX(e), cy = clientY(e);
+    if (soundBtn && dist2(cx, cy, soundBtn.x, soundBtn.y) <= (soundBtn.r + 4) * (soundBtn.r + 4)) {
+      e.preventDefault();
+      toggleSound();
+      return;
+    }
+    e.preventDefault();
+    touchActive = true; touchX = cx; touchY = cy; if (state !== STATE.PLAYING) startGame();
+  }
   function onMove(e) { if (touchActive) { e.preventDefault(); touchX = clientX(e); touchY = clientY(e); } }
   function onUp(e) { e.preventDefault(); touchActive = false; }
   canvas.addEventListener("touchstart", onDown, { passive: false });
   canvas.addEventListener("touchmove", onMove, { passive: false });
   canvas.addEventListener("touchend", onUp, { passive: false });
-  canvas.addEventListener("mousedown", function (e) { touchActive = true; touchX = e.clientX; if (state !== STATE.PLAYING) startGame(); });
+  canvas.addEventListener("mousedown", function (e) {
+    if (soundBtn && dist2(e.clientX, e.clientY, soundBtn.x, soundBtn.y) <= (soundBtn.r + 4) * (soundBtn.r + 4)) return;
+    touchActive = true; touchX = e.clientX; if (state !== STATE.PLAYING) startGame();
+  });
   window.addEventListener("mousemove", function (e) { if (touchActive) touchX = e.clientX; });
   window.addEventListener("mouseup", function () { touchActive = false; });
 
   // ---------- 流程 ----------
   function startGame() {
+    initAudio(); resumeAudio();
+    if (soundOn) sfxStart();
     score = 0; currentLevel = 1; lastBossLevel = 0; lives = MAX_LIVES; hp = MAX_HP;
     weapon = 1; weaponTimer = 0; shieldTimer = 0;
     shake = 0; elapsed = 0; bossActive = false; spawnTimer = 0.6;
@@ -683,6 +819,7 @@
 
   function gameOver() {
     state = STATE.OVER;
+    if (soundOn) sfxGameOver();
     if (score > best) { best = score; try { localStorage.setItem(LS_KEY, String(best)); } catch (e) {} }
     document.getElementById("ov-score").textContent = score;
     document.getElementById("ov-best").innerHTML = "最高分：<span>" + best + "</span>";
