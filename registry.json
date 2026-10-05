@@ -228,6 +228,20 @@
       "thumbnail": null,
       "createdAt": "2026-10-05",
       "updatedAt": "2026-10-05"
+    },
+    {
+      "id": "minesweeper",
+      "title": "扫雷",
+      "description": "经典扫雷：左盖揭开、右键或插旗模式标雷，首击必不踩雷，空白自动扩散，限时计雷，初/中/高三档难度。",
+      "url": "examples/minesweeper.html",
+      "category": "game",
+      "emoji": "💣",
+      "tags": ["game", "扫雷", "minesweeper", "logic"],
+      "status": "stable",
+      "pinned": false,
+      "thumbnail": null,
+      "createdAt": "2026-10-05",
+      "updatedAt": "2026-10-05"
     }
   ]
 }
