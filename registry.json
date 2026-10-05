@@ -214,6 +214,20 @@
       "thumbnail": null,
       "createdAt": "2026-10-03",
       "updatedAt": "2026-10-03"
+    },
+    {
+      "id": "music-editor",
+      "title": "乐曲编辑器",
+      "description": "按住琴键播放音调（长按决定音长），Web Audio 生成音色；可录制按下/松开的时序并严格按原节奏回放。",
+      "url": "examples/music-editor.html",
+      "category": "experiment",
+      "emoji": "🎹",
+      "tags": ["audio", "music", "webaudio", "录制", "回放"],
+      "status": "stable",
+      "pinned": false,
+      "thumbnail": null,
+      "createdAt": "2026-10-05",
+      "updatedAt": "2026-10-05"
     }
   ]
 }
