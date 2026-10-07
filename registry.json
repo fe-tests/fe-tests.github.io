@@ -28,7 +28,7 @@
       "emoji": "🐣",
       "tags": ["llm", "demo", "tiny"],
       "status": "stable",
-      "pinned": true,
+      "pinned": false,
       "thumbnail": null,
       "createdAt": "2025-01-01",
       "updatedAt": "2025-01-01"
