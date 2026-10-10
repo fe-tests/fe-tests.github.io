@@ -242,6 +242,20 @@
       "thumbnail": null,
       "createdAt": "2026-10-05",
       "updatedAt": "2026-10-05"
+    },
+    {
+      "id": "hearts",
+      "title": "红心大战",
+      "description": "Windows 经典扑克红心大战网页版：4 人对战 AI，须跟花色/红心开花/先丢红心才能出 Q♠/单吃判分，桌面级牌桌与卡牌渲染，先到 100 分判负。",
+      "url": "examples/hearts.html",
+      "category": "game",
+      "emoji": "❤",
+      "tags": ["game", "poker", "扑克", "单机", "红心"],
+      "status": "stable",
+      "pinned": false,
+      "thumbnail": null,
+      "createdAt": "2026-10-06",
+      "updatedAt": "2026-10-06"
     }
   ]
 }

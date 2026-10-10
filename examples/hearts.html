@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>❤ 红心大战</title>
+<style>
+  :root {
+    --felt: #0b3d2e;
+    --felt-2: #0a2f23;
+    --gold: #f5c451;
+    --red: #e5484d;
+    --card-w: 52px;
+    --card-h: 74px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, Arial, sans-serif;
+    background: radial-gradient(900px 500px at 50% -5%, #16503a 0%, var(--felt) 45%, var(--felt-2) 100%);
+    color: #e7eaf0; min-height: 100vh; display: flex; flex-direction: column;
+  }
+  a { color: inherit; }
+
+  .topbar {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 12px 18px; background: rgba(15,17,21,.5); backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255,255,255,.08);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand .em { font-size: 26px; }
+  .brand h1 { font-size: 18px; margin: 0; letter-spacing: .5px; }
+  .brand small { display: block; font-size: 12px; color: #9aa3b2; margin-top: 1px; }
+  .spacer { flex: 1; }
+  .scoreboard { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .score-chip {
+    display: flex; align-items: center; gap: 6px; padding: 6px 11px; border-radius: 10px;
+    background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.1); font-size: 13px;
+  }
+  .score-chip .n { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .score-chip.me { border-color: var(--gold); background: rgba(245,196,81,.14); }
+  button {
+    font-family: inherit; cursor: pointer; border: 1px solid rgba(255,255,255,.16);
+    background: linear-gradient(#2a3040, #1b2029); color: #e7eaf0; padding: 9px 16px;
+    border-radius: 10px; font-size: 14px; transition: transform .1s, background .15s;
+  }
+  button:hover { background: linear-gradient(#333a4c, #222733); }
+  button:active { transform: translateY(1px); }
+  button.primary { background: linear-gradient(#f5c451, #e0a72e); color: #1a1300; border-color: #d49a2c; font-weight: 700; }
+  button:disabled { opacity: .45; cursor: default; }
+
+  .table {
+    flex: 1; position: relative; width: 100%; min-height: 480px; max-width: 1100px; margin: 0 auto;
+    display: grid; grid-template-columns: 130px 1fr 130px; grid-template-rows: 130px 1fr 150px;
+    gap: 6px; padding: 10px;
+  }
+  .seat { position: relative; display: flex; align-items: center; justify-content: center; }
+  .seat-label {
+    font-size: 12px; color: #9aa3b2; text-align: center; margin-bottom: 4px; white-space: nowrap;
+  }
+  .seat-label .dots { color: var(--gold); }
+  .opponent-cards { display: flex; align-items: center; justify-content: center; }
+  .fan { display: flex; }
+  .mini-back {
+    width: 34px; height: 48px; border-radius: 7px; margin-left: -16px;
+    background: repeating-linear-gradient(45deg, #7a1f24 0 6px, #5f161a 6px 12px);
+    border: 1px solid #3a0d10; box-shadow: 0 2px 5px rgba(0,0,0,.4);
+  }
+  .mini-back:first-child { margin-left: 0; }
+
+  .play-area {
+    grid-column: 2; grid-row: 2; display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .trick { display: flex; gap: 16px; align-items: center; }
+  .played-card {
+    position: absolute; width: var(--card-w); height: var(--card-h);
+    transition: all .25s ease;
+  }
+  .played-card.p0 { bottom: 10px; left: 50%; transform: translateX(-50%); }
+  .played-card.p1 { top: 10px; left: 50%; transform: translateX(-50%) rotate(180deg); }
+  .played-card.p2 { left: 12px; top: 50%; transform: translateY(-50%); }
+  .played-card.p3 { right: 12px; top: 50%; transform: translateY(-50%); }
+
+  .hand-area {
+    grid-column: 2; grid-row: 3; min-height: calc(var(--card-h) + 20px);
+    display: flex; align-items: flex-end; justify-content: center; padding-bottom: 8px;
+  }
+  .hand { display: flex; }
+  .card {
+    --cw: var(--card-w); --ch: var(--card-h);
+    width: var(--cw); height: var(--ch); margin-left: -16px; border-radius: 8px;
+    background: #fdfdff; color: #1a1a1a; position: relative; cursor: default;
+    box-shadow: 0 3px 8px rgba(0,0,0,.45); user-select: none; transition: transform .12s ease, box-shadow .12s ease;
+  }
+  .card:first-child { margin-left: 0; }
+  .card .rank { position: absolute; top: 5px; left: 6px; font-weight: 800; font-size: 17px; line-height: 1; }
+  .card .suit-tl { position: absolute; top: 22px; left: 6px; font-size: 15px; }
+  .card .suit-big { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: 34px; }
+  .card.red { color: var(--red); }
+  .card.black { color: #1a1a1a; }
+  .card.playable { cursor: pointer; }
+  .card.playable:hover { transform: translateY(-16px) scale(1.06); box-shadow: 0 8px 16px rgba(0,0,0,.5); z-index: 5; }
+  .card.disabled { opacity: .4; }
+  .card.selected { transform: translateY(-14px); }
+
+  .status {
+    text-align: center; padding: 8px; font-size: 15px; color: #f3d987; min-height: 26px;
+    text-shadow: 0 1px 2px rgba(0,0,0,.5);
+  }
+  .toast {
+    position: fixed; left: 50%; top: 70px; transform: translateX(-50%) translateY(-20px);
+    background: rgba(20,24,32,.96); border: 1px solid var(--gold); color: #fff;
+    padding: 14px 24px; border-radius: 12px; font-size: 15px; box-shadow: 0 10px 30px rgba(0,0,0,.5);
+    opacity: 0; pointer-events: none; transition: all .3s ease; z-index: 100; text-align: center; max-width: 90vw;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast .big { font-size: 20px; font-weight: 800; color: var(--gold); display: block; margin-bottom: 6px; }
+
+  .overlay {
+    position: fixed; inset: 0; background: rgba(8,12,16,.78); backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center; z-index: 200; padding: 20px;
+  }
+  .overlay.hidden { display: none; }
+  .modal {
+    background: linear-gradient(#1c2029, #171a21); border: 1px solid #2a2f3a; border-radius: 18px;
+    padding: 28px 30px; max-width: 460px; width: 100%; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,.6);
+  }
+  .modal h2 { margin: 0 0 8px; font-size: 24px; }
+  .modal p { color: #9aa3b2; font-size: 14px; line-height: 1.6; margin: 8px 0; text-align: left; }
+  .modal ul { text-align: left; color: #9aa3b2; font-size: 13px; line-height: 1.7; padding-left: 20px; }
+  .modal .row-btns { display: flex; gap: 10px; margin-top: 18px; justify-content: center; }
+  .round-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+  .round-grid button { padding: 14px; font-size: 15px; }
+
+  @media (max-width: 720px) {
+    :root { --card-w: 42px; --card-h: 62px; }
+    .table { grid-template-columns: 70px 1fr 70px; grid-template-rows: 84px 1fr 120px; }
+    .mini-back { width: 26px; height: 38px; margin-left: -12px; }
+    .seat { min-width: 0; }
+    .score-chip span.lbl { display: none; }
+    .played-card.p2, .played-card.p3 { transform: translateY(-50%) scale(.9); }
+  }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">
+      <span class="em">❤</span>
+      <div>
+        <h1>红心大战</h1>
+        <small>经典扑克 · 单人对战电脑</small>
+      </div>
+    </div>
+    <div class="spacer"></div>
+    <div class="scoreboard" id="scoreboard"></div>
+    <button class="primary" id="newGameBtn">新游戏</button>
+  </div>
+
+  <div class="table">
+    <div class="seat" id="seat-north">
+      <div>
+        <div class="seat-label"><span class="dots">●</span> 北家</div>
+        <div class="opponent-cards" id="cards-north"></div>
+      </div>
+    </div>
+    <div class="seat" id="seat-west">
+      <div>
+        <div class="seat-label"><span class="dots">●</span> 西家</div>
+        <div class="opponent-cards" id="cards-west"></div>
+      </div>
+    </div>
+    <div class="play-area">
+      <div class="trick" id="trick"></div>
+    </div>
+    <div class="seat" id="seat-east">
+      <div>
+        <div class="seat-label"><span class="dots">●</span> 东家</div>
+        <div class="opponent-cards" id="cards-east"></div>
+      </div>
+    </div>
+    <div class="status" id="status">点击「新游戏」开始</div>
+    <div class="hand-area">
+      <div class="hand" id="hand"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- Help overlay -->
+  <div class="overlay" id="helpOverlay">
+    <div class="modal">
+      <h2>❤ 游戏说明</h2>
+      <p>目标是拿到最少的分数。每回合摸 13 张牌，通过打牌丢掉高分牌。</p>
+      <ul>
+        <li><b>♥ 红心</b>：每张 1 分；<b>Q♠ 黑桃皇后</b>：13 分。</li>
+        <li>目标是让对手多背分 —— 分数越低越好，<b>先到 100 分的人输</b>。</li>
+        <li>每轮必须跟出与第一张牌相同花色的牌（有则必须跟）；花色不同才能打别的。</li>
+        <li>♥ 未「开花」前不能率先出红心（先有人打出其他花色的红心后，红心才「开花」可自由出）。</li>
+        <li>出牌前必须先丢完所有红心，才能出 Q♠。</li>
+        <li><b>单吃</b>：若某人吃光所有红心和 Q♠（26 分），则其他人各得 26 分，自己 0 分。</li>
+        <li>每轮结束按 左 → 右 → 对面 → 不换 的顺序互相传递 3 张牌。</li>
+      </ul>
+      <div class="row-btns"><button class="primary" id="startBtn">开始游戏</button></div>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    "use strict";
+    const SUITS = ["S", "H", "D", "C"];
+    const SUIT_NAME = { S: "♠", H: "♥", D: "♦", C: "♣" };
+    const RANK_NAME = { 2: "2", 3: "3", 4: "4", 5: "5", 6: "6", 7: "7", 8: "8", 9: "9", 10: "10", 11: "J", 12: "Q", 13: "K", 14: "A" };
+    const isHeart = (c) => c.suit === "H";
+    const isQueenSpade = (c) => c.suit === "S" && c.rank === 12;
+    const isRed = (s) => s === "H" || s === "D";
+    const SEAT_NAMES = ["你", "西家", "北家", "东家"]; // turn order 0,1,2,3
+
+    const state = {
+      players: [[], [], [], []],
+      hands: [[], [], [], []],     // sorted hands
+      scores: [0, 0, 0, 0],
+      round: 0,
+      turn: 0,
+      leadSuit: null,
+      trick: [],       // { player, card }
+      heartsBroken: false,
+      firstToMove: 0,
+      over: false,
+      passing: false,
+    };
+
+    const $ = (id) => document.getElementById(id);
+    const els = {
+      hand: $("hand"), trick: $("trick"), status: $("status"),
+      scoreboard: $("scoreboard"), cards: { 0: $("cards-west"), 1: $("cards-north"), 2: $("cards-east"), 3: null },
+      toast: $("toast"), helpOverlay: $("helpOverlay"), newGameBtn: $("newGameBtn"),
+    };
+
+    function toast(html, ms) {
+      els.toast.innerHTML = html;
+      els.toast.classList.add("show");
+      const t = setTimeout(() => els.toast.classList.remove("show"), ms || 2000);
+      return t;
+    }
+
+    function buildDeck() {
+      const deck = [];
+      for (const s of SUITS) for (let r = 2; r <= 14; r++) deck.push({ suit: s, rank: r });
+      return deck;
+    }
+
+    function shuffle(a) {
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    function sortHand(h) {
+      h.sort((a, b) => {
+        const sc = SUITS.indexOf(a.suit) - SUITS.indexOf(b.suit);
+        if (sc !== 0) return sc;
+        return a.rank - b.rank;
+      });
+    }
+
+    // ---- Pass selection AI ----
+    function choosePass(pIdx) {
+      const hand = state.hands[pIdx];
+      // Determine passing count/direction for this round.
+      const dir = ["left", "across", "right", "none"][(state.round - 1) % 4];
+      if (dir === "none") return { cards: [], dir };
+      const cards = passCards(hand);
+      return { cards, dir };
+    }
+
+    function passCards(hand) {
+      if (hand.length <= 3) return hand.slice(0, Math.min(3, hand.length));
+      // Strategy: dump high cards of suits we're long in; avoid passing low winning cards,
+      // avoid passing hearts unless needed, never pass 2 unless we have no choice.
+      const bySuit = { S: [], H: [], D: [], C: [] };
+      for (const c of hand) (bySuit[c.suit]).push(c);
+      // Sort each suit high -> low
+      for (const s in bySuit) bySuit[s].sort((a, b) => b.rank - a.rank);
+
+      const pass = [];
+      let need = 3;
+
+      // 1) Prefer to pass the highest card (2..14) of each suit we hold (dump K/Q etc.),
+      //    but skip hearts unless we have >4 of them (to keep it manageable) and avoid Q♠.
+      for (const s in bySuit) {
+        if (need <= 0) break;
+        const suit = bySuit[s];
+        if (suit.length === 0) continue;
+        if (s === "H") {
+          // only dump hearts if very long and high
+          if (suit.length >= 5 && suit[0].rank >= 11) { pushPass(pass, suit); need--; }
+        } else if (s === "S") {
+          const top = suit[0];
+          if (!(top.suit === "S" && top.rank === 12) && suit.length >= 2 && top.rank >= 11) {
+            // dump high spade that isn't Q♠
+            pushPass(pass, suit); need--;
+          }
+        } else {
+          const top = suit[0];
+          if (suit.length >= 2 && top.rank >= 11) { pushPass(pass, suit); need--; }
+        }
+      }
+      // 2) Next, dump highest cards of longest suits.
+      const suits = Object.keys(bySuit).sort((a, b) => bySuit[b].length - bySuit[a].length);
+      for (const s of suits) {
+        if (need <= 0) break;
+        if (bySuit[s].length > 0) {
+          pushPass(pass, bySuit[s]);
+          need--;
+        }
+      }
+      // 3) Fill remaining from highest overall (excluding 2s unless forced).
+      const all = hand.slice().sort((a, b) => b.rank - a.rank);
+      for (const c of all) {
+        if (need <= 0) break;
+        if (pass.includes(c)) continue;
+        if (c.rank === 2 && pass.filter(p => p.rank === 2).length === 0 && pass.length < 1) continue;
+        pass.push(c);
+        need--;
+      }
+      return pass.slice(0, 3);
+    }
+
+    function pushPass(pass, suitArr) {
+      const top = suitArr.shift();
+      pass.push(top);
+    }
+
+    // ---- Direction helper ----
+    function directionOf(pIdx) {
+      return ["left", "across", "right", "none"][(state.round - 1) % 4];
+    }
+    function targetOf(pIdx, dir) {
+      if (dir === "left") return (pIdx + 1) % 4;
+      if (dir === "right") return (pIdx + 3) % 4;
+      return (pIdx + 2) % 4;
+    }
+
+    // ---- Validity checks ----
+    function hasSuit(hand, suit) {
+      for (const c of hand) if (c.suit === suit) return true;
+      return false;
+    }
+    function onlyHearts(hand) {
+      for (const c of hand) if (!isHeart(c)) return false;
+      return true;
+    }
+    function canPlay(pIdx, card) {
+      const hand = state.hands[pIdx];
+      if (state.trick.length === 0) {
+        // leading: can't lead hearts if not broken, UNLESS the hand is all hearts (forced lead)
+        if (isHeart(card) && !state.heartsBroken && hand.some(c => !isHeart(c))) return false;
+        // must shed hearts before playing Q♠
+        if (isQueenSpade(card) && hand.some(c => isHeart(c))) return false;
+        return true;
+      }
+      // following: must follow suit if possible
+      if (hasSuit(hand, state.leadSuit)) {
+        return card.suit === state.leadSuit;
+      }
+      // can't follow suit: free to play anything
+      // Exception: if the entire hand is hearts, hearts must be played even if not broken yet
+      if (onlyHearts(hand) && isHeart(card)) return true;
+      if (isHeart(card) && !state.heartsBroken) return false;
+      if (isQueenSpade(card) && hand.some(c => isHeart(c))) return false;
+      return true;
+    }
+    function validHand(pIdx) {
+      const hand = state.hands[pIdx];
+      if (hand.length === 0) return [];
+      const valid = [];
+      for (const c of hand) if (canPlay(pIdx, c)) valid.push(c);
+      // If following suit and no valid follow exists, everything is legal
+      return valid.length ? valid : hand.slice();
+    }
+
+    // ---- AI play ----
+    function aiChoose(pIdx) {
+      const hand = state.hands[pIdx];
+      const valid = validHand(pIdx);
+      if (valid.length === 1) return valid[0];
+
+      // Lead: prefer low non-scoring cards; dump high when safe.
+      if (state.trick.length === 0) {
+        // Lead the lowest safe (non-heart, non-Q♠) card to avoid winning the trick
+        const safe = valid.filter(c => !isHeart(c) && !isQueenSpade(c));
+        if (safe.length) {
+          safe.sort((a, b) => a.rank - b.rank);
+          return safe[0];
+        }
+        // only hearts and Q♠
+        if (hand.some(c => isQueenSpade(c)) && !hand.some(c => !isHeart(c) && !isQueenSpade(c))) {
+          // must play Q♠ (hearts presumably gone)
+          return hand.find(c => isQueenSpade(c));
+        }
+        // only hearts: play lowest
+        return valid.slice().sort((a, b) => a.rank - b.rank)[0];
+      }
+
+      // Following suit: play lowest of the suit (to keep winners, shed).
+      const ofSuit = valid.filter(c => c.suit === state.leadSuit);
+      if (ofSuit.length) {
+        ofSuit.sort((a, b) => a.rank - b.rank);
+        return ofSuit[0];
+      }
+      // Can't follow; dump. Prefer to dump high non-scoring card (Q/K of other suit).
+      const dump = valid.filter(c => !isHeart(c) && !isQueenSpade(c));
+      if (dump.length) {
+        dump.sort((a, b) => b.rank - a.rank);
+        return dump[0];
+      }
+      // Must dump heart (if broken) or Q♠
+      const hearts = valid.filter(isHeart);
+      if (hearts.length) { hearts.sort((a, b) => b.rank - a.rank); return hearts[0]; }
+      return valid[0];
+    }
+
+    // ---- Round flow ----
+    function newRound() {
+      state.round++;
+      state.hands = [[], [], [], []];
+      state.scores = [0, 0, 0, 0];
+      state.trick = [];
+      state.leadSuit = null;
+      state.heartsBroken = false;
+      state.over = false;
+
+      const deck = shuffle(buildDeck());
+      for (let p = 0; p < 4; p++) {
+        for (let i = 0; i < 13; i++) state.hands[p].push(deck[p * 13 + i]);
+        sortHand(state.hands[p]);
+      }
+
+      // Passing
+      const passDir = directionOf(0);
+      const passMsg = { left: "向左家传", across: "向对面传", right: "向右家传", none: "本轮不传牌" }[passDir];
+      setStatus("第 " + state.round + " 轮 · 传递规则：" + passMsg);
+
+      // Execute passes SIMULTANEOUSLY (each player passes from their own hand)
+      const dir = passDir;
+      const passers = { left: [0, 1, 2, 3], across: [0, 1, 2, 3], right: [0, 1, 2, 3], none: [] };
+      const from = passers[dir] || [];
+      const moves = [];
+      for (const p of from) {
+        const dest = targetOf(p, dir);
+        moves.push({ from: p, dest, cards: passCards(state.hands[p]) });
+      }
+      for (const m of moves) {
+        for (const c of m.cards) {
+          const idx = state.hands[m.from].indexOf(c);
+          if (idx >= 0) state.hands[m.from].splice(idx, 1);
+          state.hands[m.dest].push(c);
+        }
+      }
+      for (const p of [0, 1, 2, 3]) sortHand(state.hands[p]);
+
+      // Determine first player: whoever holds 2 of spades leads, else lowest non-scoring.
+      state.firstToMove = findLeader();
+      state.turn = state.firstToMove;
+      render();
+      // If the leader is an AI, it must play automatically (human can't play others' cards)
+      if (state.turn !== 0) setTimeout(aiTurn, 700 + Math.random() * 500);
+    }
+
+    function findLeader() {
+      let best = null, bestRank = 99, bestSc = 99;
+      for (let p = 0; p < 4; p++) {
+        for (const c of state.hands[p]) {
+          const sc = SUITS.indexOf(c.suit);
+          const key = sc * 100 + c.rank;
+          if (key < bestRank) { bestRank = key; best = p; }
+        }
+      }
+      return best;
+    }
+
+    function playCard(pIdx, card) {
+      if (state.over) return;
+      if (pIdx !== state.turn) return;
+      if (!canPlay(pIdx, card)) { flashInvalid(); return; }
+      const hand = state.hands[pIdx];
+      const idx = hand.findIndex(c => c.suit === card.suit && c.rank === card.rank);
+      if (idx >= 0) hand.splice(idx, 1);
+
+      state.trick.push({ player: pIdx, card });
+      if (state.trick.length === 1) {
+        state.leadSuit = card.suit;
+      }
+      if (isHeart(card)) state.heartsBroken = true;
+
+      render();
+
+      if (state.trick.length === 4) {
+        setTimeout(endTrick, 900);
+      } else {
+        state.turn = (state.turn + 1) % 4;
+        if (state.turn === 0) setTimeout(maybeHumanTurn, 500);
+        else setTimeout(aiTurn, 700 + Math.random() * 500);
+      }
+    }
+
+    function endTrick() {
+      // A heart played by a follower trumps. Highest heart wins if any hearts in trick.
+      let hearts = state.trick.filter(t => isHeart(t.card));
+      let winner = null;
+      if (hearts.length) {
+        for (const t of hearts) {
+          if (!winner || t.card.rank > winner.card.rank) winner = t;
+        }
+      } else {
+        const lead = state.leadSuit;
+        for (const t of state.trick) {
+          if (t.card.suit === lead && (!winner || t.card.rank > winner.card.rank)) winner = t;
+        }
+      }
+      if (!winner) winner = state.trick[0];
+      // Winner receives 4 trick cards
+      for (const t of state.trick) state.players[winner.player].push(t.card);
+
+      // announce
+      const winnerName = SEAT_NAMES[winner.player];
+      setStatus(winnerName + " 赢得本轮");
+
+      state.trick = [];
+      state.leadSuit = null;
+
+      // Round complete when every hand is empty
+      if (state.hands[0].length === 0 && state.hands[1].length === 0 &&
+          state.hands[2].length === 0 && state.hands[3].length === 0) {
+        endRound();
+        return;
+      }
+
+      state.turn = winner.player;
+      render();
+
+      if (state.turn === 0) setTimeout(maybeHumanTurn, 700);
+      else setTimeout(aiTurn, 700 + Math.random() * 400);
+    }
+
+    function aiTurn() {
+      if (state.over) return;
+      const pIdx = state.turn;
+      const card = aiChoose(pIdx);
+      setStatus(SEAT_NAMES[pIdx] + " 出牌 …");
+      playCard(pIdx, card);
+    }
+
+    function maybeHumanTurn() {
+      if (state.over || state.turn !== 0) return;
+      if (validHand(0).length <= 1) {
+        const c = validHand(0)[0];
+        setStatus("你只剩一张牌可出");
+        setTimeout(() => playCard(0, c), 500);
+        return;
+      }
+      render();
+    }
+
+    function endRound() {
+      // Score
+      let msgs = [];
+      for (let p = 0; p < 4; p++) {
+        let pts = 0, hearts = 0, hasQ = false;
+        for (const c of state.players[p]) {
+          if (isHeart(c)) { hearts++; pts++; }
+          if (isQueenSpade(c)) { hasQ = true; pts += 13; }
+        }
+        if (pts === 26) {
+          // shooting the moon
+          state.scores[p] = 0;
+          msgs.push(SEAT_NAMES[p] + " 单吃！0 分（其他各 +26）");
+          for (let q = 0; q < 4; q++) if (q !== p) state.scores[q] += 26;
+        } else {
+          state.scores[p] += pts;
+          msgs.push(SEAT_NAMES[p] + " +" + pts + " 分（" + hearts + " 红心" + (hasQ ? ", Q♠" : "") + "）");
+        }
+      }
+      // check end of game
+      let loser = -1, loserScore = -1;
+      for (let p = 0; p < 4; p++) {
+        if (state.scores[p] >= 100) {
+          if (state.scores[p] > loserScore) { loserScore = state.scores[p]; loser = p; }
+        }
+      }
+      render();
+      if (loser >= 0) {
+        setTimeout(() => gameOver(loser), 900);
+        return;
+      }
+      setTimeout(() => {
+        toast(msgs.join("<br>"), 3200);
+        newRound();
+      }, 700);
+    }
+
+    function gameOver(loser) {
+      state.over = true;
+      const you = state.scores[0];
+      const winner = state.scores.indexOf(Math.min(...state.scores));
+      let title, msg;
+      if (loser === 0) {
+        title = "😵 你输了";
+        msg = "你的分数已达 " + you + " 分，成为本轮分数王。再试一次吧！";
+      } else {
+        title = "🏆 恭喜你赢了！";
+        msg = SEAT_NAMES[loser] + " 以 " + state.scores[loser] + " 分结束，你仅剩 " + you + " 分。";
+      }
+      const rows = state.scores.map((s, i) =>
+        '<div style="display:flex;justify-content:space-between;padding:4px 0;">' +
+        '<span>' + SEAT_NAMES[i] + (i === 0 ? ' ★' : '') + '</span><b>' + s + '</b></div>'
+      ).join("");
+      showModal(
+        '<h2>' + title + '</h2>' +
+        '<p>' + msg + '</p>' +
+        '<div style="margin:14px 0;">' + rows + '</div>' +
+        '<div class="row-btns"><button class="primary" onclick="location.reload()">再来一局</button></div>'
+      );
+    }
+
+    // ---- Rendering ----
+    function setStatus(t) { els.status.textContent = t; }
+
+    function cardHTML(card, opts) {
+      const red = isRed(card.suit) ? "red" : "black";
+      return '<div class="card ' + red + '">' +
+        '<div class="rank">' + RANK_NAME[card.rank] + '</div>' +
+        '<div class="suit-tl">' + SUIT_NAME[card.suit] + '</div>' +
+        '<div class="suit-big">' + SUIT_NAME[card.suit] + '</div>' +
+        '</div>';
+    }
+
+    function render() {
+      // scoreboard
+      let sb = "";
+      for (let p = 0; p < 4; p++) {
+        const me = p === 0 ? "me" : "";
+        sb += '<div class="score-chip ' + me + '"><span class="lbl">' + SEAT_NAMES[p] + '</span>' +
+          '<span class="n">' + state.scores[p] + '</span></div>';
+      }
+      els.scoreboard.innerHTML = sb;
+
+      // opponent hands
+      renderOpponent(1, els.cards[1]);
+      renderOpponent(2, els.cards[2]);
+      renderOpponent(3, els.cards[3]);
+
+      // played trick
+      renderTrick();
+
+      // your hand
+      renderHand();
+    }
+
+    function renderOpponent(pIdx, el) {
+      if (!el) return;
+      const n = state.hands[pIdx].length;
+      let html = '<div class="fan">';
+      const shown = Math.min(n, 7);
+      for (let i = 0; i < shown; i++) html += '<div class="mini-back"></div>';
+      html += '</div>';
+      el.innerHTML = '<div class="seat-label">' + SEAT_NAMES[pIdx] + ' <span class="dots">●</span> ' + n + ' 张</div>' + html;
+    }
+
+    function renderTrick() {
+      let html = "";
+      const order = [0, 1, 2, 3]; // you, west, north, east positions
+      // trick slots: index 0=you(bottom),1=north(top),2=west(left),3=east(right)
+      const slotByPlayer = [0, 2, 1, 3];
+      for (const t of state.trick) {
+        const slot = slotByPlayer[t.player];
+        html += '<div class="played-card p' + slot + '">' + cardHTML(t.card) + '</div>';
+      }
+      els.trick.innerHTML = html;
+    }
+
+    function renderHand() {
+      const hand = state.hands[0];
+      let html = "";
+      const turn = state.over ? -1 : state.turn;
+      const playableSet = new Set();
+      if (turn === 0) {
+        const v = validHand(0);
+        for (const c of v) playableSet.add(c);
+      }
+      for (const c of hand) {
+        const playable = turn === 0 && playableSet.has(c);
+        html += '<div class="card ' + (isRed(c.suit) ? "red" : "black") + (playable ? " playable" : "") + '" ' +
+          (playable ? 'data-play="1"' : '') + ' data-rank="' + c.rank + '" data-suit="' + c.suit + '">' +
+          cardHTML(c) + '</div>';
+      }
+      els.hand.innerHTML = html;
+      // attach listeners
+      const cards = els.hand.children;
+      for (const cd of cards) {
+        if (cd.getAttribute("data-play") === "1") {
+          cd.addEventListener("click", () => {
+            const suit = cd.getAttribute("data-suit");
+            const rank = parseInt(cd.getAttribute("data-rank"), 10);
+            playCard(0, { suit, rank });
+          });
+        }
+      }
+    }
+
+    function flashInvalid() {
+      setStatus("这张牌不能出（须跟花色 / 先丢红心）");
+    }
+
+    function showModal(html) {
+      const ov = document.createElement("div");
+      ov.className = "overlay";
+      ov.id = "gameOverOverlay";
+      ov.innerHTML = '<div class="modal">' + html + '</div>';
+      document.body.appendChild(ov);
+    }
+
+    // ---- Init ----
+    els.newGameBtn.addEventListener("click", () => {
+      state.scores = [0, 0, 0, 0];
+      state.round = 0;
+      newRound();
+    });
+
+    function startGame() {
+      state.scores = [0, 0, 0, 0];
+      state.round = 0;
+      newRound();
+    }
+
+    $("startBtn").addEventListener("click", () => {
+      els.helpOverlay.classList.add("hidden");
+      startGame();
+    });
+
+    // keyboard: Esc to close help not needed
+    render();
+  })();
+  </script>
+</body>
+</html>
