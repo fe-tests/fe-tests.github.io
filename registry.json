@@ -64,16 +64,16 @@
     {
       "id": "pelican-bike",
       "title": "鹈鹕骑车",
-      "description": "海边公路上骑自行车的 SVG 动画：车轮、踏板、腿部 IK、云与波纹实时运动。",
+      "description": "Canvas 跑酷小游戏：鹈鹕骑车沿海岸公路狂奔，跳过石头圆木、抓鱼得分，昼夜循环与视差景观，支持二段跳。",
       "url": "examples/pelican-bike.html",
       "category": "experiment",
       "emoji": "🐦",
-      "tags": ["svg", "animation", "demo"],
+      "tags": ["canvas", "game", "demo"],
       "status": "stable",
       "pinned": false,
       "thumbnail": null,
       "createdAt": "2025-06-01",
-      "updatedAt": "2025-06-01"
+      "updatedAt": "2025-06-09"
     },
     {
       "id": "liankan",
