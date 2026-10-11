@@ -256,6 +256,20 @@
       "thumbnail": null,
       "createdAt": "2026-10-06",
       "updatedAt": "2026-10-06"
+    },
+    {
+      "id": "texas-holdem",
+      "title": "德州扑克",
+      "description": "网页版单机德州扑克：8 人坐庄，7 个 AI 对手各有性格，含完整翻牌前/后流程、加注滑杆、侧池与摊牌计分。",
+      "url": "examples/texas-holdem.html",
+      "category": "game",
+      "emoji": "♠",
+      "tags": ["game", "poker", "德州", "单机", "8人"],
+      "status": "stable",
+      "pinned": false,
+      "thumbnail": null,
+      "createdAt": "2026-10-07",
+      "updatedAt": "2026-10-07"
     }
   ]
 }
