@@ -228,6 +228,9 @@
       firstToMove: 0,
       over: false,
       passing: false,
+      // 回合级锁：仅在轮到人类且未结束时允许点击出牌，出牌后自动置 false，
+      // 防止连续点击导致一轮内重复/同时出多张牌。
+      humanTurnActive: false,
     };
 
     const $ = (id) => document.getElementById(id);
@@ -556,6 +559,8 @@
 
     function maybeHumanTurn() {
       if (state.over || state.turn !== 0) return;
+      // 人类回合开始：复位出牌锁，允许本轮首次点击出牌
+      state.cardLock = false;
       if (validHand(0).length <= 1) {
         const c = validHand(0)[0];
         setStatus("你只剩一张牌可出");
@@ -698,16 +703,27 @@
           cardHTML(c) + '</div>';
       }
       els.hand.innerHTML = html;
-      // attach listeners
+      // 回合级锁：仅在轮到人类且未结束时才允许点击出牌。
+      // 一旦人类出牌（turn 转移 / over），humanTurnActive 置 false，
+      // 后续点击一律无效，避免一轮内重复/同时出多张牌。
+      state.humanTurnActive = turn === 0 && !state.over;
+      // attach listeners（仅在人类回合有效时绑定，避免重复绑定残留旧监听器）
       const cards = els.hand.children;
       for (const cd of cards) {
-        if (cd.getAttribute("data-play") === "1") {
-          cd.addEventListener("click", () => {
-            const suit = cd.getAttribute("data-suit");
-            const rank = parseInt(cd.getAttribute("data-rank"), 10);
-            playCard(0, { suit, rank });
-          });
-        }
+        if (cd.getAttribute("data-play") !== "1") continue;
+        if (!state.humanTurnActive) continue;
+        if (cd._clickBound) continue; // 同一张牌只绑定一次，防止渲染重复绑定
+        cd._clickBound = true;
+        cd.addEventListener("click", () => {
+          // 出牌前二次校验：必须仍轮到人类、未结束、且本次回合尚未出过牌
+          if (state.over || state.turn !== 0 || !state.humanTurnActive) return;
+          // 防连点锁：一次回合只允许出牌一次，出牌后立即锁定
+          if (state.cardLock) return;
+          state.cardLock = true;
+          const suit = cd.getAttribute("data-suit");
+          const rank = parseInt(cd.getAttribute("data-rank"), 10);
+          playCard(0, { suit, rank });
+        });
       }
     }
 
