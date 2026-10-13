@@ -738,6 +738,10 @@ $('#sound-btn').addEventListener('click', () => {
     soundOn = !soundOn;
     $('#sound-btn').textContent = soundOn ? '🔊' : '🔇';
 });
+// 使用事件委托：#again-btn 由 showWin() 动态创建，绑定到始终存在的 #modal 上
+$('#modal').addEventListener('click', (e) => {
+    if (e.target.id === 'again-btn') newGame();
+});
 document.body.addEventListener('click', () => {
     if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
 });
