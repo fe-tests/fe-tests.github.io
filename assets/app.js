@@ -38,6 +38,14 @@
     return ({ stable: "稳定", experimental: "实验", alpha: "开发中" })[status] || "稳定";
   }
 
+  function formatDate(s) {
+    if (!s) return "";
+    var t = String(s).trim();
+    var sp = t.indexOf(" ");
+    if (sp > 0) return t; // 已是「YYYY-MM-DD HH:MM:SS」，直接输出，避免时区转换误差
+    return t + " 00:00:00"; // 仅日期时补 00:00:00
+  }
+
   function getStatusBadge(status) {
     return '<span class="card-status ' + statusClass(status) + '">' + escapeHtml(statusLabel(status)) + '</span>';
   }
@@ -71,6 +79,7 @@
         '<h3 class="card-title">' + escapeHtml(p.title) + '</h3>' +
         '<span class="card-badge">' + escapeHtml(p.categoryName) + '</span></div>' +
         '<p class="card-desc">' + escapeHtml(p.description || "") + '</p>' +
+        '<div class="card-date">' + formatDate(p.createdAt) + ' · 更新于 ' + formatDate(p.updatedAt) + '</div>' +
         '<div class="card-tags">' + (tags || "") + '</div>' +
         '</a>';
     }).join("");
@@ -84,6 +93,7 @@
         '<span class="row-emoji">' + escapeHtml(p.emoji || "📄") + '</span>' +
         '<span class="row-title">' + escapeHtml(p.title) + ' ' + (p.pinned ? "📌" : "") + '</span>' +
         '<span class="row-desc">' + escapeHtml(p.description || "") + '</span>' +
+        '<span class="row-date">' + formatDate(p.updatedAt) + '</span>' +
         '<span class="row-status ' + statusClass(p.status) + '">' + escapeHtml(statusLabel(p.status)) + '</span>' +
         '</a>';
     }).join("");

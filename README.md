@@ -41,8 +41,8 @@
 | `status` | string | — | 状态：`stable`/`experimental`/`alpha` | `stable` |
 | `pinned` | boolean | — | 是否置顶 | `false` |
 | `thumbnail` | string \| null | — | 缩略图路径（预留） | `null` |
-| `createdAt` | string | — | 创建日期 `YYYY-MM-DD` | 当前日期 |
-| `updatedAt` | string | — | 更新日期 `YYYY-MM-DD` | 创建日期 |
+| `createdAt` | string | — | 创建日期 `YYYY-MM-DD HH:MM:SS`（取自对应 HTML 文件的创建时间） | 当前日期 |
+| `updatedAt` | string | — | 更新日期 `YYYY-MM-DD HH:MM:SS`（取自对应 HTML 文件的修改时间） | 创建日期 |
 
 > **Emoji 约束（务必遵守）**：只选用被主流平台广泛支持的基础 emoji（建议 Unicode ≤ 11，即 2018 年及以前发布的符号）。禁止使用过新的 emoji（如 🦤 鸭嘴兽、🫏 驴、🫎 麋鹿等 2022 年才加入的符号）——它们在部分旧设备/旧浏览器中会渲染为空框或「无法查看」。选不定时优先用 🐦 🚀 🧭 📐 🐣 📊 等经典符号。
 
@@ -75,8 +75,8 @@
   "status": "experimental",
   "pinned": false,
   "thumbnail": null,
-  "createdAt": "2025-01-01",
-  "updatedAt": "2025-01-01"
+  "createdAt": "2025-01-01 00:00:00",
+  "updatedAt": "2025-01-01 00:00:00"
 }
 ```
 

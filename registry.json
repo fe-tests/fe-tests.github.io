@@ -30,8 +30,8 @@
       "status": "stable",
       "pinned": false,
       "thumbnail": null,
-      "createdAt": "2025-01-01",
-      "updatedAt": "2025-01-01"
+      "createdAt": "2026-10-01 07:31:13",
+      "updatedAt": "2026-10-01 07:31:13"
     },
     {
       "id": "embedding-viz",
@@ -44,8 +44,8 @@
       "status": "experimental",
       "pinned": false,
       "thumbnail": null,
-      "createdAt": "2025-01-02",
-      "updatedAt": "2025-01-02"
+      "createdAt": "2026-10-01 07:31:13",
+      "updatedAt": "2026-10-01 07:31:13"
     },
     {
       "id": "token-counter",
@@ -58,8 +58,8 @@
       "status": "stable",
       "pinned": false,
       "thumbnail": null,
-      "createdAt": "2025-01-03",
-      "updatedAt": "2025-01-03"
+      "createdAt": "2026-10-01 07:31:13",
+      "updatedAt": "2026-10-01 07:31:13"
     },
     {
       "id": "pelican-bike",
@@ -72,8 +72,8 @@
       "status": "stable",
       "pinned": false,
       "thumbnail": null,
-      "createdAt": "2025-06-01",
-      "updatedAt": "2025-06-09"
+      "createdAt": "2026-10-11 01:20:32",
+      "updatedAt": "2026-10-11 01:20:32"
     },
     {
       "id": "liankan",
@@ -86,8 +86,8 @@
       "status": "stable",
       "pinned": false,
       "thumbnail": null,
-      "createdAt": "2025-06-02",
-      "updatedAt": "2025-06-02"
+      "createdAt": "2026-10-14 22:36:33",
+      "updatedAt": "2026-10-14 22:36:33"
     },
     {
       "id": "emoji-match",
@@ -96,12 +96,12 @@
       "url": "examples/emoji-match.html",
       "category": "experiment",
       "emoji": "🍬",
-      "tags": ["game", "emoji", "match"],
+      "tags": ["game", "match"],
       "status": "stable",
       "pinned": false,
       "thumbnail": null,
-      "createdAt": "2026-10-01",
-      "updatedAt": "2026-10-01"
+      "createdAt": "2026-10-01 08:14:28",
+      "updatedAt": "2026-10-01 08:14:28"
     },
     {
       "id": "racing-game",
@@ -114,8 +114,8 @@
       "status": "stable",
       "pinned": false,
       "thumbnail": null,
-      "createdAt": "2026-10-01",
-      "updatedAt": "2026-10-01"
+      "createdAt": "2026-10-01 10:35:58",
+      "updatedAt": "2026-10-01 10:35:58"
     },
     {
       "id": "2048",
@@ -128,8 +128,8 @@
       "status": "stable",
       "pinned": false,
       "thumbnail": null,
-      "createdAt": "2026-10-01",
-      "updatedAt": "2026-10-01"
+      "createdAt": "2026-10-04 20:23:59",
+      "updatedAt": "2026-10-04 20:23:59"
     },
     {
       "id": "sudoku",
@@ -142,8 +142,8 @@
       "status": "stable",
       "pinned": false,
       "thumbnail": null,
-      "createdAt": "2026-10-02",
-      "updatedAt": "2026-10-02"
+      "createdAt": "2026-10-01 15:06:41",
+      "updatedAt": "2026-10-01 15:06:41"
     },
     {
       "id": "archery",
@@ -156,8 +156,8 @@
       "status": "stable",
       "pinned": false,
       "thumbnail": null,
-      "createdAt": "2026-10-01",
-      "updatedAt": "2026-10-01"
+      "createdAt": "2026-10-02 08:00:57",
+      "updatedAt": "2026-10-02 08:00:57"
     },
     {
       "id": "tetris",
@@ -166,12 +166,12 @@
       "url": "examples/tetris.html",
       "category": "game",
       "emoji": "🧱",
-      "tags": ["game", "canvas", "tetris", "blocks", "消除"],
+      "tags": ["game", "tetris", "blocks", "消除"],
       "status": "stable",
       "pinned": false,
       "thumbnail": null,
-      "createdAt": "2026-10-03",
-      "updatedAt": "2026-10-03"
+      "createdAt": "2026-10-02 08:39:43",
+      "updatedAt": "2026-10-02 08:39:43"
     },
     {
       "id": "space-warship",
@@ -184,8 +184,8 @@
       "status": "stable",
       "pinned": false,
       "thumbnail": null,
-      "createdAt": "2026-10-04",
-      "updatedAt": "2026-10-04"
+      "createdAt": "2026-10-05 09:32:23",
+      "updatedAt": "2026-10-05 09:32:23"
     },
     {
       "id": "daoshui",
@@ -198,8 +198,8 @@
       "status": "stable",
       "pinned": false,
       "thumbnail": null,
-      "createdAt": "2026-10-05",
-      "updatedAt": "2026-10-05"
+      "createdAt": "2026-10-03 19:25:33",
+      "updatedAt": "2026-10-03 19:25:33"
     },
     {
       "id": "strike-pong",
@@ -212,8 +212,8 @@
       "status": "stable",
       "pinned": false,
       "thumbnail": null,
-      "createdAt": "2026-10-03",
-      "updatedAt": "2026-10-03"
+      "createdAt": "2026-10-05 03:41:57",
+      "updatedAt": "2026-10-05 03:41:57"
     },
     {
       "id": "music-editor",
@@ -226,8 +226,8 @@
       "status": "stable",
       "pinned": false,
       "thumbnail": null,
-      "createdAt": "2026-10-05",
-      "updatedAt": "2026-10-05"
+      "createdAt": "2026-10-05 17:19:50",
+      "updatedAt": "2026-10-05 17:19:50"
     },
     {
       "id": "minesweeper",
@@ -240,8 +240,8 @@
       "status": "stable",
       "pinned": false,
       "thumbnail": null,
-      "createdAt": "2026-10-05",
-      "updatedAt": "2026-10-05"
+      "createdAt": "2026-10-05 18:02:42",
+      "updatedAt": "2026-10-05 18:43:52"
     },
     {
       "id": "hearts",
@@ -254,8 +254,8 @@
       "status": "stable",
       "pinned": false,
       "thumbnail": null,
-      "createdAt": "2026-10-06",
-      "updatedAt": "2026-10-06"
+      "createdAt": "2026-10-14 23:23:59",
+      "updatedAt": "2026-10-14 23:23:59"
     },
     {
       "id": "texas-holdem",
@@ -268,8 +268,8 @@
       "status": "stable",
       "pinned": false,
       "thumbnail": null,
-      "createdAt": "2026-10-07",
-      "updatedAt": "2026-10-07"
+      "createdAt": "2026-10-11 14:25:26",
+      "updatedAt": "2026-10-11 14:25:26"
     }
   ]
 }
