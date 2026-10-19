@@ -270,6 +270,20 @@
       "thumbnail": null,
       "createdAt": "2026-10-11 14:25:26",
       "updatedAt": "2026-10-11 14:25:26"
+    },
+    {
+      "id": "3d-shoot-game",
+      "title": "3D末日生存",
+      "description": "Three.js 第一人称末日生存：键鼠与触屏双操控（摇杆/滑动转视角/轻点攻击），拾棍刀枪、猎兔斗狼、采果取水。",
+      "url": "examples/3d-shoot-game.html",
+      "category": "game",
+      "emoji": "🔫",
+      "tags": ["game", "3d", "threejs", "fps", "射击", "生存", "移动端", "触屏"],
+      "status": "stable",
+      "pinned": false,
+      "thumbnail": null,
+      "createdAt": "2026-10-19 21:43:39",
+      "updatedAt": "2026-10-19 22:08:30"
     }
   ]
 }

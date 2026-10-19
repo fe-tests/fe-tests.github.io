@@ -1,0 +1,1248 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="x5-orientation-lock" content="landscape">
+<meta name="screen-orientation" content="landscape">
+<title>3D末日生存</title>
+<style>
+  body { margin:0; overflow:hidden; background:#000; font-family:Arial,"Microsoft YaHei",sans-serif; }
+  #hud { position:fixed; inset:0; color:#fff; pointer-events:none; z-index:10; text-shadow:0 0 4px #000; }
+  #topLeft { position:absolute; left:14px; top:14px; width:220px; }
+  .label { font-size:14px; margin-bottom:4px; }
+  .bar { height:14px; background:#222; border:1px solid #aaa; border-radius:7px; overflow:hidden; }
+  #hpFill { height:100%; width:100%; background:linear-gradient(90deg,#22aa44,#88ff88); }
+  #bottom { position:absolute; bottom:16px; left:14px; display:flex; flex-wrap:wrap; gap:6px; max-width:92vw; }
+  .item {
+    display:flex; align-items:center; gap:6px;
+    background:rgba(0,0,0,.45); padding:6px 9px;
+    border:1px solid #444; border-radius:6px; font-size:14px;
+  }
+  .active { outline:2px solid #ffd700; }
+  .icon { display:inline-block; width:24px; height:24px; position:relative; overflow:hidden; border-radius:4px; background:rgba(255,255,255,.08); }
+  .icon::before { content:""; position:absolute; inset:0; }
+  .icon.stick::before {
+    content:""; position:absolute; left:1px; top:10px; width:22px; height:5px;
+    background:#8b5a2b; border-radius:3px; transform:rotate(45deg); transform-origin:center;
+  }
+  .icon.knife::before {
+    content:""; position:absolute; left:4px; top:5px; width:16px; height:12px;
+    background:linear-gradient(135deg,#d8d8d8 0 55%,#6b4a2b 55% 100%);
+    clip-path:polygon(0 0,100% 45%,100% 55%,0 100%); border-radius:2px;
+  }
+  .icon.gun::before {
+    content:""; position:absolute; left:3px; top:7px; width:18px; height:8px;
+    background:#222; border-bottom:4px solid #444; box-shadow:0 5px 0 -2px #555;
+  }
+  .icon.berry::before {
+    content:""; position:absolute; left:3px; top:3px; width:18px; height:18px;
+    background:radial-gradient(circle at 30% 30%,#ff8080 0 20%,#a52020 21% 100%);
+    border-radius:50%;
+  }
+  .icon.water::before {
+    content:""; position:absolute; left:3px; top:3px; width:18px; height:18px;
+    background:radial-gradient(circle at 30% 30%,#8fd3ff 0 25%,#1e73b8 26% 100%);
+    border-radius:50%;
+  }
+  #prompt {
+    position:absolute; bottom:120px; left:50%; transform:translateX(-50%);
+    font-size:18px; background:rgba(0,0,0,.45); padding:6px 10px; border-radius:6px;
+  }
+  #message {
+    position:absolute; top:14px; left:50%; transform:translateX(-50%);
+    font-size:20px; color:#ffdd55; background:rgba(0,0,0,.45); padding:5px 8px; border-radius:6px;
+  }
+  #crosshair {
+    position:absolute; left:50%; top:50%; width:10px; height:10px; margin:-5px 0 0 -5px;
+    border:1px solid #ff3333; border-radius:50%; display:none;
+  }
+  #start {
+    position:absolute; inset:0; background:rgba(0,0,0,.6); color:#fff;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px;
+    z-index:20;
+  }
+  #start button { font-size:22px; padding:12px 28px; border:0; background:#c33; color:#fff; border-radius:6px; cursor:pointer; }
+
+  /* ================= 移动端触屏交互 ================= */
+  html, body {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none; user-select: none;
+    overscroll-behavior: none; -webkit-text-size-adjust: 100%;
+  }
+  body { touch-action: none; }
+  body.touch { overflow: hidden; position: fixed; inset: 0; width: 100%; height: 100%; }
+
+  #keysTouch { display: none; }
+  body.touch #keysPc { display: none; }
+  body.touch #keysTouch { display: block; }
+  body.touch #start h2 { font-size: 24px; }
+  body.touch #start p { font-size: 14px; line-height: 1.75; max-width: 94vw; }
+  body.touch #start button { font-size: 20px; padding: 12px 34px; }
+
+  /* HUD 避让：装备栏移到左上，提示语移到准星下方 */
+  body.touch #bottom { top: 70px; bottom: auto; left: 12px; max-width: 58vw; gap: 5px; }
+  body.touch #bottom .item { font-size: 11px; padding: 3px 6px; gap: 4px; }
+  body.touch #bottom .icon { width: 18px; height: 18px; }
+  body.touch #topLeft { width: 160px; }
+  body.touch #prompt {
+    top: 60%; left: 50%; bottom: auto; transform: translate(-50%, 0);
+    font-size: 15px; max-width: 88vw; text-align: center;
+  }
+  body.touch #message { top: 12px; font-size: 16px; max-width: 92vw; text-align: center; }
+
+  #touch { display: none; position: fixed; inset: 0; z-index: 16; pointer-events: none; }
+  body.touch #touch { display: none; }
+  body.touch.playing #touch { display: block; }
+  body.touch #crosshair { display: none; }
+  body.touch.playing #crosshair { display: block; }
+
+  .tbtn {
+    pointer-events: auto; touch-action: none; -webkit-tap-highlight-color: transparent;
+    display: flex; align-items: center; justify-content: center; text-align: center;
+    color: #fff; font-size: 13px; line-height: 1.05; cursor: pointer;
+    background: rgba(0,0,0,.44); border: 1px solid rgba(255,255,255,.45); border-radius: 50%;
+  }
+  .tbtn:active { background: rgba(255,255,255,.22); }
+  .tbtn.on { outline: 2px solid #ffd700; background: rgba(120,90,0,.45); }
+
+  #stickPad {
+    position: absolute; pointer-events: auto; touch-action: none;
+    left: calc(14px + env(safe-area-inset-left)); bottom: calc(14px + env(safe-area-inset-bottom));
+    width: 138px; height: 138px; border-radius: 50%;
+    background: rgba(0,0,0,.3); border: 1px solid rgba(255,255,255,.34);
+  }
+  #stickKnob {
+    position: absolute; left: 50%; top: 50%; margin: -29px 0 0 -29px;
+    width: 58px; height: 58px; border-radius: 50%; pointer-events: none;
+    background: rgba(255,255,255,.26); border: 1px solid rgba(255,255,255,.65);
+    display: flex; align-items: center; justify-content: center; font-size: 12px; color: #fff;
+  }
+  #fireBtn {
+    position: absolute; width: 98px; height: 98px; font-size: 15px; font-weight: bold;
+    right: calc(16px + env(safe-area-inset-right)); bottom: calc(16px + env(safe-area-inset-bottom));
+    background: rgba(165,28,28,.52); border-color: rgba(255,205,205,.75);
+  }
+  #actCol {
+    position: absolute; pointer-events: auto; display: grid;
+    grid-template-columns: repeat(2, 48px); grid-auto-rows: 48px; gap: 7px;
+    right: calc(20px + env(safe-area-inset-right)); bottom: calc(122px + env(safe-area-inset-bottom));
+  }
+  #sensText {
+    position: absolute; font-size: 11px; color: #dbe4f0; pointer-events: none;
+    left: calc(160px + env(safe-area-inset-left)); bottom: calc(18px + env(safe-area-inset-bottom));
+  }
+  #rotHint {
+    position: absolute; left: 50%; top: 8px; transform: translateX(-50%);
+    font-size: 11px; color: #dbe4f0; pointer-events: none; text-align: center;
+  }
+  @media (max-height: 420px) {
+    #stickPad { width: 122px; height: 122px; }
+    #fireBtn { width: 86px; height: 86px; }
+    #actCol { grid-template-columns: repeat(2, 44px); grid-auto-rows: 44px; bottom: calc(110px + env(safe-area-inset-bottom)); }
+  }
+</style>
+</head>
+<body>
+<div id="hud">
+  <div id="topLeft">
+    <div class="label">生命 <span id="hpText">100</span></div>
+    <div class="bar"><div id="hpFill"></div></div>
+  </div>
+  <div id="message"></div>
+  <div id="prompt"></div>
+  <div id="bottom">
+    <div class="item" id="slotStick"><span class="icon stick"></span>棍 <span id="stickLabel">有</span></div>
+    <div class="item" id="slotKnife"><span class="icon knife"></span>刀 <span id="knifeLabel">无</span></div>
+    <div class="item" id="slotGun"><span class="icon gun"></span>枪 <span id="gunLabel">无</span> <span id="ammoText">弹药:0</span></div>
+    <div class="item"><span class="icon berry"></span>浆果 <span id="berryText">0</span></div>
+    <div class="item"><span class="icon water"></span>水 <span id="waterText">0</span></div>
+  </div>
+</div>
+<div id="crosshair"></div>
+<div id="touch">
+  <div id="stickPad"><div id="stickKnob">移动</div></div>
+  <div id="fireBtn" class="tbtn">攻击</div>
+  <div id="actCol">
+    <div class="tbtn" id="btnInteract">取</div>
+    <div class="tbtn" id="btnSwitch">换</div>
+    <div class="tbtn" id="btnEat">食</div>
+    <div class="tbtn" id="btnDrink">饮</div>
+    <div class="tbtn" id="btnRun">跑</div>
+    <div class="tbtn" id="btnSens">敏</div>
+    <div class="tbtn" id="btnRestart">重开</div>
+  </div>
+  <div id="sensText"></div>
+  <div id="rotHint"></div>
+</div>
+<div id="start">
+  <h2>3D末日生存</h2>
+  <p id="startTip">点击按钮锁定鼠标开始游戏</p>
+  <p id="keysPc">
+    WASD 移动 | Shift 奔跑 | 鼠标左键 射击/近战<br>
+    1 棍 | 2 刀 | 3 枪<br>
+    E 拾取/采摘/取水 | F 吃浆果 | G 喝水 | R 重开
+  </p>
+  <p id="keysTouch">
+    左下摇杆 移动（推到边=奔跑）| 右侧滑动 转视角<br>
+    轻点画面 攻击 | 攻击键 按住连打<br>
+    取 拾取/取水 | 换 切武器 | 食 吃浆果 | 饮 喝水<br>
+    跑 自动奔跑 | 敏 转视角灵敏度
+  </p>
+  <button>开始</button>
+</div>
+
+<script src="//cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+'use strict';
+
+if (typeof THREE === 'undefined') {
+  document.body.innerHTML = '<div style="color:#fff;padding:24px;font-family:sans-serif">THREE.js 加载失败。请确认浏览器允许加载 http CDN。</div>';
+  throw new Error('THREE missing');
+}
+
+let scene, camera, renderer, clock;
+let yaw = 0, pitch = 0;
+let keys = {}, locked = false;
+let player, ground, water, rippleGeo;
+let trees = [], enemies = [], items = [], clouds = [], ripples = [], bullets = [];
+let baseWater = [];
+let interactive = [];
+let msg = '', msgTimer = 0;
+
+const raycaster = new THREE.Raycaster();
+const rayCenter = new THREE.Vector2(0, 0);
+const lakeCenter = new THREE.Vector3(95, 0, 90);
+const lakeRadius = 42;
+
+const startEl = document.getElementById('start');
+const crossEl = document.getElementById('crosshair');
+const hpFill = document.getElementById('hpFill');
+const hpText = document.getElementById('hpText');
+const stickLabel = document.getElementById('stickLabel');
+const knifeLabel = document.getElementById('knifeLabel');
+const gunLabel = document.getElementById('gunLabel');
+const ammoText = document.getElementById('ammoText');
+const berryText = document.getElementById('berryText');
+const waterText = document.getElementById('waterText');
+const promptEl = document.getElementById('prompt');
+const messageEl = document.getElementById('message');
+const slotStick = document.getElementById('slotStick');
+const slotKnife = document.getElementById('slotKnife');
+const slotGun = document.getElementById('slotGun');
+const touchEl = document.getElementById('touch');
+const stickPad = document.getElementById('stickPad');
+const stickKnob = document.getElementById('stickKnob');
+const fireBtn = document.getElementById('fireBtn');
+const sensText = document.getElementById('sensText');
+const rotHint = document.getElementById('rotHint');
+const startTip = document.getElementById('startTip');
+const btnInteract = document.getElementById('btnInteract');
+const btnSwitch = document.getElementById('btnSwitch');
+const btnEat = document.getElementById('btnEat');
+const btnDrink = document.getElementById('btnDrink');
+const btnRun = document.getElementById('btnRun');
+const btnSens = document.getElementById('btnSens');
+const btnRestart = document.getElementById('btnRestart');
+
+/* ---------- 触屏交互状态 ---------- */
+const params = new URLSearchParams(location.search);
+const isTouch = params.get('touch') === '1' ||
+  (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
+  ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+const autoplay = params.get('auto') === '1';
+const SENS = [0.0035, 0.006, 0.0095];
+const WEAPON_NAME = { stick: '棍', knife: '刀', gun: '枪' };
+const KEY_E = isTouch ? '点「取」' : '按 E';
+const KEY_R = isTouch ? '点「重开」' : '按 R';
+let lookSens = SENS[1];
+let started = false;
+let autoRun = false;
+let moveVec = { x: 0, y: 0 };
+let fireHeld = false;
+let fireCooldown = 0;
+
+function canPlay() { return (locked || (isTouch && started)) && player.alive; }
+
+init();
+animate();
+
+function init() {
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x7b8794);
+  scene.fog = new THREE.Fog(0x7b8794, 35, 230);
+
+  camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
+  camera.rotation.order = 'YXZ';
+
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  document.body.appendChild(renderer.domElement);
+
+  clock = new THREE.Clock();
+
+  const h = new THREE.HemisphereLight(0xffffff, 0x444444, 0.8);
+  scene.add(h);
+  const sun = new THREE.DirectionalLight(0xffffff, 0.7);
+  sun.position.set(60, 90, 40);
+  scene.add(sun);
+
+  player = {
+    pos: new THREE.Vector3(0, 2.2, 0),
+    hp: 100,
+    maxHp: 100,
+    speed: 7,
+    runSpeed: 12,
+    inv: { stick: true, knife: false, gun: false, berries: 0, water: 0 },
+    ammo: 0,
+    equipped: 'stick',
+    alive: true
+  };
+
+  startEl.addEventListener('click', () => { if (isTouch) startTouch(); else requestLock(); });
+  renderer.domElement.addEventListener('click', () => { if (!isTouch && !locked) requestLock(); });
+  renderer.domElement.addEventListener('mousedown', e => { if (locked && e.button === 0) attack(); });
+
+  document.addEventListener('pointerlockchange', () => {
+    locked = document.pointerLockElement === renderer.domElement;
+    if (locked) {
+      startEl.style.display = 'none';
+      crossEl.style.display = 'block';
+    } else {
+      startEl.style.display = 'flex';
+      crossEl.style.display = 'none';
+    }
+  });
+  document.addEventListener('pointerlockerror', () => say('指针锁定失败'));
+
+  document.addEventListener('mousemove', e => {
+    if (!locked) return;
+    yaw -= (e.movementX || 0) * 0.0022;
+    pitch -= (e.movementY || 0) * 0.0022;
+    pitch = Math.max(-1.2, Math.min(1.2, pitch));
+  });
+
+  window.addEventListener('keydown', e => {
+    keys[e.code] = true;
+    if (e.code === 'KeyE') tryInteract();
+    if (e.code === 'KeyF') consumeBerry();
+    if (e.code === 'KeyG') consumeWater();
+    if (e.code === 'KeyR') location.reload();
+    if (e.code === 'Digit1' || e.code === 'Numpad1') equip('stick');
+    if (e.code === 'Digit2' || e.code === 'Numpad2') equip('knife');
+    if (e.code === 'Digit3' || e.code === 'Numpad3') equip('gun');
+  });
+  window.addEventListener('keyup', e => { keys[e.code] = false; });
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  createWorld();
+  if (isTouch) {
+    document.body.classList.add('touch');
+    if (startTip) startTip.textContent = '点击「开始」进入触屏模式';
+    if (autoplay) startTouch();
+  }
+  initTouchControls();
+  updateUI(0);
+}
+
+function requestLock() {
+  const el = renderer.domElement;
+  if (el.requestPointerLock) el.requestPointerLock();
+  else if (el.webkitRequestPointerLock) el.webkitRequestPointerLock();
+}
+
+/* ================= 移动端触屏操控 ================= */
+function sensLabel() {
+  const i = SENS.indexOf(lookSens);
+  return i === 0 ? '低' : (i === 2 ? '高' : '中');
+}
+
+function startTouch() {
+  started = true;
+  document.body.classList.add('touch');
+  document.body.classList.add('playing');
+  startEl.style.display = 'none';
+  touchEl.style.display = 'block';
+  crossEl.style.display = 'block';
+  sensText.textContent = '灵敏度:' + sensLabel();
+  rotHint.textContent = window.innerHeight > window.innerWidth ? '建议横屏游玩' : '';
+  if (window.screen && screen.orientation && screen.orientation.lock) {
+    try { screen.orientation.lock('landscape').catch(function () {}); } catch (e) {}
+  }
+  say('触屏操控已启用');
+}
+
+/* 绑定点击：触屏用 touchstart 即时响应，click 作为鼠标/桌面调试回退 */
+function bindTap(el, onDown, onUp) {
+  let fromTouch = false;
+  el.addEventListener('touchstart', function (e) {
+    fromTouch = true;
+    if (onDown) onDown();
+    e.preventDefault(); e.stopPropagation();
+  }, { passive: false });
+  el.addEventListener('touchend', function (e) {
+    if (onUp) onUp();
+    e.preventDefault(); e.stopPropagation();
+  }, { passive: false });
+  el.addEventListener('mousedown', function (e) {
+    if (fromTouch) return;
+    if (onDown) onDown();
+    e.preventDefault();
+  });
+  el.addEventListener('mouseup', function (e) {
+    if (fromTouch) { fromTouch = false; return; }
+    if (onUp) onUp();
+    e.preventDefault();
+  });
+}
+
+function initTouchControls() {
+  const cvs = renderer.domElement;
+  cvs.style.touchAction = 'none';
+
+  /* --- 画面滑动转视角 + 轻点攻击 --- */
+  let lookId = null, lx = 0, ly = 0, lt = 0, lmove = 0;
+  cvs.addEventListener('touchstart', function (e) {
+    if (!canPlay()) return;
+    const t = e.changedTouches[0];
+    if (lookId === null) {
+      lookId = t.identifier; lx = t.clientX; ly = t.clientY;
+      lt = performance.now(); lmove = 0;
+    }
+    e.preventDefault();
+  }, { passive: false });
+  cvs.addEventListener('touchmove', function (e) {
+    if (!canPlay()) return;
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const t = e.changedTouches[i];
+      if (t.identifier !== lookId) continue;
+      const dx = t.clientX - lx, dy = t.clientY - ly;
+      lx = t.clientX; ly = t.clientY;
+      lmove += Math.abs(dx) + Math.abs(dy);
+      yaw -= dx * lookSens;
+      pitch = Math.max(-1.2, Math.min(1.2, pitch - dy * lookSens));
+    }
+    e.preventDefault();
+  }, { passive: false });
+  cvs.addEventListener('touchend', function (e) {
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const t = e.changedTouches[i];
+      if (t.identifier !== lookId) continue;
+      const tap = lmove < 16 && (performance.now() - lt) < 260;
+      lookId = null;
+      if (tap) attack();
+    }
+    e.preventDefault();
+  }, { passive: false });
+  cvs.addEventListener('touchcancel', function () { lookId = null; }, { passive: false });
+
+  /* --- 浮动虚拟摇杆：按下位置即盘心，推到边缘 = 奔跑 --- */
+  let stickId = null, scx = 0, scy = 0;
+  const SR = 56;
+  function stickSet(t) {
+    let dx = t.clientX - scx, dy = t.clientY - scy;
+    const d = Math.hypot(dx, dy);
+    if (d > SR) { dx = dx / d * SR; dy = dy / d * SR; }
+    stickKnob.style.transform = 'translate(' + dx.toFixed(1) + 'px,' + dy.toFixed(1) + 'px)';
+    const nx = dx / SR, ny = dy / SR;
+    if (Math.hypot(nx, ny) < 0.18) { moveVec.x = 0; moveVec.y = 0; moveVec.mag = 0; }
+    else { moveVec.x = nx; moveVec.y = -ny; moveVec.mag = Math.min(1, Math.hypot(nx, ny)); }
+  }
+  function stickReset() {
+    stickId = null;
+    moveVec.x = 0; moveVec.y = 0; moveVec.mag = 0;
+    stickKnob.style.transform = 'translate(0px,0px)';
+  }
+  stickPad.addEventListener('touchstart', function (e) {
+    if (!canPlay()) return;
+    const t = e.changedTouches[0];
+    const r = stickPad.getBoundingClientRect();
+    scx = r.left + r.width / 2; scy = r.top + r.height / 2;
+    stickId = t.identifier;
+    stickSet(t);
+    e.preventDefault(); e.stopPropagation();
+  }, { passive: false });
+  window.addEventListener('touchmove', function (e) {
+    if (stickId === null) return;
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      if (e.changedTouches[i].identifier === stickId) {
+        stickSet(e.changedTouches[i]);
+        e.preventDefault();
+      }
+    }
+  }, { passive: false });
+  window.addEventListener('touchend', function (e) {
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      if (e.changedTouches[i].identifier === stickId) stickReset();
+    }
+  }, { passive: false });
+  window.addEventListener('touchcancel', stickReset, { passive: false });
+
+  /* --- 动作按钮 --- */
+  bindTap(fireBtn, function () {
+    fireHeld = true; fireCooldown = 0;
+    attack();
+  }, function () { fireHeld = false; });
+  bindTap(btnInteract, function () { tryInteract(); });
+  bindTap(btnEat, function () { consumeBerry(); });
+  bindTap(btnDrink, function () { consumeWater(); });
+  bindTap(btnSwitch, function () { cycleWeapon(); });
+  bindTap(btnRun, function () {
+    autoRun = !autoRun;
+    say(autoRun ? '自动奔跑:开' : '自动奔跑:关');
+  });
+  bindTap(btnSens, function () {
+    lookSens = SENS[(SENS.indexOf(lookSens) + 1) % SENS.length];
+    sensText.textContent = '灵敏度:' + sensLabel();
+  });
+  bindTap(btnRestart, function () {
+    started = false; fireHeld = false;
+    location.reload();
+  });
+}
+
+function cycleWeapon() {
+  const own = ['stick', 'knife', 'gun'].filter(function (k) { return player.inv[k]; });
+  if (!own.length) { say('没有可用武器'); return; }
+  const i = own.indexOf(player.equipped);
+  equip(own[(i + 1) % own.length]);
+}
+
+function createWorld() {
+  createGround();
+  createWater();
+  createTrees();
+  createClouds();
+  spawnInitialItems();
+  spawnInitialEnemies();
+}
+
+function createGround() {
+  ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(600, 600, 1, 1).rotateX(-Math.PI / 2),
+    new THREE.MeshPhongMaterial({ color: 0x6d6f46, flatShading: true })
+  );
+  ground.userData.type = 'ground';
+  scene.add(ground);
+  interactive.push(ground);
+}
+
+function createWater() {
+  const geo = new THREE.PlaneGeometry(90, 90, 45, 45).rotateX(-Math.PI / 2);
+  water = new THREE.Mesh(
+    geo,
+    new THREE.MeshPhongMaterial({ color: 0x2d6aa6, transparent: true, opacity: 0.94, shininess: 70, specular: 0x88ccff })
+  );
+  water.position.copy(lakeCenter);
+  water.position.y = 0.35;
+  water.userData.type = 'water';
+
+  if (THREE.DynamicDrawUsage) {
+    water.geometry.attributes.position.setUsage(THREE.DynamicDrawUsage);
+    water.geometry.attributes.normal.setUsage(THREE.DynamicDrawUsage);
+  }
+
+  scene.add(water);
+  interactive.push(water);
+
+  baseWater = [];
+  const pos = water.geometry.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    baseWater.push({ x: pos.getX(i), z: pos.getZ(i) });
+  }
+
+  rippleGeo = new THREE.CircleGeometry(1, 24).rotateX(-Math.PI / 2);
+}
+
+function createTrees() {
+  for (let i = 0; i < 75; i++) {
+    const p = randSpot(10, 6);
+    const g = makeTree();
+    g.position.set(p.x, 0, p.z);
+    scene.add(g);
+    trees.push(g);
+    interactive.push(g);
+  }
+}
+
+function makeTree() {
+  const g = new THREE.Group();
+  const h = 5 + Math.random() * 5;
+
+  const trunk = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.45, 0.8, h, 8),
+    new THREE.MeshPhongMaterial({ color: 0x654321, flatShading: true })
+  );
+  trunk.position.y = h / 2;
+
+  const leaf = new THREE.Mesh(
+    new THREE.ConeGeometry(2.2 + Math.random() * 2, 4 + Math.random() * 3, 8),
+    new THREE.MeshPhongMaterial({ color: 0x387034, flatShading: true })
+  );
+  leaf.position.y = h + 1.6;
+
+  g.add(trunk, leaf);
+  g.userData = { type: 'tree', hp: 3, alive: true, phase: Math.random() * Math.PI * 2, targetRotX: 0 };
+  return g;
+}
+
+function createClouds() {
+  const mat = new THREE.MeshPhongMaterial({ color: 0xffffff, transparent: true, opacity: 0.85 });
+  for (let i = 0; i < 14; i++) {
+    const g = new THREE.Group();
+    for (let j = 0; j < 5; j++) {
+      const s = new THREE.Mesh(new THREE.SphereGeometry(6 + Math.random() * 5, 10, 10), mat);
+      s.position.set((j - 2) * 7 + Math.random() * 2, Math.random() * 3, Math.random() * 4);
+      g.add(s);
+    }
+    g.position.set(-200 + Math.random() * 450, 70 + Math.random() * 25, -100 + Math.random() * 220);
+    g.userData = { speed: 2 + Math.random() * 5 };
+    scene.add(g);
+    clouds.push(g);
+  }
+}
+
+function spawnInitialItems() {
+  for (let i = 0; i < 26; i++) {
+    const kind = randomKind();
+    const p = randSpot(6, 3);
+    spawnItem(kind, p.x, p.z);
+  }
+}
+
+function randomKind() {
+  const r = Math.random();
+  if (r < 0.14) return 'gun';
+  if (r < 0.38) return 'knife';
+  if (r < 0.72) return 'stick';
+  return 'berry';
+}
+
+function randSpot(minSpawn, lakeMargin) {
+  let x = 0, z = 0;
+  for (let i = 0; i < 80; i++) {
+    x = (Math.random() - 0.5) * 240;
+    z = (Math.random() - 0.5) * 240;
+    const dw = Math.hypot(x - lakeCenter.x, z - lakeCenter.z);
+    const dp = Math.hypot(x, z);
+    if (dw > lakeRadius + lakeMargin && dp > minSpawn) break;
+  }
+  return { x, z };
+}
+
+function spawnItem(kind, x, z) {
+  const g = new THREE.Group();
+  g.userData = { type: 'item', kind };
+
+  if (kind === 'stick') {
+    const m = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.12, 0.15, 1.4, 8),
+      new THREE.MeshPhongMaterial({ color: 0x8b5a2b })
+    );
+    m.rotation.z = Math.PI / 2;
+    m.position.y = 0.2;
+    g.add(m);
+  }
+  if (kind === 'knife') {
+    const handle = new THREE.Mesh(
+      new THREE.BoxGeometry(0.18, 0.18, 0.6),
+      new THREE.MeshPhongMaterial({ color: 0x6b4a2b })
+    );
+    handle.position.z = 0.55;
+    const blade = new THREE.Mesh(
+      new THREE.BoxGeometry(0.08, 0.22, 1.0),
+      new THREE.MeshPhongMaterial({ color: 0xcccccc, metalness: 0.6 })
+    );
+    blade.position.z = -0.35;
+    blade.position.y = 0.02;
+    g.add(handle, blade);
+    g.position.y = 0.45;
+  }
+  if (kind === 'gun') {
+    const body = new THREE.Mesh(
+      new THREE.BoxGeometry(0.25, 0.16, 0.45),
+      new THREE.MeshPhongMaterial({ color: 0x222222 })
+    );
+    const barrel = new THREE.Mesh(
+      new THREE.BoxGeometry(0.08, 0.08, 0.7),
+      new THREE.MeshPhongMaterial({ color: 0x111111 })
+    );
+    barrel.position.set(0, 0.05, 0.45);
+    const handle = new THREE.Mesh(
+      new THREE.BoxGeometry(0.12, 0.22, 0.3),
+      new THREE.MeshPhongMaterial({ color: 0x6b4a2b })
+    );
+    handle.position.set(0, -0.12, 0.2);
+    g.add(body, barrel, handle);
+    g.position.y = 0.55;
+  }
+  if (kind === 'berry') {
+    const bush = new THREE.Mesh(
+      new THREE.SphereGeometry(1.2, 12, 12),
+      new THREE.MeshPhongMaterial({ color: 0x376b2f, flatShading: true })
+    );
+    bush.position.y = 1.0;
+    g.add(bush);
+    for (let i = 0; i < 5; i++) {
+      const b = new THREE.Mesh(
+        new THREE.SphereGeometry(0.22, 8, 8),
+        new THREE.MeshPhongMaterial({ color: 0xaa2222 })
+      );
+      const a = Math.random() * Math.PI * 2;
+      const r = 0.85 + Math.random() * 0.25;
+      b.position.set(Math.cos(a) * r, 1.15 + Math.random() * 0.35, Math.sin(a) * r);
+      g.add(b);
+    }
+  }
+
+  g.position.set(x, 0, z);
+  scene.add(g);
+  items.push(g);
+}
+
+function spawnInitialEnemies() {
+  for (let i = 0; i < 4; i++) spawnEnemy('rabbit', 18, 40);
+  for (let i = 0; i < 3; i++) spawnEnemy('wolf', 45, 75);
+}
+
+function spawnEnemy(kind, dmin, dmax) {
+  const ang = Math.random() * Math.PI * 2;
+  const d = dmin + Math.random() * (dmax - dmin);
+  const x = player.pos.x + Math.cos(ang) * d;
+  const z = player.pos.z + Math.sin(ang) * d;
+
+  const g = makeEnemy(kind);
+  g.position.set(x, 0, z);
+  outsideLake(g.position);
+
+  g.userData = {
+    type: 'enemy',
+    kind,
+    hp: kind === 'rabbit' ? 3 : 12,
+    dead: false,
+    removeTimer: 0,
+    wanderTimer: Math.random() * 3,
+    wanderAngle: Math.random() * Math.PI * 2,
+    attackTimer: 0
+  };
+
+  scene.add(g);
+  enemies.push(g);
+  interactive.push(g);
+}
+
+function makeEnemy(kind) {
+  const g = new THREE.Group();
+
+  if (kind === 'rabbit') {
+    const body = new THREE.Mesh(
+      new THREE.SphereGeometry(0.7, 10, 10),
+      new THREE.MeshPhongMaterial({ color: 0xf0f0f0, flatShading: true })
+    );
+    body.scale.set(1, 0.85, 1.25);
+    body.position.y = 0.75;
+
+    const head = new THREE.Mesh(
+      new THREE.SphereGeometry(0.42, 10, 10),
+      new THREE.MeshPhongMaterial({ color: 0xf5f5f5, flatShading: true })
+    );
+    head.position.set(0.7, 0.95, 0);
+
+    const ear1 = new THREE.Mesh(
+      new THREE.BoxGeometry(0.14, 0.6, 0.12),
+      new THREE.MeshPhongMaterial({ color: 0xd5d5d5 })
+    );
+    ear1.position.set(0.7, 1.5, 0.25);
+    const ear2 = ear1.clone();
+    ear2.position.z = -0.25;
+
+    g.add(body, head, ear1, ear2);
+  } else {
+    const mat = new THREE.MeshPhongMaterial({ color: 0x555555, flatShading: true });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.9, 1.1), mat);
+    body.position.y = 1.05;
+
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.75, 0.8), mat);
+    head.position.set(1.25, 1.15, 0);
+
+    const tail = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.14, 0.14), mat);
+    tail.position.set(-1.3, 1.0, 0);
+
+    g.add(body, head, tail);
+
+    const legGeo = new THREE.BoxGeometry(0.17, 1.0, 0.17);
+    const legPos = [[0.65, 0.35], [0.65, -0.35], [-0.65, 0.35], [-0.65, -0.35]];
+    for (let i = 0; i < legPos.length; i++) {
+      const leg = new THREE.Mesh(legGeo, mat);
+      leg.position.set(legPos[i][0], 0.5, legPos[i][1]);
+      g.add(leg);
+    }
+  }
+
+  return g;
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.1);
+  update(dt);
+  renderer.render(scene, camera);
+}
+
+function update(dt) {
+  fireCooldown -= dt;
+  if (fireHeld && fireCooldown <= 0 && canPlay()) {
+    attack();
+    fireCooldown = 0.32;
+  }
+  movePlayer(dt);
+
+  camera.position.copy(player.pos);
+  camera.rotation.y = yaw;
+  camera.rotation.x = pitch;
+
+  updateTrees(dt);
+  updateEnemies(dt);
+  updateClouds(dt);
+  updateWater(dt);
+  updateEffects(dt);
+  updateUI(dt);
+
+  if (player.hp <= 0 && player.alive) {
+    player.alive = false;
+    if (navigator.vibrate) navigator.vibrate([70, 40, 140]);
+  }
+
+  if (player.alive && Math.random() < dt * 0.25) {
+    const kind = Math.random() < 0.7 ? 'rabbit' : 'wolf';
+    spawnEnemy(kind, 30, 70);
+  }
+}
+
+function movePlayer(dt) {
+  if (!canPlay()) return;
+
+  let f = 0, s = 0;
+  if (keys.KeyW) f++;
+  if (keys.KeyS) f--;
+  if (keys.KeyA) s--;
+  if (keys.KeyD) s++;
+
+  if (isTouch) { f += moveVec.y; s += moveVec.x; }
+  const mag = Math.min(1, Math.hypot(s, f));
+
+  if (mag > 0.02) {
+    const running = keys.ShiftLeft || keys.ShiftRight || autoRun || (isTouch && mag > 0.86);
+    const speed = running ? player.runSpeed : player.speed;
+    const v = new THREE.Vector3(s, 0, -f).normalize().multiplyScalar(speed * dt * mag);
+    v.applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+    player.pos.add(v);
+  }
+
+  player.pos.x = Math.max(-280, Math.min(280, player.pos.x));
+  player.pos.z = Math.max(-280, Math.min(280, player.pos.z));
+  outsideLake(player.pos);
+}
+
+function outsideLake(p) {
+  const dx = p.x - lakeCenter.x;
+  const dz = p.z - lakeCenter.z;
+  const d = Math.hypot(dx, dz);
+  if (d < lakeRadius) {
+    if (d < 0.001) {
+      p.x = lakeCenter.x + lakeRadius + 0.5;
+      p.z = lakeCenter.z;
+    } else {
+      p.x = lakeCenter.x + dx / d * (lakeRadius + 0.5);
+      p.z = lakeCenter.z + dz / d * (lakeRadius + 0.5);
+    }
+  }
+}
+
+function updateTrees() {
+  const t = clock.elapsedTime;
+  for (let i = 0; i < trees.length; i++) {
+    const tree = trees[i];
+    const ud = tree.userData;
+    if (ud.alive) {
+      tree.rotation.z = Math.sin(t + ud.phase) * 0.025;
+    } else {
+      tree.rotation.x += (ud.targetRotX - tree.rotation.x) * 0.12;
+    }
+  }
+}
+
+function updateEnemies(dt) {
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    const e = enemies[i];
+    const ud = e.userData;
+
+    const dx = e.position.x - player.pos.x;
+    const dz = e.position.z - player.pos.z;
+    const dist = Math.hypot(dx, dz);
+
+    if (ud.dead) {
+      ud.removeTimer += dt;
+      e.rotation.x += ((-Math.PI / 2) - e.rotation.x) * 0.12;
+      if (ud.removeTimer > 2.5) {
+        scene.remove(e);
+        const idx = interactive.indexOf(e);
+        if (idx >= 0) interactive.splice(idx, 1);
+        enemies.splice(i, 1);
+      }
+      continue;
+    }
+
+    let dir = null, speed = 0;
+
+    if (ud.kind === 'rabbit') {
+      if (dist < 24 && player.alive) {
+        dir = new THREE.Vector3(dx, 0, dz).normalize();
+        speed = 5;
+      } else {
+        ud.wanderTimer -= dt;
+        if (ud.wanderTimer <= 0) {
+          ud.wanderTimer = 2 + Math.random() * 3;
+          ud.wanderAngle = Math.random() * Math.PI * 2;
+        }
+        dir = new THREE.Vector3(Math.cos(ud.wanderAngle), 0, Math.sin(ud.wanderAngle));
+        speed = 2.2;
+      }
+    } else {
+      if (dist < 35 && player.alive) {
+        dir = new THREE.Vector3(player.pos.x - e.position.x, 0, player.pos.z - e.position.z).normalize();
+        speed = 5.5;
+        if (dist < 2.5 && ud.attackTimer <= 0) {
+          player.hp -= 12;
+          ud.attackTimer = 1.2;
+          say('狼攻击你');
+          if (navigator.vibrate) navigator.vibrate(45);
+        }
+      } else {
+        ud.wanderTimer -= dt;
+        if (ud.wanderTimer <= 0) {
+          ud.wanderTimer = 2 + Math.random() * 3;
+          ud.wanderAngle = Math.random() * Math.PI * 2;
+        }
+        dir = new THREE.Vector3(Math.cos(ud.wanderAngle), 0, Math.sin(ud.wanderAngle));
+        speed = 2;
+      }
+    }
+
+    ud.attackTimer = Math.max(0, ud.attackTimer - dt);
+
+    if (dir && speed > 0.1) {
+      e.position.addScaledVector(dir, speed * dt);
+      e.position.y = 0;
+      outsideLake(e.position);
+      e.rotation.y = -Math.atan2(dir.z, dir.x);
+    }
+  }
+}
+
+function updateClouds(dt) {
+  for (let i = 0; i < clouds.length; i++) {
+    const c = clouds[i];
+    c.position.x += c.userData.speed * dt;
+    if (c.position.x > 320) c.position.x = -320;
+  }
+}
+
+function updateWater(dt) {
+  const t = clock.elapsedTime;
+  const pos = water.geometry.attributes.position;
+
+  for (let i = 0; i < pos.count; i++) {
+    const b = baseWater[i];
+    let y = Math.sin(b.x * 0.13 + t * 1.3) * 0.15 + Math.cos(b.z * 0.17 + t * 1.1) * 0.12;
+
+    for (let j = 0; j < ripples.length; j++) {
+      const r = ripples[j];
+      const worldX = water.position.x + b.x;
+      const worldZ = water.position.z + b.z;
+      const d = Math.hypot(worldX - r.x, worldZ - r.z);
+      const maxD = 3 + r.age * 7;
+      if (d < maxD) {
+        y += r.strength * Math.sin(d * 0.9 - r.age * 6.5) * Math.exp(-d * 0.25) * Math.exp(-r.age * 1.0);
+      }
+    }
+
+    pos.setY(i, y);
+  }
+
+  pos.needsUpdate = true;
+  water.geometry.computeVertexNormals();
+}
+
+function updateEffects(dt) {
+  for (let i = bullets.length - 1; i >= 0; i--) {
+    bullets[i].life -= dt;
+    bullets[i].mesh.material.opacity = Math.max(0, bullets[i].life * 8);
+    if (bullets[i].life <= 0) {
+      scene.remove(bullets[i].mesh);
+      bullets.splice(i, 1);
+    }
+  }
+
+  for (let i = ripples.length - 1; i >= 0; i--) {
+    const r = ripples[i];
+    r.age += dt;
+    const scale = 1 + r.age * 5;
+    r.ring.scale.set(scale, 1, scale);
+    r.ring.material.opacity = Math.max(0, 0.8 - r.age * 0.35);
+    if (r.age > 2.5) {
+      scene.remove(r.ring);
+      ripples.splice(i, 1);
+    }
+  }
+}
+
+function attack() {
+  if (!canPlay()) return;
+
+  if (player.equipped === 'gun' && player.inv.gun && player.ammo > 0) {
+    fire();
+  } else {
+    melee();
+  }
+}
+
+function fire() {
+  player.ammo--;
+
+  raycaster.far = 300;
+  raycaster.setFromCamera(rayCenter, camera);
+  const hits = raycaster.intersectObjects(interactive, true);
+
+  let end;
+  if (hits.length) {
+    const hit = hits[0];
+    end = hit.point.clone();
+    applyDamage(getRoot(hit.object), 5, hit.point);
+  } else {
+    const dir = new THREE.Vector3();
+    camera.getWorldDirection(dir);
+    end = camera.position.clone().addScaledVector(dir, 200);
+  }
+
+  addTracer(camera.position.clone(), end, 0xffff88, 0.12);
+}
+
+function melee() {
+  raycaster.far = 3.6;
+  raycaster.setFromCamera(rayCenter, camera);
+  const hits = raycaster.intersectObjects(interactive, true);
+
+  const dir = new THREE.Vector3();
+  camera.getWorldDirection(dir);
+  let end = camera.position.clone().addScaledVector(dir, 2.4);
+
+  const dmg = player.equipped === 'knife' ? 6 : 2;
+
+  if (hits.length && hits[0].distance < 3.2) {
+    const hit = hits[0];
+    end = hit.point.clone();
+    applyDamage(getRoot(hit.object), dmg, hit.point);
+  }
+
+  addTracer(camera.position.clone(), end, 0xff8855, 0.1);
+}
+
+function addTracer(a, b, color, life) {
+  const geo = new THREE.BufferGeometry().setFromPoints([a, b]);
+  const mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 1 });
+  const line = new THREE.Line(geo, mat);
+  scene.add(line);
+  bullets.push({ mesh: line, life });
+}
+
+function getRoot(obj) {
+  let o = obj;
+  while (o) {
+    if (o.userData && o.userData.type) return o;
+    o = o.parent;
+  }
+  return null;
+}
+
+function applyDamage(root, dmg, point) {
+  if (!root) return;
+  const ud = root.userData;
+
+  if (ud.type === 'tree') {
+    ud.hp -= dmg;
+    if (ud.alive && ud.hp <= 0) {
+      ud.alive = false;
+      ud.targetRotX = -Math.PI / 2;
+      say('树被击倒');
+    }
+  } else if (ud.type === 'enemy') {
+    ud.hp -= dmg;
+    if (!ud.dead && ud.hp <= 0) {
+      ud.dead = true;
+      ud.removeTimer = 0;
+      say(ud.kind === 'wolf' ? '狼被击杀' : '兔子被击杀');
+    }
+  } else if (ud.type === 'water') {
+    addRipple(point, 2.0);
+  }
+}
+
+function addRipple(point, strength) {
+  const mat = new THREE.MeshBasicMaterial({ color: 0x88ccff, transparent: true, opacity: 0.8 });
+  const ring = new THREE.Mesh(rippleGeo, mat);
+  ring.position.set(point.x, water.position.y + 0.08, point.z);
+  scene.add(ring);
+  ripples.push({ x: point.x, z: point.z, age: 0, strength, ring });
+  if (ripples.length > 80) {
+    const old = ripples.shift();
+    scene.remove(old.ring);
+  }
+}
+
+function nearestInteract() {
+  const p = player.pos;
+  let type = 'none', obj = null, kind = '', dist = Infinity;
+
+  for (let i = 0; i < items.length; i++) {
+    const d = Math.hypot(p.x - items[i].position.x, p.z - items[i].position.z);
+    if (d < 2.2 && d < dist) {
+      type = 'item';
+      obj = items[i];
+      kind = obj.userData.kind;
+      dist = d;
+    }
+  }
+
+  const wd = Math.hypot(p.x - lakeCenter.x, p.z - lakeCenter.z);
+  if (wd < lakeRadius + 5 && wd < dist) {
+    type = 'water';
+    obj = null;
+    kind = 'water';
+    dist = wd;
+  }
+
+  return { type, obj, kind, dist };
+}
+
+function tryInteract() {
+  const n = nearestInteract();
+  if (n.type === 'none') return;
+
+  if (n.type === 'water') {
+    player.inv.water = Math.min(10, player.inv.water + 2);
+    say('取水: 水+2');
+    return;
+  }
+
+  const item = n.obj;
+  const kind = n.kind;
+
+  if (kind === 'gun') {
+    player.inv.gun = true;
+    player.ammo += 30;
+    player.equipped = 'gun';
+    say('拾取枪: 弹药+30');
+  } else if (kind === 'knife') {
+    player.inv.knife = true;
+    if (!player.inv.gun) player.equipped = 'knife';
+    say('拾取刀');
+  } else if (kind === 'stick') {
+    player.inv.stick = true;
+    if (!player.inv.gun && !player.inv.knife) player.equipped = 'stick';
+    say('拾取棍');
+  } else if (kind === 'berry') {
+    player.inv.berries += 3;
+    say('采摘浆果: +3');
+  }
+
+  scene.remove(item);
+  const idx = items.indexOf(item);
+  if (idx >= 0) items.splice(idx, 1);
+}
+
+function consumeBerry() {
+  if (player.inv.berries > 0 && player.hp < player.maxHp) {
+    player.inv.berries--;
+    player.hp = Math.min(player.maxHp, player.hp + 15);
+    say('吃浆果 +15HP');
+  }
+}
+
+function consumeWater() {
+  if (player.inv.water > 0 && player.hp < player.maxHp) {
+    player.inv.water--;
+    player.hp = Math.min(player.maxHp, player.hp + 10);
+    say('喝水 +10HP');
+  }
+}
+
+function equip(kind) {
+  if (player.inv[kind]) {
+    player.equipped = kind;
+    say('装备 ' + WEAPON_NAME[kind]);
+  }
+}
+
+function getInteractPrompt() {
+  if (!player.alive) return '你死了，' + KEY_R;
+  const n = nearestInteract();
+  if (n.type === 'water') return KEY_E + ' 取水';
+  if (n.type === 'item' && n.kind === 'gun') return KEY_E + ' 拾取枪';
+  if (n.type === 'item' && n.kind === 'knife') return KEY_E + ' 拾取刀';
+  if (n.type === 'item' && n.kind === 'stick') return KEY_E + ' 拾取棍';
+  if (n.type === 'item' && n.kind === 'berry') return KEY_E + ' 采摘浆果';
+  return '';
+}
+
+function say(text) {
+  msg = text;
+  msgTimer = 3.5;
+}
+
+function setActive(el, active) {
+  if (active) el.classList.add('active');
+  else el.classList.remove('active');
+}
+
+function updateUI(dt) {
+  hpFill.style.width = Math.max(0, Math.min(100, player.hp)) + '%';
+  hpText.textContent = Math.max(0, Math.round(player.hp));
+
+  stickLabel.textContent = player.inv.stick ? '有' : '无';
+  knifeLabel.textContent = player.inv.knife ? '有' : '无';
+  gunLabel.textContent = player.inv.gun ? '有' : '无';
+  ammoText.textContent = '弹药:' + player.ammo;
+  berryText.textContent = player.inv.berries;
+  waterText.textContent = player.inv.water;
+
+  setActive(slotStick, player.equipped === 'stick');
+  setActive(slotKnife, player.equipped === 'knife');
+  setActive(slotGun, player.equipped === 'gun');
+
+  promptEl.textContent = getInteractPrompt();
+
+  if (isTouch) {
+    setActive(btnInteract, promptEl.textContent !== '' && player.alive);
+    setActive(btnEat, player.inv.berries > 0);
+    setActive(btnDrink, player.inv.water > 0);
+    setActive(btnSwitch, ['stick', 'knife', 'gun'].filter(function (k) { return player.inv[k]; }).length > 1);
+    setActive(btnRun, autoRun);
+    if (rotHint) rotHint.textContent = window.innerHeight > window.innerWidth ? '建议横屏游玩' : '';
+  }
+
+  if (msgTimer > 0) {
+    msgTimer -= dt;
+    messageEl.textContent = msg;
+  } else {
+    messageEl.textContent = '';
+  }
+}
+</script>
+</body>
+</html>
