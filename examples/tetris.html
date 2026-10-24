@@ -88,7 +88,7 @@
 <div id="app">
   <div id="topbar">
     <div style="display:flex;align-items:center;gap:12px;">
-      <a class="back" href="../index.html">← 首页</a>
+      <a class="back" href="/">← 首页</a>
       <div class="brand"><h1>🧱</h1><span class="sub">俄罗斯方块</span></div>
     </div>
     <button id="pause">⏸ 暂停</button>
@@ -478,7 +478,7 @@
       '<div class="ov-btns"><button class="primary" id="again">再来一局</button><button class="ghost" id="home">首页</button></div>';
     el.overlay.classList.add("show");
     document.getElementById("again").addEventListener("click", startGame);
-    document.getElementById("home").addEventListener("click", () => location.assign("../index.html"));
+    document.getElementById("home").addEventListener("click", () => location.assign("/"));
   }
 
   function togglePause() {

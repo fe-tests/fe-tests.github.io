@@ -20,7 +20,6 @@
   ],
   "pages": [
     {
-      "id": "hello-llm",
       "title": "Hello, LLM",
       "description": "20M 小参数语言模型的字符级生成演示，含温度/采样参数面板。",
       "url": "examples/hello-llm.html",
@@ -34,7 +33,6 @@
       "updatedAt": "2026-10-01 07:31:13"
     },
     {
-      "id": "embedding-viz",
       "title": "向量可视化",
       "description": "把小参数模型输出的 embedding 降维成散点图，直观看语义聚类。",
       "url": "examples/embedding-viz.html",
@@ -48,7 +46,6 @@
       "updatedAt": "2026-10-01 07:31:13"
     },
     {
-      "id": "token-counter",
       "title": "Token 计数器",
       "description": "本地对文本做分词并统计 token 数量与占用字节。",
       "url": "examples/token-counter.html",
@@ -62,7 +59,6 @@
       "updatedAt": "2026-10-01 07:31:13"
     },
     {
-      "id": "pelican-bike",
       "title": "鹈鹕骑车",
       "description": "Canvas 跑酷小游戏：鹈鹕骑车沿海岸公路狂奔，跳过石头圆木、抓鱼得分，昼夜循环与视差景观，支持二段跳。",
       "url": "examples/pelican-bike.html",
@@ -76,7 +72,6 @@
       "updatedAt": "2026-10-11 01:20:32"
     },
     {
-      "id": "liankan",
       "title": "Emoji 连连看",
       "description": "emoji 素材的网页版连连看：多难度、连击、提示/洗牌/撤销、路径画线与粒子动画。",
       "url": "examples/liankan.html",
@@ -90,7 +85,6 @@
       "updatedAt": "2026-10-14 22:36:33"
     },
     {
-      "id": "emoji-match",
       "title": "Emoji 消消乐",
       "description": "点击消除相邻同色 emoji 组，重力堆积、逐轮目标计分；每轮图形种类 3~5 种，连击越大越加分。",
       "url": "examples/emoji-match.html",
@@ -104,7 +98,6 @@
       "updatedAt": "2026-10-01 08:14:28"
     },
     {
-      "id": "racing-game",
       "title": "极速狂飙",
       "description": "Canvas 移动端优先赛车游戏：点击转向/加速/刹车，避开来车并收集星形道具，速度越高分越高，含分数墙记录。",
       "url": "examples/racing-game.html",
@@ -118,7 +111,6 @@
       "updatedAt": "2026-10-01 10:35:58"
     },
     {
-      "id": "2048",
       "title": "2048",
       "description": "经典数字合并益智游戏，Canvas 渲染带滑动/合并动画与缩放特效，支持方向键、触屏滑动和方向按钮。",
       "url": "examples/2048.html",
@@ -132,7 +124,6 @@
       "updatedAt": "2026-10-04 20:23:59"
     },
     {
-      "id": "sudoku",
       "title": "数独",
       "description": "经典 9x9 数独：自动生成含唯一解的谜题，多难度选择、冲突高亮、相同数字高亮、计时与通关提示。",
       "url": "examples/sudoku.html",
@@ -146,7 +137,6 @@
       "updatedAt": "2026-10-01 15:06:41"
     },
     {
-      "id": "archery",
       "title": "移动靶射箭",
       "description": "拖动拉弓瞄准，箭受重力呈抛物线飞行；越靠近靶心分越高，连续命中累积连击倍率，限时限箭挑战高分。",
       "url": "examples/archery.html",
@@ -160,7 +150,6 @@
       "updatedAt": "2026-10-02 08:00:57"
     },
     {
-      "id": "tetris",
       "title": "俄罗斯方块",
       "description": "经典俄罗斯方块：七种方块随机抽取，消行计分，逐级加速，含下一个/暂存预览、硬降软降、暂停与最高分记录。",
       "url": "examples/tetris.html",
@@ -174,7 +163,6 @@
       "updatedAt": "2026-10-02 08:39:43"
     },
     {
-      "id": "space-warship",
       "title": "太空战舰",
       "description": "驾驶战舰自动开火，走位躲弹击落敌群与首领；火力升级、回血、护盾掉落，多波次挑战高分。",
       "url": "examples/space-warship.html",
@@ -188,7 +176,6 @@
       "updatedAt": "2026-10-05 09:32:23"
     },
     {
-      "id": "daoshui",
       "title": "倒水排序",
       "description": "经典倒水益智游戏：同色倒满各管通关，4 关难度递进，支持撤销与重开，含可解性求解器保证每关有解。",
       "url": "examples/daoshui.html",
@@ -202,7 +189,6 @@
       "updatedAt": "2026-10-03 19:25:33"
     },
     {
-      "id": "strike-pong",
       "title": "弹球对决",
       "description": "Canvas 弹球对决：按住蓄力击打中心球，与 AI 对线抢分，先到 10 分获胜，支持触控与全屏。",
       "url": "examples/strike-pong.html",
@@ -216,7 +202,6 @@
       "updatedAt": "2026-10-05 03:41:57"
     },
     {
-      "id": "music-editor",
       "title": "乐曲编辑器",
       "description": "按住琴键播放音调（长按决定音长），Web Audio 生成音色；可录制按下/松开的时序并严格按原节奏回放。",
       "url": "examples/music-editor.html",
@@ -230,7 +215,6 @@
       "updatedAt": "2026-10-05 17:19:50"
     },
     {
-      "id": "minesweeper",
       "title": "扫雷",
       "description": "经典扫雷：左盖揭开、右键或插旗模式标雷，首击必不踩雷，空白自动扩散，限时计雷，初/中/高三档难度。",
       "url": "examples/minesweeper.html",
@@ -244,7 +228,6 @@
       "updatedAt": "2026-10-05 18:43:52"
     },
     {
-      "id": "hearts",
       "title": "红心大战",
       "description": "Windows 经典扑克红心大战网页版：4 人对战 AI，须跟花色/红心开花/先丢红心才能出 Q♠/单吃判分，桌面级牌桌与卡牌渲染，先到 100 分判负。",
       "url": "examples/hearts.html",
@@ -258,7 +241,6 @@
       "updatedAt": "2026-10-14 23:23:59"
     },
     {
-      "id": "texas-holdem",
       "title": "德州扑克",
       "description": "网页版单机德州扑克：8 人坐庄，7 个 AI 对手各有性格，含完整翻牌前/后流程、加注滑杆、侧池与摊牌计分。",
       "url": "examples/texas-holdem.html",
@@ -272,7 +254,6 @@
       "updatedAt": "2026-10-11 14:25:26"
     },
     {
-      "id": "3d-shoot-game",
       "title": "3D末日生存",
       "description": "Three.js 第一人称末日生存：键鼠与触屏双操控（摇杆/滑动转视角/轻点攻击），拾棍刀枪、猎兔斗狼、采果取水。",
       "url": "examples/3d-shoot-game.html",
