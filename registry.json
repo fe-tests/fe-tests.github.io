@@ -265,6 +265,19 @@
       "thumbnail": null,
       "createdAt": "2026-10-19 21:43:39",
       "updatedAt": "2026-10-19 22:08:30"
+    },
+    {
+      "title": "3D 太阳系 · 行星运行图",
+      "description": "Three.js 程序化 3D 太阳系：J2000 轨道根数 + 开普勒方程实时推进，含卫星、环系、小行星带与彗尾。",
+      "url": "examples/solar-system-3d.html",
+      "category": "experiment",
+      "emoji": "☀️",
+      "tags": ["3d", "threejs", "solar-system", "太阳系", "行星", "开普勒", "可视化"],
+      "status": "stable",
+      "pinned": false,
+      "thumbnail": null,
+      "createdAt": "2026-10-24 21:39:21",
+      "updatedAt": "2026-10-24 21:39:21"
     }
   ]
 }
