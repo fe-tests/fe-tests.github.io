@@ -278,6 +278,19 @@
       "thumbnail": null,
       "createdAt": "2026-10-24 21:39:21",
       "updatedAt": "2026-10-24 21:39:21"
+    },
+    {
+      "title": "祖玛",
+      "description": "Canvas 原生祖玛：贝塞尔曲线轨道上滚动彩球链，石青蛙瞄准击发，3 个及以上同色相连即消除；连锁 COMBO 倍率、6 种道具球（引爆/冰冻/逆转），8 个手工关卡 + 无尽模式，键鼠与触屏双操控。",
+      "url": "examples/zuma.html",
+      "category": "game",
+      "emoji": "🐸",
+      "tags": ["game", "canvas", "祖玛", "zuma", "消除", "关卡", "无尽模式", "移动端"],
+      "status": "stable",
+      "pinned": false,
+      "thumbnail": null,
+      "createdAt": "2026-10-24 16:47:41",
+      "updatedAt": "2026-10-24 16:47:41"
     }
   ]
 }
