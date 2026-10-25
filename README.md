@@ -91,3 +91,30 @@
 ## 页面模板
 
 新建页面时复制 `examples/template.html`，其头部约定返回链接与原生结构，方便保持一致风格。
+
+## 本地 / 局域网启动（Node，零依赖）
+
+首页用 `fetch("registry.json")` 取数据，**必须走 HTTP**（直接双击 `index.html` 用 `file://` 打开会因跨域限制取不到注册表）。项目自带 `server.js`（只用 Node 内置模块，无需 `npm install`）：
+
+```bash
+node server.js              # 监听 0.0.0.0:8080，本机 + 局域网都能访问
+node server.js --port=3000  # 换端口
+node server.js --host=127.0.0.1   # 只允许本机访问
+npm start                   # 等价于 node server.js
+```
+
+启动后终端会打印本机地址与**所有网卡的局域网地址**（形如 `http://192.168.1.23:8080/`），手机/平板/同事电脑在**同一 Wi-Fi（同网段）**下用该地址即可打开。
+
+服务器行为：
+
+- 目录自动映射到 `index.html`；越界路径（`../`）返回 403；未知路径返回 404 页。
+- `*.html` 与 `registry.json` 用 `no-store`，改完注册表刷新首页即生效；其余静态资源缓存 5 分钟。
+- 支持 `Range`（音频/大文件拖动播放）、`ETag/304`、`HEAD`。
+
+**局域网访问不通时**（Windows 防火墙拦截入站连接），以管理员身份执行一次：
+
+```powershell
+netsh advfirewall firewall add rule name="node static 8080" dir=in action=allow protocol=TCP localport=8080
+```
+
+删除规则：`netsh advfirewall firewall delete rule name="node static 8080"`。
