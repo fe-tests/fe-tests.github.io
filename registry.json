@@ -291,6 +291,19 @@
       "thumbnail": null,
       "createdAt": "2026-10-24 16:47:41",
       "updatedAt": "2026-10-24 16:47:41"
+    },
+    {
+      "title": "3D 麻将",
+      "description": "Three.js 3D 麻将桌：136 张无花牌四人单机，摸打吃碰杠胡、加法计番（封顶 8 番），含牌河放大、视角切换与 2D 简版降级。",
+      "url": "examples/mahjong-3d.html",
+      "category": "game",
+      "emoji": "🀄",
+      "tags": ["game", "3d", "threejs", "mahjong", "麻将", "单机", "AI", "牌桌"],
+      "status": "stable",
+      "pinned": false,
+      "thumbnail": null,
+      "createdAt": "2026-10-25 16:00:42",
+      "updatedAt": "2026-10-25 16:00:42"
     }
   ]
 }
