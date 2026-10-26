@@ -304,6 +304,19 @@
       "thumbnail": null,
       "createdAt": "2026-10-25 16:00:42",
       "updatedAt": "2026-10-25 16:00:42"
+    },
+    {
+      "title": "3D 魔方",
+      "description": "Three.js 3D 三阶魔方：26 个 cubie 整数姿态 + 程序化贴纸纹理，贴纸拖拽自动判层、键鼠标准记法（宽层 / 切片 / 整体旋转）；种子可复现打乱，逆序回放 + 序列压缩保证 100% 复原，快照时间轴任意 scrub、变速回放、撤销重做与计时，含无 WebGL 的 2D 展开图降级视图。",
+      "url": "examples/rubik-3d.html",
+      "category": "game",
+      "emoji": "🧩",
+      "tags": ["game", "3d", "threejs", "rubik", "魔方", "还原", "时间轴", "移动端"],
+      "status": "stable",
+      "pinned": false,
+      "thumbnail": null,
+      "createdAt": "2026-10-26 21:27:00",
+      "updatedAt": "2026-10-26 21:27:00"
     }
   ]
 }

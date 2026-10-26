@@ -1,0 +1,1719 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>🧩 3D 魔方</title>
+<style>
+  :root {
+    --bg: #0b1016;
+    --bg2: #05080c;
+    --panel: rgba(15,21,29,.74);
+    --glass: rgba(255,255,255,.055);
+    --line: rgba(255,255,255,.10);
+    --txt: #e7eaf0;
+    --dim: #93a0b0;
+    --cy: #39d0ff;
+    --amber: #f5c451;
+    --ok: #35d07f;
+    --warn: #ff7a6b;
+    --sq: min(14vw, 58px);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, Arial, sans-serif;
+    background: radial-gradient(1150px 660px at 50% -12%, #17293b 0%, var(--bg) 46%, var(--bg2) 100%);
+    color: var(--txt); overflow: hidden; touch-action: none;
+    -webkit-user-select: none; user-select: none;
+  }
+  a { color: inherit; text-decoration: none; }
+  #stage { position: fixed; inset: 0; z-index: 1; }
+  #stage canvas { display: block; }
+
+  /* 顶栏 */
+  .bar {
+    position: fixed; left: 0; right: 0; top: 0; z-index: 30;
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding: 7px 11px; background: rgba(6,10,14,.58); backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+  .brand { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .brand .em { font-size: 22px; line-height: 1; }
+  .brand h1 { font-size: 16px; margin: 0; letter-spacing: .4px; white-space: nowrap; }
+  .brand small { display: block; font-size: 11px; color: var(--dim); margin-top: 1px; white-space: nowrap; }
+  .spacer { flex: 1; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px; padding: 5px 9px; border-radius: 9px;
+    background: var(--glass); border: 1px solid var(--line); font-size: 12px; white-space: nowrap;
+  }
+  .chip b { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .chip.gold { border-color: rgba(245,196,81,.5); background: rgba(245,196,81,.13); color: #ffe3a8; }
+  .chip.cy { border-color: rgba(57,208,255,.45); background: rgba(57,208,255,.12); color: #cdeeff; }
+  button {
+    font-family: inherit; cursor: pointer; border: 1px solid rgba(255,255,255,.16);
+    background: linear-gradient(#2a3040, #1b2029); color: var(--txt); padding: 8px 12px;
+    border-radius: 10px; font-size: 13px; transition: transform .1s, background .15s, box-shadow .2s;
+    min-height: 36px; white-space: nowrap;
+  }
+  button:hover { background: linear-gradient(#333a4c, #222733); }
+  button:active { transform: translateY(1px); }
+  button.primary { background: linear-gradient(#39d0ff, #1ea5d8); color: #04222e; border-color: #1c9ccc; font-weight: 700; }
+  button.amber { background: linear-gradient(#f5c451, #e0a72e); color: #1a1300; border-color: #d49a2c; font-weight: 700; }
+  button:disabled { opacity: .35; cursor: default; }
+  button.ghost { padding: 8px 9px; }
+  button.on { box-shadow: 0 0 0 2px rgba(57,208,255,.7), 0 0 18px rgba(57,208,255,.32); border-color: var(--cy); }
+  .back { font-size: 12px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 9px; background: var(--glass); }
+
+  /* 侧栏 */
+  #panel {
+    position: fixed; right: 10px; top: 56px; bottom: 10px; width: 306px; z-index: 24;
+    background: var(--panel); backdrop-filter: blur(12px); border: 1px solid var(--line);
+    border-radius: 14px; padding: 10px; overflow-y: auto; overscroll-behavior: contain;
+    transform: translateX(120%); transition: transform .26s ease; touch-action: pan-y;
+    scrollbar-width: thin; scrollbar-color: #3a4656 transparent;
+  }
+  #panel.open { transform: none; }
+  #panel::-webkit-scrollbar { width: 7px; }
+  #panel::-webkit-scrollbar-thumb { background: #3a4656; border-radius: 4px; }
+  .sec { border: 1px solid rgba(255,255,255,.07); border-radius: 11px; padding: 9px; margin-bottom: 9px; background: rgba(255,255,255,.03); }
+  .sec h3 { margin: 0 0 7px; font-size: 12px; letter-spacing: .6px; color: var(--cy); text-transform: uppercase; }
+  .sec .hint { font-size: 11px; color: var(--dim); line-height: 1.5; margin: 5px 0 0; }
+  .row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .row + .row { margin-top: 7px; }
+  .row .grow { flex: 1; min-width: 0; }
+  .seg { display: flex; gap: 4px; flex-wrap: wrap; }
+  .seg button { padding: 6px 8px; min-height: 30px; font-size: 12px; border-radius: 8px; }
+  input[type=text], input[type=number], textarea {
+    font-family: inherit; font-size: 12px; color: var(--txt); background: rgba(0,0,0,.34);
+    border: 1px solid var(--line); border-radius: 8px; padding: 7px 8px; width: 100%;
+  }
+  input[type=range] { width: 100%; accent-color: var(--cy); height: 22px; }
+  label.sw { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--dim); cursor: pointer; }
+  label.sw input { accent-color: var(--cy); width: 15px; height: 15px; }
+  .stat { display: flex; justify-content: space-between; font-size: 12px; padding: 3px 0; border-bottom: 1px dashed rgba(255,255,255,.07); }
+  .stat b { font-variant-numeric: tabular-nums; color: var(--amber); }
+  .stat:last-child { border-bottom: 0; }
+
+  /* 步序列表 */
+  #movelist { display: flex; flex-wrap: wrap; gap: 4px; max-height: 148px; overflow-y: auto; touch-action: pan-y; }
+  .mv {
+    font-size: 12px; padding: 3px 6px; border-radius: 7px; cursor: pointer;
+    background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.1); font-variant-numeric: tabular-nums;
+  }
+  .mv.scramble { border-color: rgba(255,122,107,.4); color: #ffcfc7; }
+  .mv.user { border-color: rgba(57,208,255,.35); color: #cdeeff; }
+  .mv.restore { border-color: rgba(53,208,127,.4); color: #bff2d6; }
+  .mv.cur { box-shadow: 0 0 0 2px var(--cy); border-color: var(--cy); background: rgba(57,208,255,.2); }
+  .mv.dim { opacity: .38; }
+  #movelist .empty { font-size: 11px; color: var(--dim); }
+
+  /* 播放控制 */
+  #transport {
+    position: fixed; left: 50%; transform: translateX(-50%); bottom: 10px; z-index: 28;
+    display: flex; flex-direction: column; gap: 6px; align-items: center; pointer-events: auto;
+  }
+  #transport .trow { display: flex; gap: 6px; align-items: center; }
+  #transport button { min-width: 46px; min-height: 40px; font-size: 15px; padding: 7px 10px; }
+  #transport button.small { min-width: 0; font-size: 12px; min-height: 34px; }
+  #transport .tbar {
+    display: flex; flex-direction: column; gap: 3px; align-items: center;
+    background: rgba(6,10,14,.5); backdrop-filter: blur(10px); border: 1px solid var(--line);
+    border-radius: 12px; padding: 6px 10px; width: min(600px, 94vw);
+  }
+  #scrub { width: 100%; accent-color: var(--amber); }
+  .tlab { display: flex; justify-content: space-between; width: 100%; font-size: 11px; color: var(--dim); }
+  .tlab b { color: var(--txt); font-variant-numeric: tabular-nums; }
+
+  /* 2D 展开图 */
+  #d2 { position: fixed; inset: 0; z-index: 12; display: none; align-items: center; justify-content: center; padding: 58px 8px 118px; }
+  #d2.on { display: flex; }
+  #d2 .net { display: grid; grid-template-columns: repeat(4, var(--sq)); grid-template-rows: repeat(3, var(--sq)); gap: 7px; }
+  #d2 .face { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); gap: 3px; }
+  #d2 .st { border-radius: 5px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.55); transition: background .12s; }
+  #d2 .st.hl { box-shadow: inset 0 0 0 2px #fff, 0 0 10px rgba(255,255,255,.6); }
+  #d2 .cap { font-size: 11px; color: var(--dim); text-align: center; margin-top: 8px; }
+  #d2 .U { grid-area: 1 / 2; } #d2 .L { grid-area: 2 / 1; } #d2 .F { grid-area: 2 / 2; }
+  #d2 .R { grid-area: 2 / 3; } #d2 .B { grid-area: 2 / 4; } #d2 .D { grid-area: 3 / 2; }
+
+  /* 弹窗 */
+  .overlay {
+    position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center;
+    background: rgba(3,6,10,.72); backdrop-filter: blur(4px); padding: 16px;
+  }
+  .overlay.hidden { display: none; }
+  .modal {
+    max-width: 620px; width: 100%; max-height: 88vh; overflow-y: auto; touch-action: pan-y;
+    background: linear-gradient(#1a2130, #12161e); border: 1px solid rgba(255,255,255,.14);
+    border-radius: 16px; padding: 20px; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,.6);
+  }
+  .modal h2 { margin: 0 0 8px; font-size: 21px; }
+  .modal p { color: var(--dim); font-size: 13px; line-height: 1.65; margin: 6px 0; text-align: left; }
+  .modal .row-btns { display: flex; gap: 10px; margin-top: 16px; justify-content: center; flex-wrap: wrap; }
+  .kbd { font-size: 12px; color: var(--dim); }
+  .kbd b { color: #dfe6ee; background: rgba(255,255,255,.08); border-radius: 4px; padding: 1px 5px; }
+  table.keys { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 10px; text-align: left; }
+  table.keys th, table.keys td { padding: 5px 6px; border-bottom: 1px solid rgba(255,255,255,.07); vertical-align: top; }
+  table.keys th { color: var(--dim); font-weight: 600; }
+  table.keys td k {
+    display: inline-block; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    background: rgba(255,255,255,.09); border: 1px solid rgba(255,255,255,.12); border-radius: 5px;
+    padding: 1px 5px; font-size: 11.5px; color: #e9f2ff;
+  }
+  #loadfail .modal { max-width: 540px; }
+  #loadfail code { font-size: 12px; word-break: break-all; color: #cdeeff; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 118px; transform: translateX(-50%) translateY(14px); z-index: 34;
+    background: rgba(8,12,17,.82); border: 1px solid var(--line); color: #eaf2ff;
+    padding: 8px 14px; border-radius: 11px; font-size: 13px; opacity: 0; pointer-events: none;
+    transition: opacity .22s, transform .22s; max-width: 92vw; text-align: center;
+  }
+  .toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast small { display: block; color: var(--dim); font-size: 11px; margin-top: 2px; }
+
+  @media (max-width: 900px) {
+    .brand small { display: none; }
+    .hide-s { display: none; }
+    #panel { left: 8px; right: 8px; width: auto; top: auto; bottom: 96px; max-height: 46vh;
+      transform: translateY(130%); }
+    #panel.open { transform: none; }
+    #transport { bottom: 8px; }
+    #transport button { min-width: 42px; min-height: 38px; }
+    .toast { bottom: 104px; }
+    #d2 { padding: 54px 6px 108px; }
+  }
+  @media (max-height: 520px) {
+    #panel { top: 50px; }
+    #d2 { --sq: min(11vh, 44px); }
+  }
+</style>
+</head>
+<body>
+  <div class="bar">
+    <div class="brand">
+      <span class="em">🧩</span>
+      <div>
+        <h1>3D 魔方</h1>
+        <small>Three.js 三阶 · 拖拽转面 · 逆序逐步复原 · 0.25x~4x 变速回放</small>
+      </div>
+    </div>
+    <div class="spacer"></div>
+    <span class="chip gold" title="复原计时（打乱后首次转动开始，复原即停）">⏱ <b id="vTime">0.00</b>s</span>
+    <span class="chip cy" title="本局步数 = 打乱 + 手动转动">👣 <b id="vMoves">0</b></span>
+    <span class="chip hide-s" title="localStorage 中的最佳复原用时">🏆 <b id="vBest">—</b></span>
+    <button class="ghost" id="btnHelp" title="操作说明与快捷键">❔<span class="hide-s"> 说明</span></button>
+    <button class="ghost" id="btnView" title="视角复位（快捷键 V）">🎥<span class="hide-s"> 视角</span></button>
+    <button class="ghost" id="btn2D" title="切换 2D 展开图视图（CDN 不可用时的降级视图）">▦<span class="hide-s"> 2D</span></button>
+    <button class="ghost" id="btnSound" title="音效开关">🔊<span class="hide-s"> 音效</span></button>
+    <button class="ghost" id="btnShot" title="下载当前画面 PNG">📸</button>
+    <button class="ghost" id="btnPanel" title="显示 / 隐藏控制面板">☰</button>
+    <a class="back" href="/">← 首页</a>
+  </div>
+
+  <div id="stage"></div>
+  <div id="d2"></div>
+
+  <div id="panel">
+    <div class="sec">
+      <h3>① 打乱</h3>
+      <div class="row">
+        <div class="seg" id="segN">
+          <button data-n="15">15 步</button>
+          <button data-n="20">20 步</button>
+          <button data-n="25" class="on">25 步</button>
+          <button data-n="30">30 步</button>
+          <button data-n="50">50 步</button>
+        </div>
+      </div>
+      <div class="row">
+        <input type="text" id="seed" class="grow" placeholder="种子（可空 = 随机）" inputmode="numeric">
+        <button id="btnDice" title="随机种子">🎲</button>
+      </div>
+      <div class="row">
+        <button class="primary grow" id="btnScramble">🌀 打乱（逐步动画）</button>
+        <button id="btnScrambleFast" title="不播放动画，直接落位">⚡瞬时</button>
+      </div>
+      <div class="row">
+        <button id="btnShare" class="grow" title="复制带 ?seed=…&moves=… 的分享链接">🔗 复制分享链接</button>
+      </div>
+      <p class="hint">同一 <b>seed</b> 必得同一打乱序列；URL 参数 <b>?seed=123</b> 复现、<b>?moves=U R2 F'</b> 导入序列。</p>
+    </div>
+
+    <div class="sec">
+      <h3>② 逐步复原 · 变速</h3>
+      <div class="row">
+        <div class="seg" id="segSpeed">
+          <button data-ms="1200">0.25x</button>
+          <button data-ms="600">0.5x</button>
+          <button data-ms="300" class="on">1x</button>
+          <button data-ms="150">2x</button>
+          <button data-ms="75">4x</button>
+          <button data-ms="0">∞</button>
+        </div>
+      </div>
+      <div class="row"><input type="range" id="msRange" min="20" max="1200" step="10" value="300"></div>
+      <div class="row">
+        <button class="amber grow" id="btnRestore" title="逆序回放「打乱 + 手动步序」，压缩后逐步复原">▶ 逐步复原</button>
+        <button id="btnInstant" title="不播放动画，直接落到复原态">🔚 立即</button>
+      </div>
+      <p class="hint">复原 = 逆序回放「打乱序列 + 你的手动步序」，数学上保证 100% 复原；序列压缩（同面合并 / 互逆消去 / 同轴交换）让回放更短。</p>
+    </div>
+
+    <div class="sec">
+      <h3>③ 步序与时间轴</h3>
+      <div class="row"><input type="range" id="scrub" min="0" max="0" step="1" value="0"></div>
+      <div class="row"><div class="tlab" style="width:100%"><span>拖动进度条可 <b>任意时刻瞬时跳转</b>（快照时间轴）</span><span>步 <b id="vStep">0/0</b></span></div></div>
+      <div class="row"><div id="movelist" class="grow"><span class="empty">尚无步序</span></div></div>
+      <div class="row">
+        <input type="text" id="importSeq" class="grow" placeholder="导入序列：U R2 F' r U' x">
+        <button id="btnImport" title="按当前速度逐步执行导入序列">应用</button>
+      </div>
+      <div class="row">
+        <button id="btnUndo" title="撤销上一步手动转动">↶ 撤销</button>
+        <button id="btnRedo" title="重做">↷ 重做</button>
+        <button id="btnReset" title="回到复原态并清空计时/步序">↺ 重置</button>
+      </div>
+    </div>
+
+    <div class="sec">
+      <h3>④ 外观</h3>
+      <div class="row">
+        <div class="seg" id="segScheme">
+          <button data-s="standard" class="on">标准配色</button>
+          <button data-s="japanese">日版配色</button>
+          <button data-s="contrast">黑白高对比</button>
+        </div>
+      </div>
+      <div class="row">
+        <label class="sw"><input type="checkbox" id="ckShadow" checked> 投影</label>
+        <label class="sw"><input type="checkbox" id="ckGloss" checked> 贴纸高光</label>
+        <label class="sw"><input type="checkbox" id="ckAuto" > 自动旋转</label>
+      </div>
+      <div class="row">
+        <div class="seg" id="segView">
+          <button data-v="isometric" class="on">等轴测</button>
+          <button data-v="front">正面</button>
+          <button data-v="top">顶视</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <h3>⑤ 统计</h3>
+      <div class="stat"><span>本局步数（打乱 + 手动）</span><b id="stMoves">0</b></div>
+      <div class="stat"><span>打乱步数 / 压缩后</span><b id="stScram">0 / 0</b></div>
+      <div class="stat"><span>复原序列长度</span><b id="stRestore">0</b></div>
+      <div class="stat"><span>最佳复原用时</span><b id="stBest">—</b></div>
+      <div class="stat"><span>渲染 / 视图</span><b id="stMode">—</b></div>
+    </div>
+  </div>
+
+  <div id="transport">
+    <div class="tbar">
+      <input type="range" id="scrub2" min="0" max="0" step="1" value="0">
+      <div class="tlab"><span id="tlHint">打乱后按 ▶ 逐步复原</span><span>步 <b id="vStep2">0/0</b></span></div>
+    </div>
+    <div class="trow">
+      <button id="btnPrev" title="上一步（←）">⏮</button>
+      <button id="btnPlay" class="primary" title="播放 / 暂停（Space）">▶</button>
+      <button id="btnNext" title="下一步（→）">⏭</button>
+      <button id="btnRestore2" class="amber" title="逐步复原（Z）">🧹 复原</button>
+      <button id="btnReset2" title="重置（T）">↺</button>
+      <button id="btnScramble2" class="small" title="打乱（Q）">🌀 打乱</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <div class="overlay hidden" id="loadfail">
+    <div class="modal">
+      <h2>⚠ 3D 资源加载失败</h2>
+      <p>本页的 3D 魔方依赖 Three.js r128：
+        <code>//cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js</code><br>
+        请在浏览器 / 防火墙中放行 <code>cdnjs.cloudflare.com</code>（备用 <code>cdn.jsdelivr.net</code>），
+        并通过 <code>node server.js</code> 以 HTTP 打开本页（协议相对地址在 <code>file://</code> 下必然失败）。</p>
+      <p class="kbd">规则、打乱、逐步复原、变速回放全部由纯 JS 引擎驱动，<b>2D 展开图视图</b>无需 WebGL，可继续游玩。</p>
+      <div class="row-btns">
+        <button class="primary" id="lf2d">▦ 用 2D 展开图继续</button>
+        <button id="lfRetry">↻ 重试加载</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="help">
+    <div class="modal">
+      <h2>🧩 3D 魔方 · 操作说明</h2>
+      <p><b>拖拽转面</b>：在魔方<b>贴纸</b>上按住并拖动 → 自动判定转动哪一层（桌面与触屏一致）；
+        在<b>空白处</b>拖动 → 旋转视角；<b>滚轮 / 双指捏合</b>缩放；<b>双击</b>复位视角。</p>
+      <p><b>逐步复原</b>：打乱后按 <b>▶ 逐步复原</b>，程序逆序回放「打乱 + 你的转动」并做序列压缩，
+        配合 0.25x~4x / ∞ 变速与进度条快照跳转，可任意时刻查看中间状态。</p>
+      <table class="keys">
+        <tr><th>键</th><th>作用</th></tr>
+        <tr><td><k>u d l r f b</k></td><td>对应面顺时针 90°；<k>Shift</k>+键 = 逆时针；先按面键再按 <k>2</k> = 180°</td></tr>
+        <tr><td><k>m e s</k></td><td>中层切片转动（<k>Shift</k> = 反向）</td></tr>
+        <tr><td><k>Ctrl</k>+<k>u d l r f b</k></td><td>宽层转动（u d l r f b，两层一起转）</td></tr>
+        <tr><td><k>x y z</k></td><td>整体立方体旋转（<k>Shift+x/y</k> = 反向；<k>Shift+Z</k> 已留给复原）</td></tr>
+        <tr><td><k>Space</k></td><td>播放 / 暂停复原回放</td></tr>
+        <tr><td><k>← →</k></td><td>时间轴上一步 / 下一步（快照瞬时跳转）</td></tr>
+        <tr><td><k>Q</k> / <k>Shift+Z</k> / <k>T</k></td><td>打乱 / 逐步复原 / 重置</td></tr>
+        <tr><td><k>V</k> / <k>2</k> / <k>Esc</k></td><td>复位视角 / 切换 2D 视图 / 关闭弹窗</td></tr>
+      </table>
+      <p class="kbd">URL 参数：<b>?seed=123</b> 固定打乱 · <b>?moves=U R2 F'</b> 导入序列 ·
+        <b>?view=isometric|front|top</b> · <b>?speed=300</b>（ms/90°）· <b>?dev=1</b> 控制台自检</p>
+      <div class="row-btns"><button class="primary" id="helpClose">知道了</button></div>
+    </div>
+  </div>
+
+<script src="//cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* =============================================================================
+ * 3D 魔方（三阶 · 单文件自包含）
+ * -----------------------------------------------------------------------------
+ * 依赖：Three.js r128（协议相对 CDN：//cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js）
+ *       图标全部用 emoji / 内联字符，不引图标库 CSS；不引 OrbitControls（r128 min 包不含 examples/js），
+ *       自写 ~70 行轨道相机（拖拽旋转 / 滚轮与 pinch 缩放 / 双击复位 / 惯性阻尼）。
+ * 结构：① ENGINE 魔方逻辑引擎（纯 JS，无 DOM / 无 THREE，ENGINE-START/END 可抽离到 Node 校验）
+ *       ② Scene3D 渲染层（26 个 cubie + canvas 程序化贴纸纹理 + 灯光 / 可选投影）
+ *       ③ Anim 动画层（转动队列 + 缓动 + 快照时间轴，支持任意时刻 scrub）
+ *       ④ Controller 驱动层（打乱 / 逆序复原 / 变速 / 计时 / 步数 / 撤销重做 / 音效 / localStorage）
+ *       ⑤ View2D 降级视图（DOM 六面展开图，共用同一引擎，同样支持打乱 / 单步 / 变速）
+ * 约定：右手坐标系 x 右 / y 上 / z 前；面 U D R L F B；转动记法 面 + ' + 2，
+ *       扩展宽层 u d l r f b、切片 M E S、整体 x y z。
+ * ========================================================================== */
+'use strict';
+
+/* 调试参数：?seed=123 固定打乱 · ?moves=U R2 F' 导入序列 · ?view= 视角预设
+ *          ?speed=300 每 90° 毫秒 · ?scheme= 配色 · ?dev=1 控制台自检 */
+const Q = new URLSearchParams(location.search);
+const CFG = {
+  seed: Q.has('seed') ? (parseInt(Q.get('seed'), 10) || 1) : (Date.now() % 1e9),
+  moves: Q.has('moves') ? Q.get('moves') : '',
+  view: ['isometric', 'front', 'top'].indexOf(Q.get('view')) >= 0 ? Q.get('view') : 'isometric',
+  speed: Q.has('speed') ? Math.max(0, Math.min(1200, parseInt(Q.get('speed'), 10) || 300)) : null,
+  scheme: ['standard', 'japanese', 'contrast'].indexOf(Q.get('scheme')) >= 0 ? Q.get('scheme') : null,
+  dev: Q.get('dev') === '1'
+};
+
+/* ENGINE-START */
+/* ---------------------------------------------------------------------------
+ * ① 逻辑引擎：26 个 cubie 的离散姿态（整数位置 + 3×3 整数朝向矩阵），
+ *    54 贴纸由 cubie 派生；不引用 document / THREE / window，可抽离到 Node 校验。
+ * ------------------------------------------------------------------------- */
+const FACE_NAME = ['U', 'D', 'R', 'L', 'F', 'B'];   // 面索引 → 记法
+/* 每面的法线 n / 屏幕右 r / 屏幕上 u（r × u = n，从立方体外侧观察该面） */
+const FACE_AXES = [
+  { n: [0, 1, 0], r: [1, 0, 0], u: [0, 0, -1] },   // U 顶（上方 = 后方 -Z）
+  { n: [0, -1, 0], r: [1, 0, 0], u: [0, 0, 1] },   // D 底
+  { n: [1, 0, 0], r: [0, 0, -1], u: [0, 1, 0] },   // R 右
+  { n: [-1, 0, 0], r: [0, 0, 1], u: [0, 1, 0] },   // L 左
+  { n: [0, 0, 1], r: [1, 0, 0], u: [0, 1, 0] },    // F 前
+  { n: [0, 0, -1], r: [-1, 0, 0], u: [0, 1, 0] }   // B 后
+];
+/* 方向索引：0 +X 1 -X 2 +Y 3 -Y 4 +Z 5 -Z（与 BoxGeometry 材质槽顺序一致） */
+const DIRS = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
+const DIR_IDX = {};
+DIRS.forEach((d, i) => { DIR_IDX[d[0] + ',' + d[1] + ',' + d[2]] = i; });
+const FACE_OF_DIR = [2, 3, 0, 1, 4, 5];             // +X→R -X→L +Y→U -Y→D +Z→F -Z→B
+
+const IDENT = [1, 0, 0, 0, 1, 0, 0, 0, 1];
+
+/* 转动定义：ax 轴（0=x 1=y 2=z）、layers 层坐标、s 右手法则方向（+1 = +90°）
+ * 面转动顺时针 = 从该面外侧观察 = 绕正轴 -90°，故 U R F 的 s = -1，D L B 的 s = +1。
+ * M 跟随 L、E 跟随 D、S 跟随 F；宽层 = 面转动 + 中层；x y z 跟随 R U F。 */
+const MOVE_DEF = {
+  U: { ax: 1, layers: [1], s: -1 },      D: { ax: 1, layers: [-1], s: 1 },
+  R: { ax: 0, layers: [1], s: -1 },      L: { ax: 0, layers: [-1], s: 1 },
+  F: { ax: 2, layers: [1], s: -1 },      B: { ax: 2, layers: [-1], s: 1 },
+  M: { ax: 0, layers: [0], s: 1 },       E: { ax: 1, layers: [0], s: 1 },
+  S: { ax: 2, layers: [0], s: -1 },
+  u: { ax: 1, layers: [1, 0], s: -1 },   d: { ax: 1, layers: [-1, 0], s: 1 },
+  r: { ax: 0, layers: [1, 0], s: -1 },   l: { ax: 0, layers: [-1, 0], s: 1 },
+  f: { ax: 2, layers: [1, 0], s: -1 },   b: { ax: 2, layers: [-1, 0], s: 1 },
+  x: { ax: 0, layers: [-1, 0, 1], s: -1 }, y: { ax: 1, layers: [-1, 0, 1], s: -1 },
+  z: { ax: 2, layers: [-1, 0, 1], s: -1 }
+};
+/* 同轴切片组：组内三层互不相交 → 彼此可交换（序列压缩用） */
+const GROUP_OF = { R: 'x', L: 'x', M: 'x', U: 'y', D: 'y', E: 'y', F: 'z', B: 'z', S: 'z' };
+
+/* ---- 小工具 ---- */
+function rng(seed) {                                  // mulberry32：同种子必同序列
+  let a = (seed >>> 0) || 1;
+  return function () {
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const posKey = p => p[0] + ',' + p[1] + ',' + p[2];
+
+function rotVec(ax, s, v) {                           // 绕轴 ±90° 旋转整数向量
+  const x = v[0], y = v[1], z = v[2];
+  if (ax === 0) return s > 0 ? [x, -z, y] : [x, z, -y];
+  if (ax === 1) return s > 0 ? [z, y, -x] : [-z, y, x];
+  return s > 0 ? [-y, x, z] : [y, -x, z];
+}
+function rotMat(ax, s) {                              // 3×3 行主序
+  if (ax === 0) return s > 0 ? [1, 0, 0, 0, 0, -1, 0, 1, 0] : [1, 0, 0, 0, 0, 1, 0, -1, 0];
+  if (ax === 1) return s > 0 ? [0, 0, 1, 0, 1, 0, -1, 0, 0] : [0, 0, -1, 0, 1, 0, 1, 0, 0];
+  return s > 0 ? [0, -1, 0, 1, 0, 0, 0, 0, 1] : [0, 1, 0, -1, 0, 0, 0, 0, 1];
+}
+function mulM(a, b) {
+  const o = new Array(9);
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++)
+    o[i * 3 + j] = a[i * 3] * b[j] + a[i * 3 + 1] * b[3 + j] + a[i * 3 + 2] * b[6 + j];
+  return o;
+}
+function mulMV(m, v, transpose) {                     // 矩阵 × 向量（transpose = 转置，即逆）
+  const o = [0, 0, 0];
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++)
+    o[i] += m[(transpose ? j * 3 + i : i * 3 + j)] * v[j];
+  return o;
+}
+
+/* ---- 立方体状态 ---- */
+function createCube() {
+  const cubies = [];
+  let id = 0;
+  for (let x = -1; x <= 1; x++) for (let y = -1; y <= 1; y++) for (let z = -1; z <= 1; z++) {
+    if (!x && !y && !z) continue;
+    const base = [-1, -1, -1, -1, -1, -1];
+    for (let d = 0; d < 6; d++) if (DIRS[d][0] === x || DIRS[d][1] === y || DIRS[d][2] === z)
+      if (DIRS[d][0] * x + DIRS[d][1] * y + DIRS[d][2] * z === 1) base[d] = FACE_OF_DIR[d];
+    cubies.push({ id: id++, pos: [x, y, z], ori: IDENT.slice(), base: base });
+  }
+  return { cubies: cubies };
+}
+function cloneCube(cube) {
+  return {
+    cubies: cube.cubies.map(c => ({ id: c.id, pos: c.pos.slice(), ori: c.ori.slice(), base: c.base }))
+  };
+}
+function rotateLayer(cube, ax, layers, s) {
+  const R = rotMat(ax, s);
+  for (const c of cube.cubies) {
+    if (layers.indexOf(c.pos[ax]) < 0) continue;
+    c.pos = rotVec(ax, s, c.pos);
+    c.ori = mulM(R, c.ori);
+  }
+}
+function applyMove(cube, token) {
+  const m = parseMove(token);
+  if (!m) return cube;
+  const s = m.power === 3 ? -m.def.s : m.def.s;
+  const times = m.power === 2 ? 2 : 1;
+  for (let t = 0; t < times; t++) rotateLayer(cube, m.def.ax, m.def.layers, s);
+  return cube;
+}
+function applySeq(cube, seq) { for (const t of seq) applyMove(cube, t); return cube; }
+
+/* ---- 54 贴纸派生 ---- */
+function stickersOf(cube) {
+  const map = new Map();
+  for (const c of cube.cubies) map.set(posKey(c.pos), c);
+  const out = new Array(54);
+  for (let f = 0; f < 6; f++) {
+    const A = FACE_AXES[f];
+    for (let k = 0; k < 9; k++) {
+      const row = (k / 3) | 0, col = k % 3;
+      const p = [
+        A.n[0] + A.r[0] * (col - 1) + A.u[0] * (1 - row),
+        A.n[1] + A.r[1] * (col - 1) + A.u[1] * (1 - row),
+        A.n[2] + A.r[2] * (col - 1) + A.u[2] * (1 - row)
+      ];
+      const c = map.get(posKey(p));
+      if (!c) { out[f * 9 + k] = -1; continue; }
+      const ld = mulMV(c.ori, A.n, true);            // 世界法线 → 局部方向
+      out[f * 9 + k] = c.base[DIR_IDX[ld[0] + ',' + ld[1] + ',' + ld[2]]];
+    }
+  }
+  return out;
+}
+function isSolved(cube) {
+  const st = stickersOf(cube);
+  for (let f = 0; f < 6; f++) for (let k = 0; k < 9; k++) if (st[f * 9 + k] !== f) return false;
+  return true;
+}
+function colorCount(st) {                            // 贴纸守恒检查：每色 9 片
+  const c = [0, 0, 0, 0, 0, 0];
+  for (const v of st) if (v >= 0 && v < 6) c[v]++;
+  return c;
+}
+
+/* ---- 记法解析 / 生成 ---- */
+function mkToken(name, power) {
+  power = ((power % 4) + 4) % 4;
+  if (power === 0) return null;
+  return name + (power === 2 ? '2' : power === 3 ? "'" : '');
+}
+function parseMove(token) {
+  if (!token) return null;
+  const t = String(token).trim();
+  if (!t) return null;
+  let name = t[0], power = 1;
+  if (name === 'x' || name === 'y' || name === 'z') { /* 整体旋转 */ }
+  else if (name === 'U' || name === 'D' || name === 'R' || name === 'L' || name === 'F' || name === 'B' ||
+           name === 'M' || name === 'E' || name === 'S' ||
+           name === 'u' || name === 'd' || name === 'l' || name === 'r' || name === 'f' || name === 'b') { /* ok */ }
+  else return null;
+  const suf = t.slice(1).trim();
+  if (suf === '' || suf === '1') power = 1;
+  else if (suf === "'" || suf === '3' || suf === "''") power = 3;
+  else if (suf === '2') power = 2;
+  else return null;
+  const def = MOVE_DEF[name];
+  if (!def) return null;
+  return { name: name, power: power, def: def };
+}
+function parseSeq(text) {
+  const out = [];
+  for (const raw of String(text || '').split(/\s+/)) {
+    if (!raw) continue;
+    const m = parseMove(raw);
+    if (m) out.push(mkToken(m.name, m.power));
+  }
+  return out;
+}
+function seqText(seq) { return seq.join(' '); }
+function invertToken(tok) {
+  const m = parseMove(tok);
+  return m ? mkToken(m.name, (4 - m.power) % 4) : null;
+}
+function invertSeq(seq) {
+  const out = [];
+  for (let i = seq.length - 1; i >= 0; i--) { const t = invertToken(seq[i]); if (t) out.push(t); }
+  return out;
+}
+/* 序列压缩：同轴切片组内三层互不相交 → 可交换；组内同面转动幂次相加 mod 4。
+ * 结果与原序列终态逐贴纸等价（同面合并 / 互逆消去 / 同轴交换，如 R L' R → R2 L'）。 */
+function compressSeq(seq) {
+  const out = [];
+  let run = [], runG = null;
+  const pushOut = tok => {                      // 相邻同面（含宽层 / 整体旋转）幂次合并
+    const last = out[out.length - 1];
+    if (last && last[0] === tok[0]) {
+      const pm = parseMove(last), nm = parseMove(tok);
+      const merged = mkToken(nm.name, pm.power + nm.power);
+      if (merged) out[out.length - 1] = merged; else out.pop();
+      return;
+    }
+    out.push(tok);
+  };
+  const flush = () => {
+    if (!run.length) { run = []; runG = null; return; }
+    const order = [], sum = {};
+    for (const m of run) {
+      if (!(m.name in sum)) { sum[m.name] = 0; order.push(m.name); }
+      sum[m.name] = (sum[m.name] + m.power) % 4;
+    }
+    for (const nm of order) { const t = mkToken(nm, sum[nm]); if (t) pushOut(t); }
+    run = []; runG = null;
+  };
+  for (const tok of seq) {
+    const m = parseMove(tok);
+    if (!m) continue;
+    const g = GROUP_OF[m.name] || null;
+    if (g && g === runG) { run.push(m); continue; }
+    flush();
+    if (g) { run = [m]; runG = g; }
+    else { const t = mkToken(m.name, m.power); if (t) pushOut(t); }
+  }
+  flush();
+  return out;
+}
+
+/* ---- 打乱 ---- */
+function scramble(seed, n) {
+  n = Math.max(1, Math.min(200, n | 0));
+  const r = rng(seed);
+  const faces = ['U', 'D', 'L', 'R', 'F', 'B'];
+  const axOf = { U: 'y', D: 'y', L: 'x', R: 'x', F: 'z', B: 'z' };
+  const seq = [];
+  let prev = null, prevAx = null, axCnt = 0, guard = 0;
+  while (seq.length < n && guard++ < 4000) {
+    const f = faces[(r() * 6) | 0];
+    if (f === prev) continue;                          // 避免同面连续
+    const ax = axOf[f];
+    const cnt = ax === prevAx ? axCnt + 1 : 1;
+    if (cnt >= 3) continue;                            // 避免同轴三连
+    const p = 1 + ((r() * 3) | 0);
+    const t = mkToken(f, p);
+    if (!t) continue;
+    seq.push(t); prev = f; prevAx = ax; axCnt = cnt;
+  }
+  return seq;
+}
+
+/* ---- 快照时间轴（每步 26 cubie × 12 个整数 = 312 字节） ---- */
+const SNAP_STRIDE = 12;
+function snapshot(cube) {
+  const a = new Int8Array(cube.cubies.length * SNAP_STRIDE);
+  for (let i = 0; i < cube.cubies.length; i++) {
+    const c = cube.cubies[i], o = i * SNAP_STRIDE;
+    a[o] = c.pos[0]; a[o + 1] = c.pos[1]; a[o + 2] = c.pos[2];
+    for (let j = 0; j < 9; j++) a[o + 3 + j] = c.ori[j];
+  }
+  return a;
+}
+function restore(cube, snap) {
+  for (let i = 0; i < cube.cubies.length; i++) {
+    const c = cube.cubies[i], o = i * SNAP_STRIDE;
+    c.pos[0] = snap[o]; c.pos[1] = snap[o + 1]; c.pos[2] = snap[o + 2];
+    for (let j = 0; j < 9; j++) c.ori[j] = snap[o + 3 + j];
+  }
+  return cube;
+}
+
+const ENGINE = {
+  FACE_NAME: FACE_NAME, FACE_AXES: FACE_AXES, DIRS: DIRS, MOVE_DEF: MOVE_DEF, GROUP_OF: GROUP_OF,
+  rng: rng, createCube: createCube, cloneCube: cloneCube, applyMove: applyMove, applySeq: applySeq,
+  rotateLayer: rotateLayer, stickersOf: stickersOf, isSolved: isSolved, colorCount: colorCount,
+  parseMove: parseMove, parseSeq: parseSeq, mkToken: mkToken, seqText: seqText,
+  invertToken: invertToken, invertSeq: invertSeq, compressSeq: compressSeq, scramble: scramble,
+  snapshot: snapshot, restore: restore, SNAP_STRIDE: SNAP_STRIDE,
+  rotVec: rotVec, rotMat: rotMat, mulM: mulM, mulMV: mulMV, IDENT: IDENT
+};
+if (typeof module !== 'undefined' && module.exports) module.exports = ENGINE;
+/* ENGINE-END */
+/* ---------------------------------------------------------------------------
+ * ③ 通用小工具：DOM / 本地存储 / 音效（不依赖 THREE）
+ * ------------------------------------------------------------------------- */
+const $ = id => document.getElementById(id);
+const $$ = sel => Array.prototype.slice.call(document.querySelectorAll(sel));
+function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+function fmtTime(ms) {
+  if (ms == null) return '—';
+  const s = ms / 1000;
+  if (s >= 60) { const m = Math.floor(s / 60); return m + ':' + (s - m * 60).toFixed(2).padStart(5, '0'); }
+  return s.toFixed(2);
+}
+let toastTimer = 0;
+function toast(msg, sub) {
+  const t = $('toast');
+  t.innerHTML = msg + (sub ? '<small>' + sub + '</small>' : '');
+  t.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('on'), 2400);
+}
+
+const Store = {
+  KEY: 'rubik3d.v1',
+  data: (function () { try { return JSON.parse(localStorage.getItem('rubik3d.v1') || '{}') || {}; } catch (e) { return {}; } })(),
+  get(k, d) { return (k in this.data) ? this.data[k] : d; },
+  set(k, v) { this.data[k] = v; try { localStorage.setItem(this.KEY, JSON.stringify(this.data)); } catch (e) { } }
+};
+
+const Sfx = {
+  ctx: null, on: true,
+  boot() {
+    if (!this.ctx) { const AC = window.AudioContext || window.webkitAudioContext; if (AC) this.ctx = new AC(); }
+    if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+  },
+  tone(freq, dur, gain, type, delay) {
+    if (!this.on) return; this.boot();
+    const c = this.ctx; if (!c) return;
+    const t0 = c.currentTime + (delay || 0);
+    const o = c.createOscillator(), g = c.createGain();
+    o.type = type || 'square'; o.frequency.setValueAtTime(freq, t0);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(gain, t0 + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g); g.connect(c.destination); o.start(t0); o.stop(t0 + dur + 0.03);
+  },
+  click() { this.tone(520 + Math.random() * 120, 0.055, 0.045, 'square'); },
+  tick() { this.tone(300 + Math.random() * 40, 0.04, 0.03, 'triangle'); },
+  whoosh() {
+    if (!this.on) return; this.boot();
+    const c = this.ctx; if (!c) return;
+    const n = Math.floor(c.sampleRate * 0.18);
+    const buf = c.createBuffer(1, n, c.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+    const src = c.createBufferSource(); src.buffer = buf;
+    const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 900; bp.Q.value = 0.8;
+    const g = c.createGain(); g.gain.value = 0.06;
+    src.connect(bp); bp.connect(g); g.connect(c.destination); src.start();
+  },
+  chime() { [523, 659, 784, 1047].forEach((f, i) => this.tone(f, 0.26, 0.05, 'triangle', i * 0.11)); }
+};
+
+/* ---------------------------------------------------------------------------
+ * ④ 渲染层 Scene3D：26 个 cubie + canvas 程序化贴纸纹理 + 灯光 / 可选投影
+ *    贴纸纹理按「配色方案 + 高光开关」缓存；无贴纸面用深色塑料纹理。
+ * ------------------------------------------------------------------------- */
+const HAS3D = (function () { try { return typeof THREE !== 'undefined' && !!THREE.REVISION; } catch (e) { return false; } })();
+const RAD = Math.PI / 180;
+
+/* 颜色按面索引 0..5 = U D R L F B（与 ENGINE.FACE_NAME 对齐） */
+const SCHEMES = {
+  standard: { label: '标准配色', colors: ['#f4f5f7', '#ffd429', '#e23b2e', '#ff8b2c', '#2fa84f', '#2b6fd4'], pattern: false },
+  japanese: { label: '日版配色', colors: ['#ffd429', '#f4f5f7', '#e23b2e', '#ff8b2c', '#2fa84f', '#2b6fd4'], pattern: false },
+  contrast: { label: '黑白高对比', colors: ['#ffffff', '#15181d', '#b9bec7', '#6b7280', '#e6e9ef', '#343a44'], pattern: true }
+};
+
+function roundRect(g, x, y, w, h, r) {
+  g.beginPath(); g.moveTo(x + r, y);
+  g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+}
+function lumOf(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  return (((n >> 16) & 255) * 299 + ((n >> 8) & 255) * 587 + (n & 255) * 114) / 1000;
+}
+/* 黑白高对比方案：同灰度用图案区分（无障碍） */
+function drawPattern(g, m, sz, kind, ink) {
+  if (!kind) return;
+  g.save(); roundRect(g, m, m, sz, sz, 34); g.clip();
+  g.fillStyle = ink; g.strokeStyle = ink;
+  const cx = m + sz / 2, cy = m + sz / 2, u = sz / 12;
+  if (kind === 1) {
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) {
+      g.beginPath(); g.arc(m + sz * (i + 0.5) / 3, m + sz * (j + 0.5) / 3, u * 0.85, 0, 6.2832); g.fill();
+    }
+  } else if (kind === 2 || kind === 3) {
+    const dir = kind === 2 ? 1 : -1; g.lineWidth = u * 1.05;
+    for (let i = -6; i <= 12; i++) { const p = m + i * sz / 6; g.beginPath(); g.moveTo(p, m); g.lineTo(p + dir * sz, m + sz); g.stroke(); }
+  } else if (kind === 4) {
+    g.lineWidth = u * 0.85;
+    for (let i = 1; i < 4; i++) {
+      g.beginPath(); g.moveTo(m + sz * i / 4, m); g.lineTo(m + sz * i / 4, m + sz); g.stroke();
+      g.beginPath(); g.moveTo(m, m + sz * i / 4); g.lineTo(m + sz, m + sz * i / 4); g.stroke();
+    }
+  } else if (kind === 5) {
+    g.lineWidth = u * 1.3;
+    g.beginPath(); g.moveTo(cx, m + sz * 0.16); g.lineTo(cx, m + sz * 0.84);
+    g.moveTo(m + sz * 0.16, cy); g.lineTo(m + sz * 0.84, cy); g.stroke();
+    g.lineWidth = u * 0.8; g.beginPath(); g.arc(cx, cy, sz * 0.22, 0, 6.2832); g.stroke();
+  }
+  g.restore();
+}
+function makeStickerTexture(color, kind, gloss) {
+  const S = 256, c = document.createElement('canvas'); c.width = c.height = S;
+  const g = c.getContext('2d');
+  g.fillStyle = '#15181d'; g.fillRect(0, 0, S, S);
+  const pg = g.createLinearGradient(0, 0, S, S);
+  pg.addColorStop(0, 'rgba(255,255,255,.07)'); pg.addColorStop(1, 'rgba(0,0,0,.20)');
+  g.fillStyle = pg; g.fillRect(0, 0, S, S);
+  const m = 30, sz = S - m * 2;
+  roundRect(g, m, m, sz, sz, 34); g.fillStyle = color; g.fill();
+  if (SCHEMES[App.scheme].pattern) drawPattern(g, m, sz, kind, lumOf(color) > 150 ? 'rgba(0,0,0,.40)' : 'rgba(255,255,255,.42)');
+  if (gloss) {
+    const gg = g.createLinearGradient(m, m, m + sz * 0.55, m + sz);
+    gg.addColorStop(0, 'rgba(255,255,255,.34)'); gg.addColorStop(0.42, 'rgba(255,255,255,.06)'); gg.addColorStop(1, 'rgba(255,255,255,0)');
+    roundRect(g, m, m, sz, sz, 34); g.fillStyle = gg; g.fill();
+  }
+  roundRect(g, m + 3, m + 3, sz - 6, sz - 6, 30); g.strokeStyle = 'rgba(0,0,0,.55)'; g.lineWidth = 6; g.stroke();
+  const t = new THREE.CanvasTexture(c);
+  t.encoding = THREE.sRGBEncoding; t.anisotropy = 4;
+  return t;
+}
+function makePlasticTexture() {
+  const S = 128, c = document.createElement('canvas'); c.width = c.height = S;
+  const g = c.getContext('2d');
+  g.fillStyle = '#101318'; g.fillRect(0, 0, S, S);
+  const rg = g.createRadialGradient(S * 0.34, S * 0.3, 4, S * 0.5, S * 0.5, S * 0.78);
+  rg.addColorStop(0, 'rgba(255,255,255,.10)'); rg.addColorStop(1, 'rgba(0,0,0,.30)');
+  g.fillStyle = rg; g.fillRect(0, 0, S, S);
+  roundRect(g, 6, 6, S - 12, S - 12, 16); g.strokeStyle = 'rgba(255,255,255,.06)'; g.lineWidth = 3; g.stroke();
+  const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; return t;
+}
+
+const S3D = {
+  renderer: null, scene: null, camera: null, group: null, ground: null,
+  meshes: [], mats: { sticker: [], plastic: null }, tex: [], matsOld: [],
+  ray: null, ndc: null, shadowLight: null, ready: false,
+
+  init(host) {
+    if (!HAS3D) return false;
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.renderer.setClearColor(0x000000, 0);
+    this.renderer.outputEncoding = THREE.sRGBEncoding;
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    host.appendChild(this.renderer.domElement);
+
+    this.scene = new THREE.Scene();
+    this.camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.1, 120);
+    this.group = new THREE.Group(); this.scene.add(this.group);
+
+    this.scene.add(new THREE.HemisphereLight(0xdfe9ff, 0x1b2230, 0.62));
+    const key = new THREE.DirectionalLight(0xffffff, 0.86);
+    key.position.set(5.2, 8.4, 6.2); key.castShadow = true;
+    key.shadow.mapSize.set(1024, 1024);
+    const sc = key.shadow.camera; sc.left = -4.2; sc.right = 4.2; sc.top = 4.2; sc.bottom = -4.2; sc.near = 1; sc.far = 26;
+    key.shadow.bias = -0.0012;
+    this.scene.add(key); this.shadowLight = key;
+    const fill = new THREE.DirectionalLight(0x9fc8ff, 0.34); fill.position.set(-6.5, 3.2, -5.4); this.scene.add(fill);
+    const rim = new THREE.DirectionalLight(0xffd9a8, 0.22); rim.position.set(0, -5.5, 3.2); this.scene.add(rim);
+
+    this.ground = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.ShadowMaterial({ opacity: 0.34 }));
+    this.ground.rotation.x = -Math.PI / 2; this.ground.position.y = -2.15; this.ground.receiveShadow = true;
+    this.scene.add(this.ground);
+
+    this.ray = new THREE.Raycaster(); this.ndc = new THREE.Vector2();
+    this.buildMaterials();
+    this.buildMeshes();
+    this.ready = true;
+    this.setShadow(App.shadow);
+    return true;
+  },
+
+  buildMaterials() {
+    this.tex.forEach(t => t.dispose()); this.tex = [];
+    this.matsOld = this.mats.sticker.concat(this.mats.plastic ? [this.mats.plastic] : []);
+    this.matsOld.forEach(m => m.dispose());
+    const sch = SCHEMES[App.scheme], gloss = App.gloss;
+    this.mats.sticker = [];
+    sch.colors.forEach((col, i) => {
+      const t = makeStickerTexture(col, sch.pattern ? i : 0, gloss);
+      this.tex.push(t);
+      this.mats.sticker.push(new THREE.MeshStandardMaterial({ map: t, roughness: 0.42, metalness: 0.06 }));
+    });
+    const pt = makePlasticTexture(); this.tex.push(pt);
+    this.mats.plastic = new THREE.MeshStandardMaterial({ map: pt, roughness: 0.62, metalness: 0.14 });
+  },
+
+  buildMeshes() {
+    const geo = new THREE.BoxGeometry(0.965, 0.965, 0.965);
+    for (const c of App.cube.cubies) {
+      const mats = [];
+      for (let d = 0; d < 6; d++) mats.push(c.base[d] >= 0 ? this.mats.sticker[c.base[d]] : this.mats.plastic);
+      const mesh = new THREE.Mesh(geo, mats);
+      mesh.castShadow = App.shadow; mesh.userData.id = c.id;
+      this.meshes[c.id] = mesh; this.group.add(mesh);
+    }
+    this.syncFromCube();
+  },
+
+  rebuildMaterials() {          // 切换配色 / 高光：重建纹理材质，保留几何与位姿
+    if (!this.ready) return;
+    this.buildMaterials();
+    for (const c of App.cube.cubies) {
+      const mesh = this.meshes[c.id], mats = [];
+      for (let d = 0; d < 6; d++) mats.push(c.base[d] >= 0 ? this.mats.sticker[c.base[d]] : this.mats.plastic);
+      mesh.material = mats;
+    }
+  },
+
+  syncFromCube() {
+    const m4 = new THREE.Matrix4();
+    for (const c of App.cube.cubies) {
+      const mesh = this.meshes[c.id]; if (!mesh) continue;
+      mesh.position.set(c.pos[0], c.pos[1], c.pos[2]);
+      m4.set(c.ori[0], c.ori[1], c.ori[2], 0, c.ori[3], c.ori[4], c.ori[5], 0, c.ori[6], c.ori[7], c.ori[8], 0, 0, 0, 0, 1);
+      mesh.quaternion.setFromRotationMatrix(m4);
+    }
+  },
+
+  /* 转动动画：逻辑状态先行落定，网格从「动画前位姿」绕层轴插值到终态 */
+  beginMove(token) {
+    const pm = ENGINE.parseMove(token);
+    if (!pm) return null;
+    const s = pm.power === 3 ? -pm.def.s : pm.def.s;
+    const times = pm.power === 2 ? 2 : 1;
+    const axis = new THREE.Vector3(); axis.setComponent(pm.def.ax, 1);
+    const items = [];
+    for (const c of App.cube.cubies) {
+      if (pm.def.layers.indexOf(c.pos[pm.def.ax]) < 0) continue;
+      const mesh = this.meshes[c.id];
+      items.push({ mesh: mesh, p0: mesh.position.clone(), q0: mesh.quaternion.clone() });
+    }
+    ENGINE.applyMove(App.cube, token);
+    return { token: token, axis: axis, items: items, end: s * 90 * times * RAD };
+  },
+
+  applyAnim(anim, frac) {
+    const ang = anim.end * frac;
+    const q = new THREE.Quaternion().setFromAxisAngle(anim.axis, ang);
+    for (const it of anim.items) {
+      it.mesh.position.copy(it.p0).applyAxisAngle(anim.axis, ang);
+      it.mesh.quaternion.copy(q).multiply(it.q0);
+    }
+  },
+
+  endMove() { this.syncFromCube(); },
+
+  setShadow(on) {
+    if (!this.ready) return;
+    App.shadow = on;
+    this.renderer.shadowMap.enabled = on;
+    this.shadowLight.castShadow = on;
+    this.ground.visible = on;
+    for (const m of this.meshes) if (m) m.castShadow = on;
+  },
+
+  resize() {
+    if (!this.ready) return;
+    this.camera.aspect = window.innerWidth / window.innerHeight;
+    this.camera.updateProjectionMatrix();
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+  },
+
+  render() { if (this.ready) this.renderer.render(this.scene, this.camera); }
+};
+
+/* ---------------------------------------------------------------------------
+ * ⑤ 轨道相机（自写 ~70 行）：拖拽旋转 / 滚轮与 pinch 缩放 / 双击复位 / 惯性阻尼
+ * ------------------------------------------------------------------------- */
+const Cam = {
+  theta: 45 * RAD, phi: 58 * RAD, dist: 7.6,
+  tTheta: 45 * RAD, tPhi: 58 * RAD, tDist: 7.6,
+  MIN: 4.4, MAX: 15,
+  preset(name) {
+    const p = { isometric: [45 * RAD, 58 * RAD, 7.6], front: [0, 90 * RAD, 7.0], top: [0, 9 * RAD, 7.4] };
+    const v = p[name] || p.isometric;
+    this.tTheta = v[0]; this.tPhi = v[1]; this.tDist = v[2];
+    App.viewName = name;
+  },
+  orbit(dx, dy) { this.tTheta -= dx * 0.0062; this.tPhi = clamp(this.tPhi - dy * 0.0062, 5 * RAD, 175 * RAD); },
+  zoom(k) { this.tDist = clamp(this.tDist * k, this.MIN, this.MAX); },
+  update(dt) {
+    if (App.autoSpin && !Pointer.dragging) this.tTheta += dt * 0.35;
+    const k = 1 - Math.pow(0.0016, dt);            // 帧率无关的指数阻尼
+    this.theta += (this.tTheta - this.theta) * k;
+    this.phi += (this.tPhi - this.phi) * k;
+    this.dist += (this.tDist - this.dist) * k;
+    if (!S3D.ready) return;
+    const sp = Math.sin(this.phi);
+    S3D.camera.position.set(this.dist * sp * Math.sin(this.theta), this.dist * Math.cos(this.phi), this.dist * sp * Math.cos(this.theta));
+    S3D.camera.lookAt(0, 0, 0);
+  }
+};
+
+/* 拖拽转面记法表：ax|层坐标|方向（+1 = 绕正轴右手法则 +90°） → 记法
+ * 优先级：面转动 > 切片 > 宽层 > 整体旋转（同一 key 取最窄层集合） */
+const DRAG_TOKEN = (function () {
+  const order = ['U', 'D', 'R', 'L', 'F', 'B', 'M', 'E', 'S', 'u', 'd', 'l', 'r', 'f', 'b', 'x', 'y', 'z'];
+  const tab = {};
+  for (const nm of order) {
+    const def = ENGINE.MOVE_DEF[nm];
+    for (const L of def.layers) {
+      const k1 = def.ax + '|' + L + '|' + def.s, k2 = def.ax + '|' + L + '|' + (-def.s);
+      if (!(k1 in tab)) tab[k1] = nm;
+      if (!(k2 in tab)) tab[k2] = nm + "'";
+    }
+  }
+  return tab;
+})();
+
+const Pointer = {
+  el: null, ptrs: new Map(), mode: null, hit: null, plane: null,
+  x0: 0, y0: 0, pinch0: 0, dragging: false, fired: false,
+
+  init(el) {
+    this.el = el;
+    el.style.cursor = 'grab';
+    el.addEventListener('pointerdown', e => this.down(e), { passive: false });
+    el.addEventListener('pointermove', e => this.move(e), { passive: false });
+    el.addEventListener('pointerup', e => this.up(e));
+    el.addEventListener('pointercancel', e => this.up(e));
+    el.addEventListener('wheel', e => { e.preventDefault(); Cam.zoom(Math.pow(1.12, e.deltaY > 0 ? 1 : -1)); }, { passive: false });
+    el.addEventListener('dblclick', () => { Cam.preset(App.viewName); toast('视角已复位'); });
+  },
+
+  ndcOf(e) {
+    S3D.ndc.set((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1);
+    return S3D.ndc;
+  },
+
+  pick(e) {
+    if (!S3D.ready) return null;
+    S3D.ray.setFromCamera(this.ndcOf(e), S3D.camera);
+    const hits = S3D.ray.intersectObjects(S3D.meshes.filter(m => !!m), false);
+    if (!hits.length) return null;
+    const h = hits[0];
+    const n = h.face.normal.clone().transformDirection(h.object.matrixWorld).round();
+    let di = -1;
+    for (let d = 0; d < 6; d++) { const v = ENGINE.DIRS[d]; if (v[0] === n.x && v[1] === n.y && v[2] === n.z) di = d; }
+    if (di < 0) return null;
+    const cubie = App.cube.cubies[h.object.userData.id];
+    return { n: n, pos: cubie.pos.slice(), point: h.point.clone() };
+  },
+
+  pinchDist() {
+    const a = Array.from(this.ptrs.values());
+    return Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y) || 1;
+  },
+
+  down(e) {
+    Sfx.boot();
+    this.ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (this.ptrs.size === 2) { this.mode = 'pinch'; this.pinch0 = this.pinchDist(); this.dragging = false; this.hit = null; return; }
+    this.fired = false; this.hit = null;
+    this.x0 = e.clientX; this.y0 = e.clientY;
+    this.hit = this.pick(e);
+    this.mode = this.hit ? 'turn' : 'orbit';
+    this.dragging = true;
+    if (this.hit) {
+      this.plane = new THREE.Plane().setFromNormalAndCoplanarPoint(this.hit.n, this.hit.point);
+      if (S3D.ready) S3D.renderer.domElement.style.cursor = 'grabbing';
+    }
+    try { this.el.setPointerCapture(e.pointerId); } catch (err) { }
+  },
+
+  move(e) {
+    if (!this.ptrs.has(e.pointerId)) return;
+    const prev = this.ptrs.get(e.pointerId);
+    this.ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (this.mode === 'pinch' && this.ptrs.size >= 2) {
+      const d = this.pinchDist();
+      Cam.zoom(clamp(this.pinch0 / d, 0.9, 1.1));
+      this.pinch0 = d;
+      return;
+    }
+    if (this.mode === 'orbit') { Cam.orbit(e.clientX - prev.x, e.clientY - prev.y); return; }
+    if (this.mode !== 'turn' || this.fired || !this.hit || !S3D.ready) return;
+
+    if (Math.hypot(e.clientX - this.x0, e.clientY - this.y0) < 14) return;   // 阈值：避免误触（px）
+    S3D.ray.setFromCamera(this.ndcOf(e), S3D.camera);
+    const P = new THREE.Vector3();
+    if (!S3D.ray.ray.intersectPlane(this.plane, P)) return;
+    const d = P.sub(this.hit.point);
+    d.addScaledVector(this.hit.n, -d.dot(this.hit.n));                        // 投影到贴纸平面
+    if (d.lengthSq() < 1e-6) return;
+
+    let best = null;
+    for (let ax = 0; ax < 3; ax++) {
+      const v = new THREE.Vector3(); v.setComponent(ax, 1);
+      if (Math.abs(v.dot(this.hit.n)) < 0.5) {
+        const p = d.dot(v);
+        if (!best || Math.abs(p) > Math.abs(best.p)) best = { v: v, p: p };
+      }
+    }
+    if (!best) return;
+    const dv = best.v.clone().multiplyScalar(best.p >= 0 ? 1 : -1);
+    const n = this.hit.n;
+    const cv = [n.y * dv.z - n.z * dv.y, n.z * dv.x - n.x * dv.z, n.x * dv.y - n.y * dv.x];
+    const ax = Math.abs(cv[0]) > 0.5 ? 0 : Math.abs(cv[1]) > 0.5 ? 1 : 2;
+    const tok = DRAG_TOKEN[ax + '|' + this.hit.pos[ax] + '|' + (cv[ax] > 0 ? 1 : -1)];
+    this.fired = true; this.mode = 'idle';
+    if (tok) App.userMove(tok);
+  },
+
+  up(e) {
+    this.ptrs.delete(e.pointerId);
+    if (this.ptrs.size >= 1) return;
+    this.mode = null; this.hit = null; this.dragging = false; this.fired = false;
+    if (S3D.ready) S3D.renderer.domElement.style.cursor = 'grab';
+  }
+};
+/* ---------------------------------------------------------------------------
+ * ⑥ 驱动层 App：快照时间轴（story）+ 转动队列 + 变速 + 计时 / 步数 / 撤销重做
+ *    story.snaps[i] = 前 i 步后的完整快照（snaps[0] = 复原态），因此任意时刻
+ *    可瞬时跳转（scrub），无需重放；复原 = 逆序回放 + 序列压缩。
+ * ------------------------------------------------------------------------- */
+function easeInOutQuad(t) { return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; }
+
+const App = {
+  cube: ENGINE.createCube(),
+  solvedSnap: ENGINE.snapshot(createSolved()),
+  story: { tokens: [], kinds: [], snaps: [] },
+  cursor: 0,
+  anim: null, playing: false, playTarget: 0,
+  speedMs: 300, scheme: 'standard', gloss: true, shadow: true, autoSpin: false,
+  sound: true, mode3d: true, n: 25, seedText: '', viewName: 'isometric',
+  scramCount: 0, scramComp: 0, restoreCount: 0, listN: -1,
+  redoStack: [], lastFaceTok: '', lastFaceAt: 0,
+  timer: { running: false, t0: 0, final: null, frozen: null },
+  solved: true, announced: false,
+
+  init() {
+    this.speedMs = Store.get('speed', CFG.speed != null ? CFG.speed : 300);
+    this.scheme = CFG.scheme || Store.get('scheme', 'standard');
+    if (!SCHEMES[this.scheme]) this.scheme = 'standard';
+    this.gloss = Store.get('gloss', true);
+    this.shadow = Store.get('shadow', true);
+    this.autoSpin = Store.get('autoSpin', false);
+    this.sound = Store.get('sound', true);
+    this.n = Store.get('n', 25);
+    Sfx.on = this.sound;
+    this.viewName = CFG.view;
+    this.resetStory();
+  },
+
+  /* ---- 时间轴 ---- */
+  resetStory() {
+    this.stopPlay();
+    this.anim = null;
+    this.story = { tokens: [], kinds: [], snaps: [this.solvedSnap] };
+    this.cursor = 0;
+    ENGINE.restore(this.cube, this.solvedSnap);
+    this.redoStack.length = 0;
+    this.scramCount = 0; this.scramComp = 0; this.restoreCount = 0;
+    this.timer = { running: false, t0: 0, final: null, frozen: null };
+    this.solved = true; this.announced = false;
+    this.syncAll();
+  },
+  /* 截断未来分支后追加步序，逐步生成快照 */
+  pushTokens(tokens, kind) {
+    const st = this.story;
+    if (st.tokens.length > this.cursor) {
+      st.tokens.length = this.cursor; st.kinds.length = this.cursor; st.snaps.length = this.cursor + 1;
+    }
+    const work = ENGINE.cloneCube(this.cube);
+    ENGINE.restore(work, st.snaps[this.cursor]);
+    for (const t of tokens) {
+      ENGINE.applyMove(work, t);
+      st.tokens.push(t); st.kinds.push(kind); st.snaps.push(ENGINE.snapshot(work));
+    }
+  },
+  truncateTo(n) {
+    const st = this.story;
+    st.tokens.length = n; st.kinds.length = n; st.snaps.length = n + 1;
+    this.cursor = n;
+    this.applyCursor();
+  },
+  applyCursor() {
+    ENGINE.restore(this.cube, this.story.snaps[this.cursor]);
+    if (S3D.ready && this.mode3d) S3D.syncFromCube();
+    View2D.update();
+    this.syncUI();
+  },
+  goto(i) {
+    this.stopPlay();
+    this.anim = null;
+    this.cursor = clamp(i | 0, 0, this.story.tokens.length);
+    this.applyCursor();
+  },
+
+  /* ---- 单步与播放 ---- */
+  durFor(tok) {
+    if (this.speedMs <= 0) return 0;                       // ∞ 模式：直接落位
+    const pm = ENGINE.parseMove(tok);
+    return this.speedMs * (pm && pm.power === 2 ? 2 : 1);
+  },
+  stepForward(animate) {
+    if (this.anim) return;
+    const st = this.story;
+    if (this.cursor >= st.tokens.length) return;
+    const tok = st.tokens[this.cursor];
+    const dur = animate ? this.durFor(tok) : 0;
+    let a = null;
+    if (dur > 0) {
+      if (this.mode3d && S3D.ready) a = S3D.beginMove(tok);        // 3D：逻辑先行 + 网格插值
+      else {                                                        // 2D：逻辑直接落位 + 纯计时动画（逐步可见）
+        ENGINE.applyMove(this.cube, tok);
+        a = { token: tok, axis: null, items: null, dur: dur, t: 0 };
+      }
+      View2D.flash(tok);
+      if (this.sound) Sfx.tick();
+    } else {
+      ENGINE.applyMove(this.cube, tok);
+    }
+    if (a) { a.dur = dur; a.t = 0; this.anim = a; }
+    else { this.cursor += 1; this.afterStep(); }
+  },
+  stepBack() {
+    if (this.anim) return;
+    if (this.cursor <= 0) { toast('已在第一步之前'); return; }
+    this.goto(this.cursor - 1);
+  },
+  stepFwd() {
+    if (this.anim) return;
+    if (this.cursor >= this.story.tokens.length) { toast('已到序列末尾'); return; }
+    this.stepForward(true);
+  },
+  tickAnim(dtMs) {
+    if (this.anim) {
+      this.anim.t += dtMs;
+      const f = this.anim.dur > 0 ? clamp(this.anim.t / this.anim.dur, 0, 1) : 1;
+      if (this.anim.items) S3D.applyAnim(this.anim, easeInOutQuad(f));
+      if (f >= 1) {
+        this.anim = null;
+        if (this.mode3d && S3D.ready) S3D.syncFromCube();
+        this.cursor += 1;
+        this.afterStep();
+      }
+    }
+    if (!this.anim && this.playing) {
+      if (this.cursor >= this.playTarget) { this.stopPlay(); this.syncUI(); return; }
+      this.stepForward(true);
+    }
+  },
+  playTo(target) {
+    this.playTarget = clamp(target, 0, this.story.tokens.length);
+    if (this.cursor >= this.playTarget) { this.syncUI(); return; }
+    this.playing = true;
+    this.syncUI();
+  },
+  stopPlay() { this.playing = false; },
+  togglePlay() {
+    if (this.playing) { this.stopPlay(); this.syncUI(); toast('已暂停'); return; }
+    if (this.cursor >= this.story.tokens.length) { this.goto(0); }
+    this.playTo(this.story.tokens.length);
+  },
+  afterStep() {
+    if (this.mode3d && S3D.ready) S3D.syncFromCube();
+    View2D.update();
+    this.syncUI();
+    this.checkSolved();
+  },
+
+  /* ---- 手动转动（拖拽 / 键盘 / 导入） ---- */
+  userMove(tok) {
+    if (!ENGINE.parseMove(tok)) return;
+    if (this.anim) { this.finishAnimNow(); }
+    this.stopPlay();
+    this.pushTokens([tok], 'user');
+    this.redoStack.length = 0;
+    this.startTimer();
+    this.stepForward(true);
+    this.syncUI();
+  },
+  finishAnimNow() {                       // 新转动到来：当前动画直接落位
+    if (!this.anim) return;
+    this.anim = null;
+    if (this.mode3d && S3D.ready) S3D.syncFromCube();
+    this.cursor += 1;
+  },
+  undo() {
+    this.stopPlay();
+    if (this.anim) this.finishAnimNow();      // 动画进行中先落位：连点撤销不丢步
+    const st = this.story;
+    let i = this.cursor - 1;
+    while (i >= 0 && st.kinds[i] !== 'user') i--;
+    if (i < 0) { toast('没有可撤销的手动转动'); return; }
+    const tok = st.tokens[i];
+    this.redoStack.push(tok);
+    this.truncateTo(i);
+    toast('已撤销 ' + tok);
+    this.syncAll();
+  },
+  redo() {
+    this.stopPlay();
+    if (this.anim) this.finishAnimNow();      // 同上：连点重做不丢步（旧实现直接 return，导致重做栈被吞）
+    const t = this.redoStack.pop();
+    if (!t) { toast('没有可重做的步'); return; }
+    this.pushTokens([t], 'user');
+    this.stepForward(true);
+    this.syncUI();
+  },
+
+  /* ---- 打乱 / 复原 ---- */
+  currentSeed() {
+    const t = this.seedText.trim();
+    if (t) { let h = 0; for (const ch of t) h = (Math.imul(h, 131) + ch.charCodeAt(0)) | 0; return Math.abs(h) || 1; }
+    return CFG.seed;
+  },
+  scramble(instant) {
+    if (this.anim) this.finishAnimNow();
+    this.stopPlay();
+    this.resetStory();
+    const seq = CFG.moves ? ENGINE.parseSeq(CFG.moves) : ENGINE.scramble(this.currentSeed(), this.n);
+    if (!seq.length) { toast('无有效步序'); return; }
+    this.scramCount = seq.length;
+    this.scramComp = ENGINE.compressSeq(seq).length;
+    this.pushTokens(seq, 'scramble');
+    Sfx.whoosh();
+    this.syncAll();
+    if (instant) this.goto(this.story.tokens.length);
+    else this.playTo(this.story.tokens.length);
+    toast('打乱 ' + seq.length + ' 步', '种子 ' + this.currentSeed() + ' · 压缩后 ' + this.scramComp + ' 步');
+  },
+  /* 核心：逆序回放「打乱 + 手动步序」→ 数学上保证 100% 复原 */
+  restore(instant) {
+    if (this.anim) this.finishAnimNow();
+    this.stopPlay();
+    const upto = this.story.tokens.slice(0, this.cursor);
+    if (!upto.length) { toast('当前已是复原态'); return; }
+    const inv = ENGINE.compressSeq(ENGINE.invertSeq(upto));
+    this.restoreCount = inv.length;
+    if (!inv.length) { this.goto(0); toast('序列压缩后为空，直接回到复原态'); return; }
+    this.pushTokens(inv, 'restore');
+    this.syncAll();
+    if (instant) this.goto(this.story.tokens.length);
+    else this.playTo(this.story.tokens.length);
+    toast('复原序列 ' + upto.length + ' 步 → 压缩后 ' + inv.length + ' 步', '逆序回放，保证复原');
+  },
+  importSeq(text) {
+    const seq = ENGINE.parseSeq(text || '');
+    if (!seq.length) { toast('未识别到有效记法（如 U R2 F\' r U\' x）'); return; }
+    if (this.anim) this.finishAnimNow();
+    this.stopPlay();
+    this.pushTokens(seq, 'user');
+    this.startTimer();
+    this.syncAll();
+    this.playTo(this.story.tokens.length);
+    toast('已导入 ' + seq.length + ' 步', ENGINE.seqText(seq).slice(0, 60));
+  },
+
+  /* ---- 计时 / 复原判定 ---- */
+  startTimer() { if (!this.timer.running && this.timer.final == null) { this.timer.running = true; this.timer.frozen = null; this.timer.t0 = performance.now(); } },
+  stopTimer() { if (this.timer.running) { this.timer.final = performance.now() - this.timer.t0; this.timer.running = false; this.timer.frozen = null; } },
+  elapsed() {
+    if (this.timer.running) return performance.now() - this.timer.t0;
+    if (this.timer.frozen != null) return this.timer.frozen;
+    return this.timer.final;
+  },
+  /* 页外暂停：失焦冻结计时，回来继续（避免切 tab 后计时虚高） */
+  blurTimer() { if (this.timer.running) { this.timer.frozen = performance.now() - this.timer.t0; this.timer.running = false; } },
+  focusTimer() { if (this.timer.running === false && this.timer.frozen != null && this.timer.final == null) { this.timer.t0 = performance.now() - this.timer.frozen; this.timer.frozen = null; this.timer.running = true; } },
+  checkSolved() {
+    this.solved = ENGINE.isSolved(this.cube);
+    if (!this.solved) { this.announced = false; return; }
+    if (this.announced || !this.story.tokens.length) return;
+    this.announced = true;
+    if (this.timer.running) {
+      const t = this.elapsed();
+      this.stopTimer();
+      const best = Store.get('best', null);
+      if (best == null || t < best) { Store.set('best', t); toast('🎉 复原成功！' + fmtTime(t) + 's · ✨ 新纪录', '步数 ' + this.cursor + '（含打乱）· 已存本地最佳'); }
+      else toast('🎉 复原成功！' + fmtTime(t) + 's', '本地最佳 ' + fmtTime(best) + 's');
+    } else {
+      toast('🎉 复原成功（逆序回放完成）', '步数 ' + this.cursor + '（含打乱）· 无手动转动，不计入最佳');
+    }
+    if (this.sound) Sfx.chime();
+  },
+
+  /* ---- 外观 / 视图 ---- */
+  setSpeed(ms) {
+    this.speedMs = clamp(ms | 0, 0, 1200);
+    Store.set('speed', this.speedMs);
+    $('msRange').value = String(this.speedMs);
+    $$('#segSpeed button').forEach(b => b.classList.toggle('on', parseInt(b.dataset.ms, 10) === this.speedMs));
+    this.syncUI();
+  },
+  setScheme(s) {
+    if (!SCHEMES[s]) return;
+    this.scheme = s; Store.set('scheme', s);
+    $$('#segScheme button').forEach(b => b.classList.toggle('on', b.dataset.s === s));
+    if (S3D.ready) S3D.rebuildMaterials();
+    View2D.update();
+  },
+  setView(v) { Cam.preset(v); $$('#segView button').forEach(b => b.classList.toggle('on', b.dataset.v === v)); Store.set('view', v); },
+  toggle2D(on) {                       // on = true 强制 2D；缺省则切换
+    this.mode3d = (on == null) ? !this.mode3d : !on;
+    $('d2').classList.toggle('on', !this.mode3d);
+    $('stage').style.display = this.mode3d ? '' : 'none';
+    $('btn2D').classList.toggle('on', !this.mode3d);
+    if (this.mode3d && S3D.ready) S3D.syncFromCube();
+    View2D.update();
+    this.syncUI();
+  },
+  share() {
+    const url = location.origin + location.pathname + '?seed=' + this.currentSeed() +
+      (this.story.tokens.length ? '&moves=' + encodeURIComponent(ENGINE.seqText(this.story.tokens.slice(0, this.cursor))) : '') +
+      '&n=' + this.n + '&speed=' + this.speedMs + '&scheme=' + this.scheme;
+    const done = () => toast('🔗 分享链接已复制', url.length > 70 ? url.slice(0, 70) + '…' : url);
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, () => fallbackCopy(url, done));
+    else fallbackCopy(url, done);
+  },
+  screenshot() {
+    if (!S3D.ready) { toast('2D 视图不支持截图，请用系统截屏'); return; }
+    S3D.render();
+    const a = document.createElement('a');
+    a.href = S3D.renderer.domElement.toDataURL('image/png');
+    a.download = 'rubik-3d-' + Date.now() + '.png';
+    a.click();
+    toast('📸 已下载 PNG');
+  },
+
+  /* ---- UI 同步 ---- */
+  syncAll() { this.buildList(); this.applyCursor(); },
+  buildList() {
+    const box = $('movelist'), st = this.story;
+    box.innerHTML = '';
+    if (!st.tokens.length) {
+      const s = document.createElement('span'); s.className = 'empty'; s.textContent = '尚无步序';
+      box.appendChild(s); this.listN = 0; return;
+    }
+    st.tokens.forEach((t, i) => {
+      const b = document.createElement('span');
+      b.className = 'mv ' + st.kinds[i];
+      b.textContent = (i + 1) + '.' + t;
+      b.title = (st.kinds[i] === 'scramble' ? '打乱步' : st.kinds[i] === 'user' ? '手动步' : '复原步') + ' · 点击跳到该步之后';
+      b.addEventListener('click', () => App.goto(i + 1));
+      box.appendChild(b);
+    });
+    this.listN = st.tokens.length;
+  },
+  syncUI() {
+    const st = this.story, N = st.tokens.length;
+    if (this.listN !== N) this.buildList();
+    const kids = $('movelist').children;
+    for (let i = 0; i < kids.length; i++) {
+      const el = kids[i];
+      if (!el.classList.contains('mv')) continue;
+      el.classList.toggle('cur', i === this.cursor - 1);
+      el.classList.toggle('dim', i >= this.cursor);
+    }
+    const cur = $('movelist').querySelector('.mv.cur');
+    if (cur && cur.scrollIntoView) { try { cur.scrollIntoView({ block: 'nearest' }); } catch (e) { } }
+
+    $('scrub').max = $('scrub2').max = String(N);
+    $('scrub').value = $('scrub2').value = String(this.cursor);
+    $('vStep').textContent = this.cursor + '/' + N;
+    $('vStep2').textContent = this.cursor + '/' + N;
+    $('vMoves').textContent = String(this.cursor);
+    $('stMoves').textContent = this.cursor + ' 步';
+    $('stScram').textContent = this.scramCount + ' / ' + this.scramComp;
+    $('stRestore').textContent = this.restoreCount ? this.restoreCount + ' 步（压缩后）' : '0';
+    const best = Store.get('best', null);
+    $('vBest').textContent = fmtTime(best); $('stBest').textContent = fmtTime(best) + (best == null ? '' : 's');
+    $('stMode').textContent = (this.mode3d && S3D.ready) ? 'WebGL 3D · r' + (HAS3D ? THREE.REVISION : '?') : '2D 展开图';
+    $('btnPlay').textContent = this.playing ? '⏸' : '▶';
+    $('btnUndo').disabled = this.cursor <= 0 || !st.kinds.slice(0, this.cursor).some(k => k === 'user');
+    $('btnRedo').disabled = !this.redoStack.length;
+    $('tlHint').textContent = this.playing ? '播放中…（Space 暂停）'
+      : (this.solved && N > 0 ? '✅ 复原态' : N === 0 ? '打乱后按 🌀 打乱 / ▶ 逐步复原' : this.cursor >= N ? '已到末尾' : '已暂停 · 可拖动进度条');
+  },
+  tickTimer() {
+    const t = this.elapsed();
+    $('vTime').textContent = t == null ? '0.00' : fmtTime(t);
+  }
+};
+function createSolved() { return ENGINE.createCube(); }
+function fallbackCopy(text, done) {
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); done(); } catch (e) { toast('复制失败，请手动复制：' + text.slice(0, 48)); }
+  document.body.removeChild(ta);
+}
+/* ---------------------------------------------------------------------------
+ * ⑦ 降级视图 View2D：DOM 六面展开图（无 WebGL 依赖），与 3D 共用同一引擎与时间轴
+ * ------------------------------------------------------------------------- */
+const View2D = {
+  cells: {}, built: false, hlTimer: 0,
+  build() {
+    const host = $('d2');
+    host.innerHTML = '';
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:4px;max-width:100%;';
+    const net = document.createElement('div'); net.className = 'net';
+    for (const f of ['U', 'L', 'F', 'R', 'B', 'D']) {
+      const face = document.createElement('div'); face.className = 'face ' + f;
+      this.cells[f] = [];
+      for (let k = 0; k < 9; k++) {
+        const st = document.createElement('div'); st.className = 'st';
+        face.appendChild(st); this.cells[f].push(st);
+      }
+      net.appendChild(face);
+    }
+    const cap = document.createElement('div'); cap.className = 'cap'; cap.id = 'd2cap';
+    wrap.appendChild(net); wrap.appendChild(cap); host.appendChild(wrap);
+    this.built = true;
+  },
+  update() {
+    if (!this.built) this.build();
+    const st = ENGINE.stickersOf(App.cube), cols = SCHEMES[App.scheme].colors;
+    for (const f of ['U', 'L', 'F', 'R', 'B', 'D']) {
+      const fi = ENGINE.FACE_NAME.indexOf(f), cells = this.cells[f];
+      for (let k = 0; k < 9; k++) {
+        const v = st[fi * 9 + k];
+        cells[k].style.background = v >= 0 ? cols[v] : '#2a2f38';
+      }
+    }
+    const cap = $('d2cap');
+    if (cap) cap.textContent = '2D 展开图 · 步 ' + App.cursor + '/' + App.story.tokens.length +
+      ' · ' + (ENGINE.isSolved(App.cube) ? '✅ 复原态' : '打乱态') + ' · 与 3D 共用同一引擎（打乱 / 单步 / 变速 / 复原全可用）';
+  },
+  flash(tok) {
+    const pm = ENGINE.parseMove(tok);
+    if (!pm || 'UDRLFB'.indexOf(pm.name) < 0) return;
+    const cells = this.cells[pm.name];
+    if (!cells) return;
+    cells.forEach(c => c.classList.add('hl'));
+    clearTimeout(this.hlTimer);
+    this.hlTimer = setTimeout(() => cells.forEach(c => c.classList.remove('hl')), 280);
+  }
+};
+
+/* ---------------------------------------------------------------------------
+ * ⑧ 键盘：面 / 切片 / 宽层 / 整体旋转 + 播放控制
+ * ------------------------------------------------------------------------- */
+const KEY_FACE = { u: 'U', d: 'D', r: 'R', l: 'L', f: 'F', b: 'B' };
+function closeModals() { $('help').classList.add('hidden'); $('loadfail').classList.add('hidden'); }
+function onKey(e) {
+  const tag = e.target && e.target.tagName ? e.target.tagName : '';
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+    if (e.key === 'Escape') { e.target.blur(); closeModals(); }
+    return;
+  }
+  const k = e.key, low = String(k).toLowerCase();
+  if (k === 'Escape') { closeModals(); return; }
+  if (k === ' ' || k === 'Spacebar') { e.preventDefault(); App.togglePlay(); return; }
+  if (k === 'ArrowLeft') { e.preventDefault(); App.stepBack(); return; }
+  if (k === 'ArrowRight') { e.preventDefault(); App.stepFwd(); return; }
+  if (low === 'q') { App.scramble(false); return; }
+  if (k === 'Z') { App.restore(false); return; }            // Shift+Z = 逐步复原（小写 z 留给整体旋转）
+  if (low === 't') { App.resetStory(); toast('已重置'); return; }
+  if (low === 'v') { Cam.preset(App.viewName); toast('视角已复位'); return; }
+  if (low === 'h') { $('help').classList.toggle('hidden'); return; }
+  if (k === '2' && App.lastFaceTok && performance.now() - App.lastFaceAt < 1500) {
+    e.preventDefault(); App.userMove(App.lastFaceTok); App.lastFaceTok = ''; return;   // 再转 90°，该面累计 180°
+  }
+  if (k === '2') { App.toggle2D(); return; }
+  const face = KEY_FACE[low];
+  if (face) {
+    e.preventDefault();
+    let tok;
+    if (e.ctrlKey || e.metaKey) tok = low;                              // 宽层 u d l r f b
+    else tok = face + (e.shiftKey ? "'" : '');
+    App.lastFaceTok = tok; App.lastFaceAt = performance.now();          // 存完整记法（含方向），Shift 反向再按 2 才累计 180°
+    App.userMove(tok);
+    return;
+  }
+  if ('mes'.indexOf(low) >= 0 && !e.ctrlKey) {
+    const tok = low.toUpperCase() + (e.shiftKey ? "'" : '');
+    App.lastFaceTok = tok; App.lastFaceAt = performance.now();
+    App.userMove(tok); return;
+  }
+  if ('xyz'.indexOf(low) >= 0 && !e.ctrlKey) {
+    const tok = low + ((e.shiftKey && low !== 'z') ? "'" : '');
+    App.lastFaceTok = tok; App.lastFaceAt = performance.now();
+    App.userMove(tok); return;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * ⑨ UI 绑定 + 启动
+ * ------------------------------------------------------------------------- */
+function bindUI() {
+  $('btnPanel').onclick = () => $('panel').classList.toggle('open');
+  $('btnHelp').onclick = () => $('help').classList.remove('hidden');
+  $('helpClose').onclick = () => $('help').classList.add('hidden');
+  $('btnView').onclick = () => { Cam.preset(App.viewName); toast('视角已复位'); };
+  $('btn2D').onclick = () => App.toggle2D();
+  $('btnShot').onclick = () => App.screenshot();
+  $('btnSound').onclick = () => {
+    App.sound = !App.sound; Sfx.on = App.sound; Store.set('sound', App.sound);
+    $('btnSound').classList.toggle('on', App.sound);
+    $('btnSound').firstChild && ($('btnSound').firstChild.nodeValue = App.sound ? '🔊' : '🔇');
+    if (App.sound) Sfx.click();
+    toast(App.sound ? '音效已开启' : '音效已关闭');
+  };
+  $$('#segN button').forEach(b => b.onclick = () => {
+    App.n = parseInt(b.dataset.n, 10); Store.set('n', App.n);
+    $$('#segN button').forEach(x => x.classList.toggle('on', x === b));
+    toast('打乱步数 ' + App.n);
+  });
+  $('seed').oninput = e => { App.seedText = e.target.value; };
+  $('btnDice').onclick = () => {
+    const s = String(Math.floor(Math.random() * 1e6));
+    $('seed').value = App.seedText = s; toast('种子 ' + s, '同种子必得同序列');
+  };
+  $('btnScramble').onclick = () => App.scramble(false);
+  $('btnScrambleFast').onclick = () => App.scramble(true);
+  $('btnScramble2').onclick = () => App.scramble(false);
+  $('btnShare').onclick = () => App.share();
+  $$('#segSpeed button').forEach(b => b.onclick = () => App.setSpeed(parseInt(b.dataset.ms, 10)));
+  $('msRange').oninput = e => App.setSpeed(parseInt(e.target.value, 10));
+  $('btnRestore').onclick = () => App.restore(false);
+  $('btnRestore2').onclick = () => App.restore(false);
+  $('btnInstant').onclick = () => App.restore(true);
+  $('btnPrev').onclick = () => App.stepBack();
+  $('btnNext').onclick = () => App.stepFwd();
+  $('btnPlay').onclick = () => App.togglePlay();
+  $('btnReset').onclick = () => { App.resetStory(); toast('已重置'); };
+  $('btnReset2').onclick = () => { App.resetStory(); toast('已重置'); };
+  $('btnUndo').onclick = () => App.undo();
+  $('btnRedo').onclick = () => App.redo();
+  $('btnImport').onclick = () => App.importSeq($('importSeq').value);
+  $('importSeq').addEventListener('keydown', e => { if (e.key === 'Enter') App.importSeq($('importSeq').value); });
+  ['scrub', 'scrub2'].forEach(id => $(id).oninput = e => App.goto(parseInt(e.target.value, 10)));
+  $$('#segScheme button').forEach(b => b.onclick = () => App.setScheme(b.dataset.s));
+  $$('#segView button').forEach(b => b.onclick = () => App.setView(b.dataset.v));
+  $('ckShadow').onchange = e => { App.shadow = e.target.checked; Store.set('shadow', App.shadow); S3D.setShadow(App.shadow); };
+  $('ckGloss').onchange = e => { App.gloss = e.target.checked; Store.set('gloss', App.gloss); S3D.rebuildMaterials(); toast('贴纸高光：' + (App.gloss ? '开' : '关')); };
+  $('ckAuto').onchange = e => { App.autoSpin = e.target.checked; Store.set('autoSpin', App.autoSpin); };
+  $('lf2d').onclick = () => { $('loadfail').classList.add('hidden'); App.toggle2D(true); };
+  $('lfRetry').onclick = () => location.reload();
+}
+function restorePanelState() {
+  $('ckShadow').checked = App.shadow;
+  $('ckGloss').checked = App.gloss;
+  $('ckAuto').checked = App.autoSpin;
+  $('btnSound').classList.toggle('on', App.sound);
+  $('msRange').value = String(App.speedMs);
+  $$('#segSpeed button').forEach(b => b.classList.toggle('on', parseInt(b.dataset.ms, 10) === App.speedMs));
+  $$('#segScheme button').forEach(b => b.classList.toggle('on', b.dataset.s === App.scheme));
+  $$('#segN button').forEach(b => b.classList.toggle('on', parseInt(b.dataset.n, 10) === App.n));
+  $$('#segView button').forEach(b => b.classList.toggle('on', b.dataset.v === App.viewName));
+  if (window.innerWidth > 900) $('panel').classList.add('open');
+}
+
+/* ?dev=1 控制台自检（与 Node 抽测同源断言） */
+function devCheck() {
+  let pass = 0, fail = 0;
+  const T = (cond, label) => { if (cond) pass++; else { fail++; console.warn('✗ ' + label); } };
+  T(ENGINE.isSolved(ENGINE.createCube()), '初始复原态');
+  for (const nm of ['U', 'D', 'R', 'L', 'F', 'B', 'M', 'E', 'S', 'u', 'd', 'l', 'r', 'f', 'b', 'x', 'y', 'z']) {
+    const c4 = ENGINE.createCube();
+    for (let i = 0; i < 4; i++) ENGINE.applyMove(c4, nm);
+    T(ENGINE.isSolved(c4), nm + ' ×4 = 复原');
+    const ci = ENGINE.createCube();
+    ENGINE.applyMove(ci, nm); ENGINE.applyMove(ci, ENGINE.invertToken(nm));
+    T(ENGINE.isSolved(ci), nm + " + " + nm + "' = 复原");
+  }
+  const s1 = ENGINE.scramble(123, 25), s2 = ENGINE.scramble(123, 25);
+  T(s1.join(' ') === s2.join(' '), '同种子 → 同序列');
+  const cs = ENGINE.createCube();
+  ENGINE.applySeq(cs, s1);
+  ENGINE.applySeq(cs, ENGINE.compressSeq(ENGINE.invertSeq(s1)));
+  T(ENGINE.isSolved(cs), '打乱 + 压缩逆序 = 复原');
+  let eq = true;
+  for (let t = 0; t < 200; t++) {
+    const seq = ENGINE.scramble(9000 + t, 30), a = ENGINE.createCube(), b = ENGINE.createCube();
+    ENGINE.applySeq(a, seq); ENGINE.applySeq(b, ENGINE.compressSeq(seq));
+    const sa = ENGINE.stickersOf(a), sb = ENGINE.stickersOf(b);
+    for (let i = 0; i < 54; i++) if (sa[i] !== sb[i]) { eq = false; break; }
+  }
+  T(eq, '200 组压缩后终态等价');
+  const snap = ENGINE.snapshot(cs), back = ENGINE.createCube();
+  ENGINE.restore(back, snap);
+  T(ENGINE.stickersOf(back).join(',') === ENGINE.stickersOf(cs).join(','), '快照往返一致');
+  let cover = 0;
+  for (let ax = 0; ax < 3; ax++) for (let L = -1; L <= 1; L++) for (const s of [1, -1]) if (DRAG_TOKEN[ax + '|' + L + '|' + s]) cover++;
+  T(cover === 18, '拖拽记法表覆盖 18 个 (轴,层,方向) 组合，实得 ' + cover);
+  console.log('[dev] ENGINE 自检：' + pass + ' 通过 / ' + fail + ' 失败');
+  return fail === 0;
+}
+
+let lastT = performance.now();
+function loop() {
+  const now = performance.now(), dt = Math.min(64, now - lastT);
+  lastT = now;
+  App.tickAnim(dt);
+  Cam.update(dt / 1000);
+  App.tickTimer();
+  S3D.render();
+  requestAnimationFrame(loop);
+}
+
+function boot() {
+  App.init();
+  restorePanelState();
+  bindUI();
+  View2D.build();
+  let ok3d = false;
+  if (HAS3D) { try { ok3d = S3D.init($('stage')); } catch (e) { console.warn('WebGL 初始化失败：', e); ok3d = false; } }
+  if (ok3d) {
+    Pointer.init(S3D.renderer.domElement);
+    Cam.preset(App.viewName);
+    S3D.resize();
+  } else {
+    App.toggle2D(true);
+    $('loadfail').classList.remove('hidden');
+  }
+  window.addEventListener('resize', () => S3D.resize());
+  window.addEventListener('keydown', onKey);
+  window.addEventListener('blur', () => App.blurTimer());
+  window.addEventListener('focus', () => App.focusTimer());
+  App.syncAll();
+  if (CFG.dev) devCheck();
+  if (CFG.moves) App.importSeq(CFG.moves);
+  else if (Q.has('seed')) App.scramble(true);
+  if (!Store.get('seen', false)) { Store.set('seen', true); $('help').classList.remove('hidden'); }
+  requestAnimationFrame(loop);
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+else boot();
+</script>
+</body>
+</html>
+
