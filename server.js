@@ -3,7 +3,7 @@
  * 零依赖静态服务器（只用 Node 内置模块），监听 0.0.0.0 以支持局域网访问。
  *
  * 用法：
- *   node server.js                    # 默认 0.0.0.0:8080
+ *   node server.js                    # 默认 0.0.0.0:39977
  *   node server.js --port=3000        # 指定端口
  *   node server.js --host=127.0.0.1   # 只允许本机访问
  *   PORT=3000 node server.js          # 环境变量同样生效
