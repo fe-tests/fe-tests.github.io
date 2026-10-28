@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>🀄 3D 麻将</title>
-<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.2/css/all.min.css">
 <style>
   :root {
     --felt: #0d3b2c;
@@ -19,7 +18,7 @@
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; height: 100%; }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, Arial, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji";
     background: radial-gradient(1100px 620px at 50% -8%, #17553f 0%, var(--felt) 45%, var(--felt-2) 100%);
     color: #e7eaf0; overflow: hidden; touch-action: none;
     -webkit-user-select: none; user-select: none;
@@ -53,7 +52,9 @@
   }
   button:hover { background: linear-gradient(#333a4c, #222733); }
   button:active { transform: translateY(1px); }
-  button i { margin-right: 5px; }
+  .ico { font-size: 15px; line-height: 1; font-style: normal; }
+  button .ico { margin-right: 5px; }
+  .back .ico { margin-right: 4px; }
   button.primary { background: linear-gradient(#f5c451, #e0a72e); color: #1a1300; border-color: #d49a2c; font-weight: 700; }
   button:disabled { opacity: .38; cursor: default; }
   button.ghost { padding: 8px 10px; }
@@ -186,11 +187,11 @@
     <span class="chip gold" id="chipWall" title="牌墙剩余可摸张数">🧱 <b id="nWall">70</b></span>
     <span class="chip hide-s" id="chipWind" title="圈风 / 门风">圈风 <b id="vRound">东</b> · 门风 <b id="vSeat">东</b></span>
     <span class="chip hide-s" id="chipTurn" title="当前行动者">行动 <b id="vTurn">—</b></span>
-    <button class="ghost" id="btnView" title="切换视角：常规俯视 / 上帝视角（快捷键 R）"><i class="fa-solid fa-camera"></i><span class="hide-s">视角</span></button>
-    <button class="ghost" id="btnRiver" title="放大查看四家牌河"><i class="fa-solid fa-magnifying-glass"></i><span class="hide-s">牌河</span></button>
-    <button class="ghost" id="btnMute" title="音效开关（不持久化）"><i class="fa-solid fa-volume-high"></i><span class="hide-s">音效</span></button>
-    <button id="btnNew" title="立即重开一局（单局重置，不累计分数）"><i class="fa-solid fa-rotate-right"></i><span class="hide-s">再来一局</span></button>
-    <a class="back" href="/"><i class="fa-solid fa-house"></i> 返回首页</a>
+    <button class="ghost" id="btnView" title="切换视角：常规俯视 / 上帝视角（快捷键 R）"><span class="ico">📷</span><span class="hide-s">视角</span></button>
+    <button class="ghost" id="btnRiver" title="放大查看四家牌河"><span class="ico">🔍</span><span class="hide-s">牌河</span></button>
+    <button class="ghost" id="btnMute" title="音效开关（不持久化）"><span class="ico" id="icoMute">🔊</span><span class="hide-s">音效</span></button>
+    <button id="btnNew" title="立即重开一局（单局重置，不累计分数）"><span class="ico">🔄</span><span class="hide-s">再来一局</span></button>
+    <a class="back" href="/"><span class="ico">🏠</span>返回首页</a>
   </div>
 
   <div id="stage"></div>
@@ -207,11 +208,11 @@
   <div id="status"></div>
 
   <div id="actions">
-    <button id="bChi" disabled><i class="fa-solid fa-align-left"></i>吃<span class="cd"></span></button>
-    <button id="bPeng" disabled><i class="fa-solid fa-hand-back-fist"></i>碰<span class="cd"></span></button>
-    <button id="bGang" disabled><i class="fa-solid fa-layer-group"></i>杠<span class="cd"></span></button>
-    <button id="bHu" disabled><i class="fa-solid fa-trophy"></i>胡<span class="cd"></span></button>
-    <button id="bPass" disabled><i class="fa-solid fa-forward"></i>过<span class="cd"></span></button>
+    <button id="bChi" disabled><span class="ico">🔢</span>吃<span class="cd"></span></button>
+    <button id="bPeng" disabled><span class="ico">👊</span>碰<span class="cd"></span></button>
+    <button id="bGang" disabled><span class="ico">📚</span>杠<span class="cd"></span></button>
+    <button id="bHu" disabled><span class="ico">🏆</span>胡<span class="cd"></span></button>
+    <button id="bPass" disabled><span class="ico">⏭️</span>过<span class="cd"></span></button>
   </div>
 
   <div class="toast" id="toast"></div>
@@ -223,7 +224,7 @@
       <h2>⚠ 3D 资源加载失败</h2>
       <p id="lfmsg">Three.js 未能从 CDN 加载。本页的 3D 牌桌依赖
       <code>//cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js</code>，
-      请检查网络，或在浏览器/防火墙中允许 <code>cdnjs.cloudflare.com</code> 与 <code>cdn.jsdelivr.net</code> 访问。<br>
+      请检查网络，或在浏览器/防火墙中允许 <code>cdnjs.cloudflare.com</code> 访问（本页无其他 CDN 依赖：牌面与图标均为本地 emoji）。<br>
       协议相对地址（<code>//</code>）需通过 <b>http(s)</b> 访问本页；用 <code>file://</code> 直接双击打开会加载失败。</p>
       <div class="row-btns">
         <button class="primary" id="lf2d">以 2D 简版继续</button>
@@ -240,8 +241,8 @@
       <p class="kbd">操作：<b>点击</b>选牌 → <b>再点</b>打出（或 <b>双击</b>直接打出）；<b>←/→</b> 选牌、<b>Enter</b> 打出、<b>Esc</b> 取消；
       <b>R</b> 切换视角；拖动画面微调视角、双击复位。鸣牌窗口 15 秒自动过。</p>
       <div class="row-btns">
-        <button class="primary" id="bootStart"><i class="fa-solid fa-play"></i>开始牌局</button>
-        <button id="boot2d"><i class="fa-solid fa-table-cells"></i>2D 简版</button>
+        <button class="primary" id="bootStart"><span class="ico">▶️</span>开始牌局</button>
+        <button id="boot2d"><span class="ico">🎴</span>2D 简版</button>
       </div>
     </div>
   </div>
@@ -251,7 +252,7 @@
 /* =============================================================================
  * 3D 麻将（单机四人 · 单局重置）
  * -----------------------------------------------------------------------------
- * 依赖：Three.js r128（协议相对 CDN：//cdnjs.cloudflare.com/...）+ Font Awesome 6 图标
+ * 依赖：Three.js r128（协议相对 CDN：//cdnjs.cloudflare.com/...）；图标与牌面均用系统 emoji，无 webfont / 图标字体 CDN
  * 结构：① 规则引擎（纯 JS，无 DOM，ENGINE-START/END 可抽离到 Node 校验）
  *       ② 牌面渲染（canvas 纹理；按「真实渲染条件采样」自动在彩色 emoji / 程序化组合牌面间选择）
  *       ③ Three.js 场景（牌桌/牌池/相机/补间）与 2D 简版视图
@@ -1340,7 +1341,7 @@ const Driver = {
     this.el.btnRiver.addEventListener('click', () => this.showRiver(true));
     this.el.btnMute.addEventListener('click', () => {
       this.muted = !this.muted;
-      this.el.btnMute.querySelector('i').className = this.muted ? 'fa-solid fa-volume-xmark' : 'fa-solid fa-volume-high';
+      this.el.btnMute.querySelector('#icoMute').textContent = this.muted ? '🔇' : '🔊';
       this.toast(this.muted ? '🔇 音效已关' : '🔊 音效已开', '不持久化，刷新后恢复');
     });
     document.getElementById('bootStart').addEventListener('click', () => this.startFrom(false));
@@ -1644,9 +1645,9 @@ const Driver = {
     h += '<table class="score"><tr><th>座位</th><th>门风</th><th class="num">本局得分</th></tr>' +
       [0, 1, 2, 3].map(s => '<tr><td>' + SEAT_NAME[s] + (s === st.dealer ? ' 👑' : '') + '</td><td>' +
         WIND_NAME[((s - st.dealer) % 4 + 4) % 4] + '</td><td class="num">' + st.scores[s] + '</td></tr>').join('') + '</table>';
-    h += '<div class="row-btns"><button class="primary" id="resNew"><i class="fa-solid fa-rotate-right"></i> 再来一局</button>' +
-      '<button id="resRiver"><i class="fa-solid fa-magnifying-glass"></i> 看牌河</button>' +
-      '<a class="back" href="/"><i class="fa-solid fa-house"></i> 返回首页</a></div>';
+    h += '<div class="row-btns"><button class="primary" id="resNew"><span class="ico">🔄</span> 再来一局</button>' +
+      '<button id="resRiver"><span class="ico">🔍</span> 看牌河</button>' +
+      '<a class="back" href="/"><span class="ico">🏠</span> 返回首页</a></div>';
     this.el.resModal.innerHTML = h;
     this.el.ovResult.classList.remove('hidden');
     document.getElementById('resNew').addEventListener('click', () => this.newRound());
