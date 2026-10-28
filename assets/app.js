@@ -7,7 +7,9 @@
     view: "card",
     category: "all",
     keyword: "",
-    sort: "pinned-desc"
+    sort: "pinned-desc",
+    perPage: 0,   // views.perPage：每页渲染数量（0 = 不限量）
+    limit: Number.MAX_SAFE_INTEGER // 当前已渲染上限，点「加载更多」时递增
   };
 
   const $ = (id) => document.getElementById(id);
@@ -15,7 +17,9 @@
     gridCard: document.querySelector(".view-card"),
     gridList: document.querySelector(".view-list"),
     categoryBar: $("category-bar"),
-    grid: $("grid"),
+    more: $("more-box"),
+    moreBtn: $("more-btn"),
+    moreInfo: $("more-info"),
     search: $("search"),
     sort: $("sort"),
     count: $("result-count"),
@@ -59,16 +63,17 @@
     els.categoryBar.querySelectorAll(".chip").forEach(function (btn) {
       btn.addEventListener("click", function () {
         state.category = btn.getAttribute("data-cat");
+        resetLimit();
         renderCategoryBar();
         render();
       });
     });
   }
 
-  function renderCard() {
+  function renderCard(list) {
     els.gridList.classList.add("hidden");
     els.gridCard.classList.remove("hidden");
-    els.gridCard.innerHTML = state.filtered.map(function (p) {
+    els.gridCard.innerHTML = list.map(function (p) {
       const tags = (p.tags || []).slice(0, 5).map(function (t) {
         return '<span class="tag">#' + escapeHtml(t) + '</span>';
       }).join("");
@@ -85,10 +90,10 @@
     }).join("");
   }
 
-  function renderList() {
+  function renderList(list) {
     els.gridCard.classList.add("hidden");
     els.gridList.classList.remove("hidden");
-    els.gridList.innerHTML = state.filtered.map(function (p) {
+    els.gridList.innerHTML = list.map(function (p) {
       return '<a class="row" href="' + escapeHtml(p.url) + '">' +
         '<span class="row-emoji">' + escapeHtml(p.emoji || "📄") + '</span>' +
         '<span class="row-title">' + escapeHtml(p.title) + ' ' + (p.pinned ? "📌" : "") + '</span>' +
@@ -140,29 +145,57 @@
 
   function render() {
     applyFilters();
-    els.empty.classList.toggle("hidden", state.filtered.length !== 0);
-    els.count.textContent = state.filtered.length + " 个结果";
-    if (state.view === "list") renderList(); else renderCard();
+    const total = state.filtered.length;
+    const list = state.limit < total ? state.filtered.slice(0, state.limit) : state.filtered;
+    const visible = list.length;
+
+    els.empty.classList.toggle("hidden", total !== 0);
+    els.count.textContent = total + " 个结果" + (visible < total ? "（已显示 " + visible + "）" : "");
+    if (state.view === "list") renderList(list); else renderCard(list);
+
+    const hasMore = total > visible;
+    els.more.classList.toggle("hidden", !hasMore);
+    if (hasMore) els.moreInfo.textContent = "已显示 " + visible + " / " + total + " 条";
+  }
+
+  // 筛选条件变化后重置分页上限（views.perPage）
+  function resetLimit() {
+    state.limit = state.perPage > 0 ? state.perPage : Number.MAX_SAFE_INTEGER;
   }
 
   function init() {
+    const cfg = state.data.views || {};
+    state.perPage = Math.max(0, Number(cfg.perPage) || 0);
+    state.limit = state.perPage > 0 ? state.perPage : Number.MAX_SAFE_INTEGER;
+
     // 从站点配置读取标题
     if (els.title) els.title.textContent = (state.data.site && state.data.site.title) || els.title.textContent;
     if (els.subtitle && state.data.site && state.data.site.subtitle) els.subtitle.textContent = state.data.site.subtitle;
 
-    // 视图切换按钮
+    // 视图切换按钮（views.allowToggle = false 时隐藏切换控件）
+    const allowToggle = cfg.allowToggle !== false;
+    if (!allowToggle) {
+      const box = document.querySelector(".view-toggle");
+      if (box) box.classList.add("hidden");
+    }
     document.querySelectorAll(".toggle-btn").forEach(function (b) {
       b.addEventListener("click", function () { setView(b.getAttribute("data-view")); });
     });
     // 搜索（防抖）
     let t;
     els.search.addEventListener("input", function () {
-      clearTimeout(t); t = setTimeout(function () { state.keyword = els.search.value.trim(); render(); }, 150);
+      clearTimeout(t);
+      t = setTimeout(function () { state.keyword = els.search.value.trim(); resetLimit(); render(); }, 150);
     });
     // 排序
-    els.sort.addEventListener("change", function () { state.sort = els.sort.value; render(); });
+    els.sort.addEventListener("change", function () { state.sort = els.sort.value; resetLimit(); render(); });
+    // 加载更多（views.perPage）
+    els.moreBtn.addEventListener("click", function () {
+      state.limit += state.perPage > 0 ? state.perPage : 24;
+      render();
+    });
 
-    setView(state.data.views.default === "list" ? "list" : "card");
+    setView(allowToggle && cfg.default === "list" ? "list" : "card");
     renderCategoryBar();
     render();
   }

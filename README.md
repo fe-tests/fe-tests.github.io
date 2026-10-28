@@ -55,7 +55,13 @@
 - `experimental` 🟡 实验性
 - `alpha` 🔴 开发中
 
-`categories` 数组定义左侧/顶部的分类筛选标签；`site` 配置首页标题、副标题；`views` 控制默认视图与是否允许切换。
+`categories` 数组定义左侧/顶部的分类筛选标签；`site` 配置首页标题、副标题；`views` 对象控制首页视图行为：
+
+| 字段 | 类型 | 说明 | 默认 |
+| --- | --- | --- | --- |
+| `views.default` | `"card"` \| `"list"` | 首页初始视图 | `card` |
+| `views.allowToggle` | boolean | 是否显示卡片/列表切换按钮；`false` 时隐藏切换 | `true` |
+| `views.perPage` | number | 每页渲染数量，超出时首页显示「加载更多」按钮；`0` 或缺省表示不限量 | 不限量 |
 
 ## 如何注册一个新页面（Agent 工作流）
 
@@ -145,13 +151,13 @@
 首页用 `fetch("registry.json")` 取数据，**必须走 HTTP**（直接双击 `index.html` 用 `file://` 打开会因跨域限制取不到注册表）。项目自带 `server.js`（只用 Node 内置模块，无需 `npm install`）：
 
 ```bash
-node server.js              # 监听 0.0.0.0:8080，本机 + 局域网都能访问
+node server.js              # 监听 0.0.0.0:39977，本机 + 局域网都能访问
 node server.js --port=3000  # 换端口
 node server.js --host=127.0.0.1   # 只允许本机访问
 npm start                   # 等价于 node server.js
 ```
 
-启动后终端会打印本机地址与**所有网卡的局域网地址**（形如 `http://192.168.1.23:8080/`），手机/平板/同事电脑在**同一 Wi-Fi（同网段）**下用该地址即可打开。
+启动后终端会打印本机地址与**所有网卡的局域网地址**（形如 `http://192.168.1.23:39977/`），手机/平板/同事电脑在**同一 Wi-Fi（同网段）**下用该地址即可打开。
 
 服务器行为：
 
@@ -163,7 +169,7 @@ npm start                   # 等价于 node server.js
 **局域网访问不通时**（Windows 防火墙拦截入站连接），以管理员身份执行一次：
 
 ```powershell
-netsh advfirewall firewall add rule name="node static 8080" dir=in action=allow protocol=TCP localport=8080
+netsh advfirewall firewall add rule name="node static 39977" dir=in action=allow protocol=TCP localport=39977
 ```
 
-删除规则：`netsh advfirewall firewall delete rule name="node static 8080"`。
+删除规则：`netsh advfirewall firewall delete rule name="node static 39977"`。
