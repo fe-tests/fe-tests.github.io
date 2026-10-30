@@ -192,12 +192,13 @@
   <button>开始</button>
 </div>
 
-<script src="//cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<!-- 依赖：Three.js r128（本地 ../../assets/vendor/three/r128/three.min.js，见 assets/vendor/README.md） -->
+<script src="../../assets/vendor/three/r128/three.min.js"></script>
 <script>
 'use strict';
 
 if (typeof THREE === 'undefined') {
-  document.body.innerHTML = '<div style="color:#fff;padding:24px;font-family:sans-serif">THREE.js 加载失败。请确认浏览器允许加载 http CDN。</div>';
+  document.body.innerHTML = '<div style="color:#fff;padding:24px;font-family:sans-serif">THREE.js 加载失败：未能读取 <code>../../assets/vendor/three/r128/three.min.js</code>。<br>请通过 <code>node server.js</code> 以 HTTP 打开本页，并确认该文件存在于 assets/vendor/three/r128/ 下。</div>';
   throw new Error('THREE missing');
 }
 

@@ -329,10 +329,10 @@
   <div class="overlay hidden" id="loadfail">
     <div class="modal">
       <h2>⚠ 3D 资源加载失败</h2>
-      <p>本页的 3D 魔方依赖 Three.js r128：
-        <code>//cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js</code><br>
-        请在浏览器 / 防火墙中放行 <code>cdnjs.cloudflare.com</code>（备用 <code>cdn.jsdelivr.net</code>），
-        并通过 <code>node server.js</code> 以 HTTP 打开本页（协议相对地址在 <code>file://</code> 下必然失败）。</p>
+      <p>本页的 3D 魔方依赖 Three.js r128（本地文件）：
+        <code>../../assets/vendor/three/r128/three.min.js</code><br>
+        请确认该文件存在（源与校验记录见 <code>assets/vendor/README.md</code>），
+        并通过 <code>node server.js</code> 以 HTTP 打开本页。</p>
       <p class="kbd">规则、打乱、逐步复原、变速回放全部由纯 JS 引擎驱动，<b>2D 展开图视图</b>无需 WebGL，可继续游玩。</p>
       <div class="row-btns">
         <button class="primary" id="lf2d">▦ 用 2D 展开图继续</button>
@@ -365,12 +365,12 @@
     </div>
   </div>
 
-<script src="//cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../../assets/vendor/three/r128/three.min.js"></script>
 <script>
 /* =============================================================================
  * 3D 魔方（三阶 · 单文件自包含）
  * -----------------------------------------------------------------------------
- * 依赖：Three.js r128（协议相对 CDN：//cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js）
+ * 依赖：Three.js r128（本地 ../../assets/vendor/three/r128/three.min.js，登记见 assets/vendor/README.md）
  *       图标全部用 emoji / 内联字符，不引图标库 CSS；不引 OrbitControls（r128 min 包不含 examples/js），
  *       自写 ~70 行轨道相机（拖拽旋转 / 滚轮与 pinch 缩放 / 双击复位 / 惯性阻尼）。
  * 结构：① ENGINE 魔方逻辑引擎（纯 JS，无 DOM / 无 THREE，ENGINE-START/END 可抽离到 Node 校验）

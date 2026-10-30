@@ -180,11 +180,11 @@
   </div>
 </div>
 
-<script src="//cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../../assets/vendor/three/r128/three.min.js"></script>
 <script>
 /* ============================================================================
  * 3D 太阳系 · 行星运行图
- * 依赖：Three.js r128（协议相对 CDN：//cdnjs.cloudflare.com/...）
+ * 依赖：Three.js r128（本地 ../../assets/vendor/three/r128/three.min.js，见 assets/vendor/README.md）
  * 所有行星/卫星/环/星空贴图均由 Canvas + 3D 值噪声程序化生成，无外部图片依赖。
  * 轨道：J2000 根数 + 开普勒方程（牛顿迭代）求解真实椭圆位置。
  * ========================================================================== */
@@ -192,8 +192,8 @@
 
 if (typeof THREE === 'undefined') {
   document.getElementById('loading').innerHTML =
-    '<div class="lbox"><div class="lname">⚠ 加载失败</div><div id="lmsg">Three.js 未能从 CDN 加载，请检查网络或允许 ' +
-    'cdnjs.cloudflare.com 访问。</div></div>';
+    '<div class="lbox"><div class="lname">⚠ 加载失败</div><div id="lmsg">Three.js 未能加载，请确认本地文件 ' +
+    '../../assets/vendor/three/r128/three.min.js 存在，并通过 node server.js 以 HTTP 打开本页。</div></div>';
   throw new Error('THREE missing');
 }
 

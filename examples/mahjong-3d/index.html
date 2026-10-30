@@ -222,10 +222,10 @@
   <div class="overlay hidden" id="loadfail">
     <div class="modal">
       <h2>⚠ 3D 资源加载失败</h2>
-      <p id="lfmsg">Three.js 未能从 CDN 加载。本页的 3D 牌桌依赖
-      <code>//cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js</code>，
-      请检查网络，或在浏览器/防火墙中允许 <code>cdnjs.cloudflare.com</code> 访问（本页无其他 CDN 依赖：牌面与图标均为本地 emoji）。<br>
-      协议相对地址（<code>//</code>）需通过 <b>http(s)</b> 访问本页；用 <code>file://</code> 直接双击打开会加载失败。</p>
+      <p id="lfmsg">Three.js 未能加载。本页的 3D 牌桌依赖本地文件
+      <code>../../assets/vendor/three/r128/three.min.js</code>，
+      请确认该文件存在，并通过 <code>node server.js</code> 以 HTTP 打开本页（本页无其他外部依赖：牌面与图标均为本地 emoji）。<br>
+      站点已改为本地化资源，不再引用外部 CDN；若你手工改回了 CDN 地址，请检查网络与防火墙设置。</p>
       <div class="row-btns">
         <button class="primary" id="lf2d">以 2D 简版继续</button>
         <button id="lfRetry">重新加载</button>
@@ -247,12 +247,12 @@
     </div>
   </div>
 
-<script src="//cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../../assets/vendor/three/r128/three.min.js"></script>
 <script>
 /* =============================================================================
  * 3D 麻将（单机四人 · 单局重置）
  * -----------------------------------------------------------------------------
- * 依赖：Three.js r128（协议相对 CDN：//cdnjs.cloudflare.com/...）；图标与牌面均用系统 emoji，无 webfont / 图标字体 CDN
+ * 依赖：Three.js r128（本地 ../../assets/vendor/three/r128/three.min.js，见 assets/vendor/README.md）；图标与牌面均用系统 emoji，无 webfont / 图标字体
  * 结构：① 规则引擎（纯 JS，无 DOM，ENGINE-START/END 可抽离到 Node 校验）
  *       ② 牌面渲染（canvas 纹理；按「真实渲染条件采样」自动在彩色 emoji / 程序化组合牌面间选择）
  *       ③ Three.js 场景（牌桌/牌池/相机/补间）与 2D 简版视图
