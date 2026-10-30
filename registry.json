@@ -317,6 +317,19 @@
       "thumbnail": null,
       "createdAt": "2026-10-26 21:27:00",
       "updatedAt": "2026-10-26 21:27:00"
+    },
+    {
+      "title": "升级（拖拉机）4人单机",
+      "description": "纯 DOM 牌桌的 4 人升级（拖拉机）单机游戏：2 副 108 张、叫主反主、埋底抠底、甩牌长套、80 分制升级与过 A，含 5 档 AI、发牌记录回放与规则开关。",
+      "url": "examples/shengjib.html",
+      "category": "game",
+      "emoji": "🃏",
+      "tags": ["game", "cards", "升级", "拖拉机", "扑克", "AI", "单机", "移动端"],
+      "status": "alpha",
+      "pinned": false,
+      "thumbnail": null,
+      "createdAt": "2026-10-29 16:50:30",
+      "updatedAt": "2026-10-29 16:50:30"
     }
   ]
 }
