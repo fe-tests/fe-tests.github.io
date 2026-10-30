@@ -22,7 +22,7 @@
     {
       "title": "Hello, LLM",
       "description": "20M 小参数语言模型的字符级生成演示，含温度/采样参数面板。",
-      "url": "examples/hello-llm.html",
+      "url": "examples/hello-llm/index.html",
       "category": "model",
       "emoji": "🐣",
       "tags": ["llm", "demo", "tiny"],
@@ -35,7 +35,7 @@
     {
       "title": "向量可视化",
       "description": "把小参数模型输出的 embedding 降维成散点图，直观看语义聚类。",
-      "url": "examples/embedding-viz.html",
+      "url": "examples/embedding-viz/index.html",
       "category": "model",
       "emoji": "🧭",
       "tags": ["embedding", "viz"],
@@ -48,7 +48,7 @@
     {
       "title": "Token 计数器",
       "description": "本地对文本做分词并统计 token 数量与占用字节。",
-      "url": "examples/token-counter.html",
+      "url": "examples/token-counter/index.html",
       "category": "tool",
       "emoji": "📐",
       "tags": ["token", "tool"],
@@ -61,7 +61,7 @@
     {
       "title": "鹈鹕骑车",
       "description": "Canvas 跑酷小游戏：鹈鹕骑车沿海岸公路狂奔，跳过石头圆木、抓鱼得分，昼夜循环与视差景观，支持二段跳。",
-      "url": "examples/pelican-bike.html",
+      "url": "examples/pelican-bike/index.html",
       "category": "experiment",
       "emoji": "🐦",
       "tags": ["canvas", "game", "demo"],
@@ -74,7 +74,7 @@
     {
       "title": "Emoji 连连看",
       "description": "emoji 素材的网页版连连看：多难度、连击、提示/洗牌/撤销、路径画线与粒子动画。",
-      "url": "examples/liankan.html",
+      "url": "examples/liankan/index.html",
       "category": "tool",
       "emoji": "🔗",
       "tags": ["game", "emoji", "match"],
@@ -87,7 +87,7 @@
     {
       "title": "Emoji 消消乐",
       "description": "点击消除相邻同色 emoji 组，重力堆积、逐轮目标计分；每轮图形种类 3~5 种，连击越大越加分。",
-      "url": "examples/emoji-match.html",
+      "url": "examples/emoji-match/index.html",
       "category": "experiment",
       "emoji": "🍬",
       "tags": ["game", "match"],
@@ -100,7 +100,7 @@
     {
       "title": "极速狂飙",
       "description": "Canvas 移动端优先赛车游戏：点击转向/加速/刹车，避开来车并收集星形道具，速度越高分越高，含分数墙记录。",
-      "url": "examples/racing-game.html",
+      "url": "examples/racing-game/index.html",
       "category": "game",
       "emoji": "🏎️",
       "tags": ["game", "canvas", "racing", "mobile"],
@@ -113,7 +113,7 @@
     {
       "title": "2048",
       "description": "经典数字合并益智游戏，Canvas 渲染带滑动/合并动画与缩放特效，支持方向键、触屏滑动和方向按钮。",
-      "url": "examples/2048.html",
+      "url": "examples/2048/index.html",
       "category": "game",
       "emoji": "🔢",
       "tags": ["game", "canvas", "puzzle", "2048"],
@@ -126,7 +126,7 @@
     {
       "title": "数独",
       "description": "经典 9x9 数独：自动生成含唯一解的谜题，多难度选择、冲突高亮、相同数字高亮、计时与通关提示。",
-      "url": "examples/sudoku.html",
+      "url": "examples/sudoku/index.html",
       "category": "game",
       "emoji": "🧩",
       "tags": ["game", "puzzle", "sudoku", "logic"],
@@ -139,7 +139,7 @@
     {
       "title": "移动靶射箭",
       "description": "拖动拉弓瞄准，箭受重力呈抛物线飞行；越靠近靶心分越高，连续命中累积连击倍率，限时限箭挑战高分。",
-      "url": "examples/archery.html",
+      "url": "examples/archery/index.html",
       "category": "game",
       "emoji": "🎯",
       "tags": ["game", "canvas", "archery", "移动靶", "连击"],
@@ -152,7 +152,7 @@
     {
       "title": "俄罗斯方块",
       "description": "经典俄罗斯方块：七种方块随机抽取，消行计分，逐级加速，含下一个/暂存预览、硬降软降、暂停与最高分记录。",
-      "url": "examples/tetris.html",
+      "url": "examples/tetris/index.html",
       "category": "game",
       "emoji": "🧱",
       "tags": ["game", "tetris", "blocks", "消除"],
@@ -165,7 +165,7 @@
     {
       "title": "太空战舰",
       "description": "驾驶战舰自动开火，走位躲弹击落敌群与首领；火力升级、回血、护盾掉落，多波次挑战高分。",
-      "url": "examples/space-warship.html",
+      "url": "examples/space-warship/index.html",
       "category": "game",
       "emoji": "🚀",
       "tags": ["game", "canvas", "shootemup", "太空", "首领"],
@@ -178,7 +178,7 @@
     {
       "title": "倒水排序",
       "description": "经典倒水益智游戏：同色倒满各管通关，4 关难度递进，支持撤销与重开，含可解性求解器保证每关有解。",
-      "url": "examples/daoshui.html",
+      "url": "examples/daoshui/index.html",
       "category": "game",
       "emoji": "💧",
       "tags": ["game", "canvas", "puzzle", "倒水", "排序"],
@@ -191,7 +191,7 @@
     {
       "title": "弹球对决",
       "description": "Canvas 弹球对决：按住蓄力击打中心球，与 AI 对线抢分，先到 10 分获胜，支持触控与全屏。",
-      "url": "examples/strike-pong.html",
+      "url": "examples/strike-pong/index.html",
       "category": "game",
       "emoji": "🏒",
       "tags": ["game", "canvas", "弹球", "对战", "触控"],
@@ -204,7 +204,7 @@
     {
       "title": "乐曲编辑器",
       "description": "按住琴键播放音调（长按决定音长），Web Audio 生成音色；可录制按下/松开的时序并严格按原节奏回放。",
-      "url": "examples/music-editor.html",
+      "url": "examples/music-editor/index.html",
       "category": "experiment",
       "emoji": "🎹",
       "tags": ["audio", "music", "webaudio", "录制", "回放"],
@@ -217,7 +217,7 @@
     {
       "title": "扫雷",
       "description": "经典扫雷：左盖揭开、右键或插旗模式标雷，首击必不踩雷，空白自动扩散，限时计雷，初/中/高三档难度。",
-      "url": "examples/minesweeper.html",
+      "url": "examples/minesweeper/index.html",
       "category": "game",
       "emoji": "💣",
       "tags": ["game", "扫雷", "minesweeper", "logic"],
@@ -230,7 +230,7 @@
     {
       "title": "红心大战",
       "description": "Windows 经典扑克红心大战网页版：4 人对战 AI，须跟花色/红心开花/先丢红心才能出 Q♠/单吃判分，桌面级牌桌与卡牌渲染，先到 100 分判负。",
-      "url": "examples/hearts.html",
+      "url": "examples/hearts/index.html",
       "category": "game",
       "emoji": "❤️",
       "tags": ["game", "poker", "扑克", "单机", "红心"],
@@ -243,7 +243,7 @@
     {
       "title": "德州扑克",
       "description": "网页版单机德州扑克：8 人坐庄，7 个 AI 对手各有性格，含完整翻牌前/后流程、加注滑杆、侧池与摊牌计分。",
-      "url": "examples/texas-holdem.html",
+      "url": "examples/texas-holdem/index.html",
       "category": "game",
       "emoji": "🃏",
       "tags": ["game", "poker", "德州", "单机", "8人"],
@@ -256,7 +256,7 @@
     {
       "title": "3D末日生存",
       "description": "Three.js 第一人称末日生存：键鼠与触屏双操控（摇杆/滑动转视角/轻点攻击），拾棍刀枪、猎兔斗狼、采果取水。",
-      "url": "examples/3d-shoot-game.html",
+      "url": "examples/3d-shoot-game/index.html",
       "category": "game",
       "emoji": "🔫",
       "tags": ["game", "3d", "threejs", "fps", "射击", "生存", "移动端", "触屏"],
@@ -269,7 +269,7 @@
     {
       "title": "3D 太阳系 · 行星运行图",
       "description": "Three.js 程序化 3D 太阳系：J2000 轨道根数 + 开普勒方程实时推进，含卫星、环系、小行星带与彗尾。",
-      "url": "examples/solar-system-3d.html",
+      "url": "examples/solar-system-3d/index.html",
       "category": "experiment",
       "emoji": "☀️",
       "tags": ["3d", "threejs", "solar-system", "太阳系", "行星", "开普勒", "可视化"],
@@ -282,7 +282,7 @@
     {
       "title": "祖玛",
       "description": "Canvas 原生祖玛：贝塞尔曲线轨道上滚动彩球链，石青蛙瞄准击发，3 个及以上同色相连即消除；连锁 COMBO 倍率、6 种道具球（引爆/冰冻/逆转），8 个手工关卡 + 无尽模式，键鼠与触屏双操控。",
-      "url": "examples/zuma.html",
+      "url": "examples/zuma/index.html",
       "category": "game",
       "emoji": "🐸",
       "tags": ["game", "canvas", "祖玛", "zuma", "消除", "关卡", "无尽模式", "移动端"],
@@ -295,7 +295,7 @@
     {
       "title": "3D 麻将",
       "description": "Three.js 3D 麻将桌：136 张无花牌四人单机，摸打吃碰杠胡、加法计番（封顶 8 番），含牌河放大、视角切换与 2D 简版降级。",
-      "url": "examples/mahjong-3d.html",
+      "url": "examples/mahjong-3d/index.html",
       "category": "game",
       "emoji": "🀄",
       "tags": ["game", "3d", "threejs", "mahjong", "麻将", "单机", "AI", "牌桌"],
@@ -308,7 +308,7 @@
     {
       "title": "3D 魔方",
       "description": "Three.js 3D 三阶魔方：26 个 cubie 整数姿态 + 程序化贴纸纹理，贴纸拖拽自动判层、键鼠标准记法（宽层 / 切片 / 整体旋转）；种子可复现打乱，逆序回放 + 序列压缩保证 100% 复原，快照时间轴任意 scrub、变速回放、撤销重做与计时，含无 WebGL 的 2D 展开图降级视图。",
-      "url": "examples/rubik-3d.html",
+      "url": "examples/rubik-3d/index.html",
       "category": "game",
       "emoji": "🧩",
       "tags": ["game", "3d", "threejs", "rubik", "魔方", "还原", "时间轴", "移动端"],
@@ -321,7 +321,7 @@
     {
       "title": "升级（拖拉机）4人单机",
       "description": "纯 DOM 牌桌的 4 人升级（拖拉机）单机游戏：2 副 108 张、叫主反主、埋底抠底、甩牌长套、80 分制升级与过 A，含 5 档 AI、发牌记录回放与规则开关。",
-      "url": "examples/shengjib.html",
+      "url": "examples/shengjib/index.html",
       "category": "game",
       "emoji": "🃏",
       "tags": ["game", "cards", "升级", "拖拉机", "扑克", "AI", "单机", "移动端"],
