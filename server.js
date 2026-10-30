@@ -61,7 +61,10 @@ const MIME = {
   '.wasm': 'application/wasm',
 };
 
-const NO_CACHE_RE = /(\.html?|\/registry\.json)$/i; // 首页与注册表：改完刷新即生效
+// 首页与注册表：改完刷新即生效。
+// 注意：本正则 test 的是磁盘绝对路径（Windows 用 \，POSIX 用 /），分隔符要两种都容许，
+// 并要求 registry.json 前是分隔符或串首，避免把 myregistry.json 之类误判成注册表。
+const NO_CACHE_RE = /(\.html?|(^|[\\/])registry\.json$)/i;
 
 /* ------------------------------ 工具函数 ------------------------------ */
 function lanIPv4() {
