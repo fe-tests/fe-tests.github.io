@@ -1,24 +1,63 @@
 <!DOCTYPE html>
+<!--
+  新演示 · 页面入口（模板）
+  ---------------------------------------------------------------------------
+  用法：复制整个 examples/template/ 目录为 examples/<slug>/，或运行
+        node tools/new-page.js <slug> --title="标题" --desc="一句话简介" --category=experiment
+  约定：
+    · 入口固定名 index.html；页面说明写同级 README.md；开发过程与详情写 docs/。
+    · 返回门户统一写 href="/"，不要写 ../index.html。
+    · 引用顶级共享资源用相对路径 ../../assets/...（站点自有样式在 assets/styles.css，
+      第三方库在 assets/vendor/<库>/<版本>/）；页面目录内部文件用 ./js/... ./css/...。
+    · 运行时不引用外部 CDN：需要的库先下载进 assets/vendor/ 并登记，见 assets/vendor/README.md。
+    · 新页面鼓励合理拆分：入口只留骨架与首屏样式，逻辑拆到 ./js/*.js（type="module"）、
+      样式超 300 行拆到 ./css/*.css；单页 < 300 行保持单文件同样合规。
+    · 拆分后必须经 node server.js 以 HTTP 访问（ES module 在 file:// 下受 CORS 限制）。
+    依赖登记（有第三方库时写在这里）：
+      依赖：无（原生 HTML/CSS/JS，零构建）
+  模板占位标记：SPLIT:CSS / SPLIT:JS —— 用 --split 创建页面时会被替换为真正的引用标签。
+-->
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>新演示</title>
+<!-- SPLIT:CSS -->
 <style>
-  body { margin: 0; font-family: system-ui, sans-serif; background: #0f1115; color: #e7eaf0; }
-  .box { max-width: 820px; margin: 40px auto; padding: 24px; background: #171a21; border: 1px solid #2a2f3a; border-radius: 16px; }
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, "PingFang SC", "Microsoft YaHei", sans-serif; background: #0f1115; color: #e7eaf0; }
+  .box { max-width: 860px; margin: 32px auto; padding: 22px; background: #171a21; border: 1px solid #2a2f3a; border-radius: 16px; }
   h1 { font-size: 20px; margin: 0 0 8px; }
-  .back { display: inline-block; margin-bottom: 16px; color: #6ea8fe; text-decoration: none; font-size: 13px; }
+  .hint { color: #98a2b3; font-size: 13px; margin: 0 0 18px; }
+  .back { display: inline-block; margin: 18px 0 0 32px; color: #6ea8fe; text-decoration: none; font-size: 13px; }
+  .back:hover { text-decoration: underline; }
+  /* 移动端优先：触控目标 ≥ 44px，禁止双击缩放时加 user-scalable=no */
+  @media (max-width: 640px) {
+    .box { margin: 12px; padding: 16px; }
+    .back { margin-left: 12px; }
+  }
 </style>
 </head>
 <body>
 <a class="back" href="/">← 返回首页</a>
 <div class="box">
   <h1>🚀 新演示</h1>
+  <p class="hint">复制本模板后：改标题 → 写 README.md → 在 docs/design.md 记设计、docs/devlog.md 记过程。</p>
   <!-- 在此编写你的原生页面内容 -->
 </div>
+
+<!-- 需要第三方库时：先按 assets/vendor/README.md 下载入库，再在 </body> 前用相对路径加载，
+     使用前必须探测并给出可读的失败面板（不得白屏）：
+       <script src="../../assets/vendor/three/r128/three.min.js"></script>
+       <script>if (typeof THREE === 'undefined') { 显示失败面板; return; }</script>
+     能程序化生成的素材（贴图/纹理/音效/关卡/字体子集）一律代码生成，不下载文件。 -->
+<!-- SPLIT:JS -->
 <script>
-  // 在此编写页面逻辑
+  'use strict';
+  // 在此编写页面逻辑（单文件模式）。
+  // 拆分建议：入口只保留启动流程，按职责拆成 ./js/state.js（数据与状态）、
+  // ./js/render.js（渲染）、./js/input.js（键鼠与触控）、./js/audio.js（音频）等。
 </script>
 </body>
 </html>
