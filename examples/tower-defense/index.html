@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<!--
+  塔防要塞（tower-defense）· 页面入口
+  创建：2026-10-31 10:36:03 · 由 tools/new-page.js --split 生成骨架，逻辑已按职责拆分
+  文档：README.md（玩法与用法）· docs/design.md（设计）· docs/devlog.md（开发过程）
+  依赖：无（原生 HTML/CSS/JS + Canvas 2D + WebAudio 合成音效，零构建、零 CDN）
+  路径约定：返回门户 href="/"；顶级共享资源 ../../assets/...；页面自身文件 ./js/... ./css/...
+  已拆分：入口只留骨架与各屏幕 DOM，样式在 ./css/ui.css，逻辑在 ./js/*.js
+        （ES module，需 HTTP 访问，不能 file:// 直开；入口内置可读失败面板，不白屏）
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#070b12">
+<meta name="description" content="塔防要塞 · 原生 Canvas 塔防：12 个手工关卡 + 无尽模式、10 种塔三级升级、14 种敌人与 3 个 BOSS、3 个主动技能，竖屏拇指热区与双指捏合缩放。">
+<title>塔防要塞</title>
+<link rel="stylesheet" href="./css/ui.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- ============ 顶部工具条（44px 基准，随安全区） ============ -->
+  <div id="topbar">
+    <a class="back" href="/">← 门户</a>
+    <div class="brand"><h1>塔防要塞</h1><span class="sub">TOWER DEFENSE</span></div>
+    <div class="tools">
+      <button class="iconbtn" id="btn-sound" title="声音开关" aria-label="声音开关">🔊</button>
+      <button class="iconbtn" id="btn-fx" title="特效档位" aria-label="特效档位">✨</button>
+      <button class="iconbtn" id="btn-help" title="玩法说明" aria-label="玩法说明">❔</button>
+      <button class="iconbtn" id="btn-pause" title="暂停 (P)" aria-label="暂停">⏸</button>
+    </div>
+  </div>
+
+  <!-- ============ 战场：画布 + 画布内 HUD ============ -->
+  <div id="stage">
+    <canvas id="game" aria-label="塔防要塞战场"></canvas>
+
+    <div class="hud" id="hud">
+      <!-- 左上：基地血 / 金币 -->
+      <div class="hud-lt">
+        <div class="stat"><span class="k">基地</span><span class="v hp" id="h-hp">20</span></div>
+        <div class="stat"><span class="k">金币</span><span class="v gold" id="h-gold">0</span></div>
+      </div>
+      <!-- 右上：波次 / 得分 -->
+      <div class="hud-rt">
+        <div class="stat r"><span class="k">波次</span><span class="v" id="h-wave">0/0</span></div>
+        <div class="stat r"><span class="k">得分</span><span class="v" id="h-score">0</span></div>
+      </div>
+      <!-- 顶部居中：波次进度 -->
+      <div id="wave-rail"><div id="wave-fill"></div><span id="wave-tag">准备</span></div>
+
+      <!-- 右侧技能栏（冷却环由 conic-gradient 驱动） -->
+      <div id="skills">
+        <button class="skill" data-skill="meteor" aria-label="流星雨">☄️<i></i></button>
+        <button class="skill" data-skill="blizzard" aria-label="冰封新星">🧊<i></i></button>
+        <button class="skill" data-skill="greed" aria-label="富矿">💰<i></i></button>
+      </div>
+
+      <!-- 左下相机控制 -->
+      <div id="camctl">
+        <button class="cbtn" data-cam="fit" aria-label="看全图">🧭</button>
+        <button class="cbtn" data-cam="in" aria-label="放大">＋</button>
+        <button class="cbtn" data-cam="out" aria-label="缩小">－</button>
+      </div>
+
+      <!-- 底部居中：下一波预览 + 速度切换 -->
+      <div id="nextwave">
+        <span class="nw-k">下一波</span><span class="nw-list" id="nw-icons"></span>
+        <button class="spbtn on" id="btn-speed" data-sp="1" aria-label="战斗速度">×1</button>
+      </div>
+
+      <!-- 建造模式提示条 -->
+      <div id="buildtip"><b id="bt-name">箭塔</b><span id="bt-cost">💰40</span><span class="bt-x" id="bt-cancel">✕ 取消</span></div>
+
+      <div id="banner"></div>
+      <div id="toast"></div>
+      <div id="fps"></div>
+    </div>
+
+    <!-- ============ 覆盖屏（DOM 面板） ============ -->
+    <div id="overlay" class="show">
+
+      <!-- 主菜单 -->
+      <div class="screen show" data-screen="menu">
+        <div class="panel">
+          <h2><span class="em">🏰</span>塔防要塞</h2>
+          <p class="lead">敌人沿道路涌向你的基地。在路旁<b>放置并升级防御塔</b>，用<b>主动技能</b>救火，
+            把每一波敌人挡在门外。12 个手工关卡各有独路、独机制与天气；通关拿星解锁下一关。</p>
+          <div class="chips">
+            <span class="chip">12 关 + 无尽</span><span class="chip">10 塔 ×3 级</span>
+            <span class="chip">14 敌人 + 3 BOSS</span><span class="chip">3 主动技能</span>
+            <span class="chip">竖屏拇指热区</span><span class="chip">纯原生 Canvas</span>
+          </div>
+          <div class="row">
+            <button class="btn" id="m-play">▶ 开始第 <b id="m-play-no">1</b> 关</button>
+            <button class="btn ghost" id="m-levels">🗺 关卡选择</button>
+            <button class="btn ghost" id="m-endless">♾ 无尽模式</button>
+            <button class="btn ghost" id="m-help2">📖 玩法 / 图鉴</button>
+            <button class="btn ghost" id="m-settings">⚙ 设置</button>
+          </div>
+          <div class="starsline">累计星数 <b id="m-stars">0</b> / <span id="m-starsmax">36</span></div>
+        </div>
+      </div>
+
+      <!-- 关卡选择 -->
+      <div class="screen" data-screen="levels">
+        <div class="panel">
+          <h2><span class="em">🗺</span>关卡选择</h2>
+          <p class="lead">通关得 1 星即解锁下一关；星数越高，奖励越厚。进度自动存本地。</p>
+          <div id="lvgrid"></div>
+          <div class="row">
+            <button class="btn ghost" id="l-back">← 返回</button>
+            <button class="btn ghost sm" id="l-reset">清空存档</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 玩法 / 图鉴 -->
+      <div class="screen" data-screen="help">
+        <div class="panel wide">
+          <h2><span class="em">📖</span>玩法与图鉴</h2>
+          <div class="tabs" id="help-tabs">
+            <button class="tab on" data-tab="ops">🎮 操作</button>
+            <button class="tab" data-tab="towers">🗼 防御塔</button>
+            <button class="tab" data-tab="enemies">👾 敌人</button>
+            <button class="tab" data-tab="sys">⚙ 系统</button>
+          </div>
+          <div class="tabpane show" data-pane="ops"></div>
+          <div class="tabpane" data-pane="towers"></div>
+          <div class="tabpane" data-pane="enemies"></div>
+          <div class="tabpane" data-pane="sys"></div>
+          <div class="row"><button class="btn" id="h-close">明白了</button></div>
+        </div>
+      </div>
+
+      <!-- 设置 -->
+      <div class="screen" data-screen="settings">
+        <div class="panel" style="max-width:460px">
+          <h2><span class="em">⚙</span>设置</h2>
+          <div class="setlist">
+            <div class="setrow"><span>音效</span><button class="tgl" data-set="sound">开</button></div>
+            <div class="setrow"><span>网格辅助线</span><button class="tgl" data-set="grid">开</button></div>
+            <div class="setrow"><span>伤害数字</span><button class="tgl" data-set="dmgNum">开</button></div>
+            <div class="setrow"><span>连放模式（放塔后保持选中）</span><button class="tgl" data-set="keep">开</button></div>
+            <div class="setrow"><span>自动开波</span><button class="tgl" data-set="auto">关</button></div>
+            <div class="setrow"><span>特效档位</span>
+              <span class="seg" data-set="fx">
+                <button class="segb" data-v="0">流畅</button><button class="segb" data-v="1">均衡</button><button class="segb" data-v="2">华丽</button>
+              </span>
+            </div>
+            <div class="setrow"><span>默认战斗速度</span>
+              <span class="seg" data-set="speed">
+                <button class="segb" data-v="1">×1</button><button class="segb" data-v="2">×2</button><button class="segb" data-v="3">×3</button>
+              </span>
+            </div>
+          </div>
+          <p class="lead sm">特效档位影响粒子上限与震屏；低端设备建议「流畅」。设置与关卡进度存在本地 <code>localStorage</code>。</p>
+          <div class="row"><button class="btn" id="s-close">关闭</button></div>
+        </div>
+      </div>
+
+      <!-- 暂停 -->
+      <div class="screen" data-screen="pause">
+        <div class="panel" style="max-width:420px">
+          <h2><span class="em">⏸</span>已暂停</h2>
+          <p class="lead">按 <span class="kbd">P</span> 或 <span class="kbd">Esc</span> 继续。</p>
+          <div class="row">
+            <button class="btn" id="p-resume">▶ 继续</button>
+            <button class="btn ghost" id="p-restart">↺ 重开本关</button>
+            <button class="btn ghost" id="p-settings">⚙ 设置</button>
+            <button class="btn ghost" id="p-menu">🗺 关卡</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 胜利 -->
+      <div class="screen" data-screen="win">
+        <div class="panel" style="max-width:520px">
+          <h2><span class="em">🎉</span>守住了</h2>
+          <div id="stars"><span>★</span><span>★</span><span>★</span></div>
+          <div class="stats">
+            <div class="statcard"><div class="k">得分</div><div class="v gold" id="w-score">0</div></div>
+            <div class="statcard"><div class="k">击杀</div><div class="v" id="w-kills">0</div></div>
+            <div class="statcard"><div class="k">漏怪</div><div class="v" id="w-leak">0</div></div>
+            <div class="statcard"><div class="k">剩余基地</div><div class="v" id="w-hp">0</div></div>
+            <div class="statcard"><div class="k">建塔</div><div class="v" id="w-towers">0</div></div>
+            <div class="statcard"><div class="k">用时</div><div class="v" id="w-time">0:00</div></div>
+          </div>
+          <div class="row">
+            <button class="btn" id="w-next">下一关 →</button>
+            <button class="btn ghost" id="w-replay">↺ 再玩一次</button>
+            <button class="btn ghost" id="w-menu">🗺 关卡</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 失败 -->
+      <div class="screen" data-screen="lose">
+        <div class="panel" style="max-width:470px">
+          <h2><span class="em">💥</span>基地被攻破</h2>
+          <p class="lead" id="d-why">敌人沿路推进到了终点。把<b>减速塔</b>放在长直路、<b>高伤塔</b>放在弯道交叉口通常更稳。</p>
+          <div class="stats">
+            <div class="statcard"><div class="k">坚持到</div><div class="v gold" id="d-wave">0/0</div></div>
+            <div class="statcard"><div class="k">得分</div><div class="v" id="d-score">0</div></div>
+            <div class="statcard"><div class="k">击杀</div><div class="v" id="d-kills">0</div></div>
+            <div class="statcard"><div class="k">漏怪</div><div class="v" id="d-leak">0</div></div>
+          </div>
+          <div class="row">
+            <button class="btn" id="d-retry">↺ 重试本关</button>
+            <button class="btn ghost" id="d-menu">🗺 关卡</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 无尽结算 -->
+      <div class="screen" data-screen="endless">
+        <div class="panel" style="max-width:500px">
+          <h2><span class="em">♾</span>无尽模式结束</h2>
+          <div class="stats">
+            <div class="statcard"><div class="k">坚持波次</div><div class="v gold" id="e-wave">0</div></div>
+            <div class="statcard"><div class="k">得分</div><div class="v" id="e-score">0</div></div>
+            <div class="statcard"><div class="k">击杀</div><div class="v" id="e-kills">0</div></div>
+            <div class="statcard"><div class="k">最高纪录</div><div class="v" id="e-best">0</div></div>
+          </div>
+          <div class="row">
+            <button class="btn" id="e-retry">↺ 再来一次</button>
+            <button class="btn ghost" id="e-menu">🗺 关卡</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 底部：建造塔盘（拇指热区） ============ -->
+  <div id="tray">
+    <button id="btn-wave"><span class="wv-em">🌊</span><span class="wv-t" id="wv-t">开波</span></button>
+    <div id="tray-list" aria-label="防御塔列表"></div>
+    <button class="tray-keep on" id="btn-keep" title="连放模式" aria-label="连放模式">🔁</button>
+  </div>
+
+  <!-- 塔详情抽屉：#app 的子节点，滑入后覆盖塔盘（游戏内可用，不依赖覆盖屏） -->
+  <div id="drawer">
+    <div class="dw-head">
+      <span class="dw-em" id="dw-em">🏹</span>
+      <div class="dw-t"><b id="dw-name">箭塔</b><span id="dw-lv">Lv.1</span></div>
+      <button class="dw-x" id="dw-close" aria-label="关闭详情">✕</button>
+    </div>
+    <div class="dw-grid">
+      <div class="dw-st"><span class="k">伤害</span><b id="dw-dmg">0</b></div>
+      <div class="dw-st"><span class="k">射程</span><b id="dw-rng">0</b></div>
+      <div class="dw-st"><span class="k">射速</span><b id="dw-rate">0</b></div>
+      <div class="dw-st"><span class="k">DPS</span><b id="dw-dps">0</b></div>
+    </div>
+    <div class="dw-note" id="dw-note">—</div>
+    <div class="dw-acts">
+      <button class="btn sm" id="dw-up">⬆ 升级 <b id="dw-up-cost">💰40</b></button>
+      <button class="btn ghost sm" id="dw-target">🎯 最先</button>
+      <button class="btn ghost sm" id="dw-sell">💰 卖 <b id="dw-sell-cost">28</b></button>
+    </div>
+  </div>
+
+  <div id="hint"><b>点塔卡 → 点格子</b> 建造 · <b>点塔</b> 升级/出售 · <b>双指</b> 缩放平移 · <b>长按</b> 快速建造 · 桌面 <b>1-9</b> 选塔 <b>Space</b> 开波 <b>J/K/L</b> 技能</div>
+</div>
+
+<!-- file:// 直开 / 模块加载失败的可读面板（硬性要求：不得白屏） -->
+<div id="bootfail">
+  <div class="bf-box">
+    <div class="bf-em">🧱</div>
+    <h3>页面模块没能加载</h3>
+    <p class="bf-msg">本页已按规范拆成 <code>./js/*.js</code>（ES module）。</p>
+    <ol>
+      <li>确认文件存在：<code>examples/tower-defense/js/main.js</code>、<code>examples/tower-defense/css/ui.css</code></li>
+      <li>在站点根目录执行 <code>node server.js</code>（默认监听 <code>0.0.0.0:39977</code>）</li>
+      <li>用 HTTP 打开：<code>http://localhost:39977/examples/tower-defense/</code>（手机同 Wi-Fi 用终端打印的局域网地址）</li>
+    </ol>
+    <p class="bf-sub">ES module 在 <code>file://</code> 下受 CORS 限制，双击直开必然失败——这不是页面的 bug。</p>
+  </div>
+</div>
+
+<script type="module" src="./js/main.js"></script>
+<script>
+  /* 启动守卫：模块加载失败（file:// 直开 / 路径写错 / 语法错误）时给出可读面板；
+     main.js 启动成功会置 window.__tdBooted = true。 */
+  (function () {
+    var box = document.getElementById('bootfail');
+    function show(msg) {
+      if (!box) return;
+      var m = box.querySelector('.bf-msg');
+      if (m && msg) m.textContent = '模块加载失败：' + msg;
+      box.classList.add('show');
+    }
+    window.__tdBootFail = show;
+    window.addEventListener('error', function (e) {
+      if (window.__tdBooted) return;
+      show((e && e.message ? e.message : '未知错误') + '（请用 node server.js 经 HTTP 打开本页）');
+    }, true);
+    setTimeout(function () {
+      if (window.__tdBooted) return;
+      if (location.protocol === 'file:') show('拆分过的页面（ES module）不能 file:// 直开。');
+    }, 1200);
+  })();
+</script>
+</body>
+</html>

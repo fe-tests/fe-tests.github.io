@@ -1,0 +1,5 @@
+{
+  "type": "module",
+  "private": true,
+  "description": "仅用于把本目录的 .js 标成 ES Module：让 node examples/tower-defense/tools/smoke.mjs 不再打印 MODULE_TYPELESS_PACKAGE_JSON 警告。页面本身零依赖、不打包、不安装任何东西。"
+}

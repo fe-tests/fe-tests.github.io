@@ -330,6 +330,19 @@
       "thumbnail": null,
       "createdAt": "2026-10-29 16:50:30",
       "updatedAt": "2026-10-29 16:50:30"
+    },
+    {
+      "title": "塔防要塞",
+      "description": "Canvas 塔防：12 关 + 无尽、10 塔 ×3 级、14 种敌人 + 3 BOSS，竖屏拇指热区与捏合缩放地图。",
+      "url": "examples/tower-defense/index.html",
+      "category": "game",
+      "emoji": "🏰",
+      "tags": ["game","canvas","tower-defense","塔防","关卡","移动端","触控"],
+      "status": "stable",
+      "pinned": false,
+      "thumbnail": null,
+      "createdAt": "2026-10-31 10:36:03",
+      "updatedAt": "2026-10-31 14:24:00"
     }
   ]
 }
