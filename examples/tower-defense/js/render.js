@@ -1,14 +1,51 @@
 /* 渲染层：把纯逻辑状态画到 canvas 上。
  * 性能策略：地形（草地/道路/石台/障碍）在切关时一次性烘焙进离屏画布，
  * 每帧只做「一次 blit + 动态图层」；粒子/文字按 FX 档位降级；离屏实体裁剪。
- * 相机：letterbox 适配 + 捏合缩放（fit..2.6x）+ 边界钳制。渲染层只读状态，不改状态。 */
+ * 相机：视口 = 全图 letterbox 铺满，**默认禁缩放**（产品决策，见 docs/design.md 与 docs/devlog.md #25）；
+ *      zoom 恒等于铺满比例 fit，平移由 clampCam 钳死为居中，因此「落点瓦只由手指决定、与相机变化无关」。
+ * 渲染层只读状态，不改状态。 */
 import {
   TILE, GRID_W, GRID_H, MAP_W, MAP_H, CELL, THEME_DEFAULT, TAU,
   clamp, DPR_MAX, FX_LEVELS, mulberry32, seedOf,
 } from './config.js';
 import { statsOf, rangePx, pathPos } from './engine.js';
 
-const MAX_ZOOM = 2.6;
+/* ---------- 建造落点准星：按「整瓦」抬升（纯函数，Node 侧可直接测） ----------
+ * 为什么是整瓦：抬升量若按屏幕像素算，落到世界要 /zoom，竖屏 fit≈0.38 时 36px = 1.5 瓦、
+ * 放大到 2.6x 时只有 0.2 瓦——同一次点按在不同缩放下差 1~2 格（这是历史错位的根因）。
+ * 取整瓦后：预览瓦 == 落塔瓦，且手指在同一瓦内上下移动不会抖到隔壁瓦。
+ * RETICLE_LIFT_PX = 「至少让开指尖 footprint」的屏幕像素意图；LIFT_MIN_TILES = 决策下限。 */
+export const RETICLE_LIFT_PX = 36;
+export const LIFT_MIN_TILES = 2;
+export const TAP_SNAP_PX = 26;      // 非建造态「点塔」吸附半径（屏幕 CSS px；fit 竖屏瓦片仅 24px，必须吸附）
+export const RETICLE_MIN_PX = 14;   // 准星环最小屏幕半径，保证小缩放时仍看得见
+
+/** 触屏落点抬升瓦数；鼠标/手写笔所见即所得（0 瓦）。禁缩放下恒为 LIFT_MIN_TILES。 */
+export function reticleLiftTiles(zoom, type) {
+  if (type === 'mouse' || type === 'pen') return 0;
+  const z = Number.isFinite(zoom) && zoom > 0 ? zoom : 1;
+  return Math.max(LIFT_MIN_TILES, Math.ceil(RETICLE_LIFT_PX / (z * TILE)));
+}
+
+/** 屏幕 CSS px → 世界坐标（与 Renderer.screenToWorld 同一口径） */
+export function screenToWorldPt(view, sx, sy) {
+  const z = view && Number.isFinite(view.zoom) && view.zoom > 0 ? view.zoom : 1;
+  return { x: (view && view.x ? view.x : 0) + sx / z, y: (view && view.y ? view.y : 0) + sy / z };
+}
+
+/** 屏幕 CSS px → 落塔瓦：先在屏幕上抬 liftTiles 整瓦，再换算世界坐标取整瓦中心。
+ *  inb 表示「手指所在的瓦」是否在地图内（用于选塔/取消判定）；落塔瓦本身由调用方钳制。 */
+export function screenToTile(sx, sy, view, liftTiles = 0) {
+  const z = view && Number.isFinite(view.zoom) && view.zoom > 0 ? view.zoom : 1;
+  const w = screenToWorldPt(view, sx, sy - liftTiles * TILE * z);
+  const tx = Math.floor(w.x / TILE), ty = Math.floor(w.y / TILE);
+  const raw = screenToWorldPt(view, sx, sy);
+  const rx = Math.floor(raw.x / TILE), ry = Math.floor(raw.y / TILE);
+  return {
+    tx, ty, x: (tx + 0.5) * TILE, y: (ty + 0.5) * TILE,
+    inb: rx >= 0 && ry >= 0 && rx < GRID_W && ry < GRID_H,
+  };
+}
 
 /* ---------------- 地形烘焙 ---------------- */
 function grassTile(g, theme, rng, x, y, pad) {
@@ -230,10 +267,11 @@ function towerBody(g, t, st, skin, r) {
   }
 }
 
-export function drawTower(g, st, t, sel) {
+export function drawTower(g, st, t, sel, ghost) {
   const skin = TOWER_SKIN[t.id] || TOWER_SKIN.arrow;
   const r = TILE * 0.42;
   g.save();
+  if (ghost) g.globalAlpha = 0.5;
   g.translate(t.px, t.py);
   if (sel) {
     g.strokeStyle = skin.c; g.lineWidth = 2;
@@ -244,7 +282,7 @@ export function drawTower(g, st, t, sel) {
   g.fillStyle = 'rgba(255,255,255,.06)';
   roundRect(g, -r, -r * 0.86, r * 2, r * 0.6, 6); g.fill();
   towerBody(g, t, st, skin, r);
-  for (let i = 0; i < t.lv; i++) {
+  for (let i = 0; !ghost && i < t.lv; i++) {   // 幽灵预览不画等级点（会暗示等级，误导）
     g.fillStyle = i === 2 ? '#ff9d4a' : i === 1 ? '#f2c14e' : '#9fb6d4';
     g.beginPath(); g.arc(-r + 6 + i * 7, r * 0.7, 2.6, 0, TAU); g.fill();
   }
@@ -259,8 +297,10 @@ export function drawTower(g, st, t, sel) {
 const ELITE_RING = ['', '#f2c14e', '#ff6b6b'];
 const FONT = 'system-ui, "PingFang SC", "Microsoft YaHei", sans-serif';
 
-export function drawEnemy(g, st, e, tier) {
+export function drawEnemy(g, st, e, tier, zoom = 1) {
   const size = e.size * TILE;
+  /* 血条与名牌是「屏幕信息」：按 1/zoom 折算，禁缩放后竖屏 fit(≈0.38) 也看得清（世界 12px 只剩 4.6 CSS px） */
+  const k = 1 / (Number.isFinite(zoom) && zoom > 0 ? zoom : 1);
   g.save();
   g.translate(e.x, e.y);
   if (e.flying) {
@@ -358,18 +398,19 @@ export function drawEnemy(g, st, e, tier) {
     g.beginPath(); g.arc(size * 0.7, -size * 0.7, 3, 0, TAU); g.fill();
   }
   const hpk = e.hpMax > 0 ? clamp(e.hp / e.hpMax, 0, 1) : 0;
+  const barW = Math.max(size * 1.9, 16 * k), barY = -size - (e.boss ? 14 : 8) * k, barH = (e.boss ? 5 : 3.2) * k;
   if (hpk < 1 || e.boss) {
-    const w = Math.max(size * 1.9, 16), y = -size - (e.boss ? 14 : 8), hh = e.boss ? 5 : 3.2;
     g.fillStyle = 'rgba(0,0,0,.55)';
-    g.fillRect(-w / 2, y, w, hh);
+    g.fillRect(-barW / 2, barY, barW, barH);
     g.fillStyle = e.boss ? '#ff6b6b' : hpk > 0.5 ? '#3ddc97' : hpk > 0.25 ? '#f2c14e' : '#ff6b6b';
-    g.fillRect(-w / 2 + 0.5, y + 0.5, (w - 1) * hpk, hh - 1);
+    g.fillRect(-barW / 2 + 0.5 * k, barY + 0.5 * k, (barW - k) * hpk, Math.max(1, barH - k));
   }
   if (e.boss || e.elite > 1) {
-    g.font = (e.boss ? '600 12px ' : '600 10px ') + FONT;
+    const fs = Math.max(e.boss ? 12 : 10, (e.boss ? 12 : 11) * k);
+    g.font = `600 ${fs.toFixed(1)}px ` + FONT;
     g.textAlign = 'center';
     g.fillStyle = e.boss ? 'rgba(255,255,255,.9)' : '#ff9d4a';
-    g.fillText(e.boss ? e.def.name : e.eliteName, 0, -size - (e.boss ? 20 : 12));
+    g.fillText(e.boss ? e.def.name : e.eliteName, 0, barY - barH - (e.boss ? 6 : 4) * k);
   }
   g.restore();
 }
@@ -576,38 +617,74 @@ export function drawRange(g, st, t, rangePxOverride) {
   g.restore();
 }
 
-/** 触控建造指示器：指尖上方 RETICLE_LIFT px 的落点准星（由 game 层算好世界坐标传入） */
-export const RETICLE_LIFT = 36;
-
-export function drawReticle(g, st, ui) {
+/** 建造落点指示器（世界坐标下绘制，线宽一律 /view.zoom 折算成「屏幕像素下限」）。
+ *  ui.reticle = {tx,ty,x,y}：x/y 必须是**落瓦中心的世界坐标**（历史 bug：game 侧只给 wx/wy，
+ *  p.x/p.y 是 undefined，canvas 的 translate 对非有限值直接忽略 → 准星钉死在地图左上角，
+ *  玩家看到预览在一处、塔落在另一处。见 docs/devlog.md #25）。
+ *  finger = 指尖屏幕坐标（CSS px），用来画「指尖 → 落点」的连线，让整瓦抬升自解释。 */
+export function drawReticle(g, st, ui, view, finger) {
   const p = ui.reticle;
   const ok = ui.reticleOk;
-  const size = TILE * 0.52;
+  const z = view && Number.isFinite(view.zoom) && view.zoom > 0 ? view.zoom : 1;
+  const col = ok ? '#3ddc97' : '#ff6b6b';
+  const size = Math.max(TILE * 0.52, RETICLE_MIN_PX / z);   // 屏幕半径不低于 14 CSS px
   g.save();
   g.translate(p.x, p.y);
-  g.strokeStyle = ok ? 'rgba(61,220,151,.95)' : 'rgba(255,107,107,.95)';
-  g.lineWidth = 2.5;
+  /* 落瓦整格高亮：明确「要落这一格」 */
+  g.globalAlpha = ok ? 0.16 : 0.13;
+  g.fillStyle = col;
+  g.fillRect(-TILE / 2, -TILE / 2, TILE, TILE);
+  g.globalAlpha = 0.95;
+  g.strokeStyle = col;
+  g.lineWidth = 2 / z;
+  g.strokeRect(-TILE / 2 + 1, -TILE / 2 + 1, TILE - 2, TILE - 2);
+  /* 射程圈 */
+  const r = ui.buildRange;
+  if (ui.buildDef && r) {
+    g.globalAlpha = 0.12;
+    g.fillStyle = col;
+    g.beginPath(); g.arc(0, 0, r, 0, TAU); g.fill();
+    g.globalAlpha = 0.5;
+    g.lineWidth = 1.4 / z;
+    g.beginPath(); g.arc(0, 0, r, 0, TAU); g.stroke();
+  }
+  /* 准星环 + 十字刻度 */
+  g.globalAlpha = 0.95;
+  g.strokeStyle = col;
+  g.lineWidth = 2.5 / z;
   g.beginPath(); g.arc(0, 0, size, 0, TAU); g.stroke();
   g.globalAlpha = 0.35;
   g.beginPath(); g.arc(0, 0, size * 0.55, 0, TAU); g.stroke();
-  g.globalAlpha = 1;
+  g.globalAlpha = 0.9;
   g.beginPath();
   for (const a of [0, Math.PI / 2, Math.PI, Math.PI * 1.5]) {
     g.moveTo(Math.cos(a) * size * 0.75, Math.sin(a) * size * 0.75);
     g.lineTo(Math.cos(a) * size * 1.25, Math.sin(a) * size * 1.25);
   }
   g.stroke();
-  const r = ui.buildRange;
-  if (ui.buildDef && r) {
-    g.globalAlpha = 0.12;
-    g.fillStyle = ok ? '#3ddc97' : '#ff6b6b';
-    g.beginPath(); g.arc(0, 0, r, 0, TAU); g.fill();
-    g.globalAlpha = 0.5;
-    g.strokeStyle = ok ? '#3ddc97' : '#ff6b6b';
-    g.lineWidth = 1.4;
-    g.beginPath(); g.arc(0, 0, r, 0, TAU); g.stroke();
-  }
   g.restore();
+  /* 幽灵塔：预览的就是要落的那座塔（含朝向），5 折透明 */
+  if (ui.buildDef) {
+    drawTower(g, st, {
+      id: ui.buildDef.id, x: p.tx, y: p.ty, px: p.x, py: p.y,
+      lv: 1, aim: 0, flash: 0, uid: -1,
+    }, false, true);
+  }
+  /* 指尖 → 落点连线：抬升是「整瓦」的，画出来玩家才知道自己瞄准的格子在哪 */
+  if (finger && Number.isFinite(finger.x) && Number.isFinite(finger.y)) {
+    const s = screenToWorldPt(view, finger.x, finger.y);
+    g.save();
+    g.globalAlpha = 0.5;
+    g.strokeStyle = col;
+    g.lineWidth = 2 / z;
+    g.setLineDash([6 / z, 6 / z]);
+    g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(s.x, s.y); g.stroke();
+    g.setLineDash([]);
+    g.globalAlpha = 0.8;
+    g.fillStyle = '#ffffff';
+    g.beginPath(); g.arc(s.x, s.y, 5 / z, 0, TAU); g.fill();
+    g.restore();
+  }
   void st;
 }
 
@@ -643,14 +720,15 @@ export class Renderer {
     this.fitView(st, !!st);
   }
 
-  /** 适配窗口：zoom 下限 = 铺满视口的 fit，上限 2.6x；keepCenter 时保持当前视野中心 */
+  /** 视口 = 全图 letterbox 铺满：zoom 恒 = fit（产品决策：默认禁缩放，docs/design.md §4 / devlog #25）。
+   *  keepCenter 时保持视野中心语义；因 zoom 固定，clampCam 会把视角钳成居中，平移天然失效。 */
   fitView(st, keepCenter) {
     const fit = Math.min(this.cssW / MAP_W, this.cssH / MAP_H);
     const v = this.view;
     const cx = v.x + this.cssW / (2 * Math.max(0.0001, v.zoom));
     const cy = v.y + this.cssH / (2 * Math.max(0.0001, v.zoom));
     v.fit = fit;
-    v.zoom = clamp(v.zoom * (keepCenter ? 1 : 1), fit, MAX_ZOOM);
+    v.zoom = fit;
     if (!keepCenter) { this.centerOn(st, MAP_W / 2, MAP_H / 2); return; }
     this.centerOn(st, cx, cy);
   }
@@ -663,14 +741,9 @@ export class Renderer {
     v.y = MAP_H <= vh ? (MAP_H - vh) / 2 : clamp(cy - vh / 2, 0, MAP_H - vh);
   }
 
-  zoomAt(sx, sy, factor) {
-    const v = this.view;
-    const before = this.screenToWorld(sx, sy);
-    v.zoom = clamp(v.zoom * factor, v.fit, MAX_ZOOM);
-    const after = this.screenToWorld(sx, sy);
-    v.x += before.x - after.x; v.y += before.y - after.y;
-    this.clampCam();
-  }
+  /** 已按决策禁用缩放：保留函数形状（input / 测试 / 未来 cover 模式共用调用点），缩放量被忽略。
+   *  忽略而非删除的理由：调用方有 4 处，删掉会让「缩放入口已清空」这件事在代码里没有落点。 */
+  zoomAt() { /* 禁缩放：视口锁 fit，缩放量忽略（见 fitView 注释） */ }
 
   panBy(dx, dy) {
     const v = this.view;
@@ -678,6 +751,8 @@ export class Renderer {
     this.clampCam();
   }
 
+  /** 边界钳制。zoom === fit 时 vw/vh 必 ≥ 地图边长 → 视角被钳成居中，
+   *  因此禁缩放后 panBy / 方向键平移都是 no-op（保留调用点，不新增分支）。 */
   clampCam() {
     const v = this.view;
     const vw = this.cssW / v.zoom, vh = this.cssH / v.zoom;
@@ -731,7 +806,7 @@ export class Renderer {
 
     if (this.terrain) g.drawImage(this.terrain, 0, 0);
     drawSpawns(g, st);
-    if (this.showGrid) this.drawGrid(g, st, ui);
+    if (this.showGrid) this.drawGrid(g, st, ui, v.zoom);
     drawFlow(g, st);
     drawBase(g, st);
 
@@ -740,9 +815,9 @@ export class Renderer {
     const tier = this.tier;
 
     if (ui.selected) drawRange(g, st, ui.selected, 0);
-    if (ui.reticle) drawReticle(g, st, ui);
+    if (ui.reticle) drawReticle(g, st, ui, v, ui.finger);
     for (const t of st.towers) if (vis(t.px, t.py)) drawTower(g, st, t, ui.selected === t);
-    for (const e of st.enemies) if (e.alive && vis(e.x, e.y)) drawEnemy(g, st, e, tier);
+    for (const e of st.enemies) if (e.alive && vis(e.x, e.y)) drawEnemy(g, st, e, tier, v.zoom);
     drawShots(g, st, tier);
     if (ui.dmgNum) drawFloaters(g, st);
     this.fx.draw(g);
@@ -754,18 +829,21 @@ export class Renderer {
     this.fx.drawFlash(g, this.cssW, this.cssH);
   }
 
-  drawGrid(g, st, ui) {
+  drawGrid(g, st, ui, zoom = 1) {
     const pads = st.level.build === 'pads';
+    const k = 1 / (Number.isFinite(zoom) && zoom > 0 ? zoom : 1);
     g.save();
-    g.strokeStyle = pads ? 'rgba(255,255,255,.05)' : 'rgba(255,255,255,.07)';
-    g.lineWidth = 1;
+    /* 建造态的网格是「瞄准辅助」：线宽与浓度按 1/zoom 折算，竖屏 fit(≈0.38) 下也能看清落点格 */
+    const aiming = !!ui.buildId || !!ui.armed;
+    g.strokeStyle = aiming ? 'rgba(120,200,160,.18)' : (pads ? 'rgba(255,255,255,.05)' : 'rgba(255,255,255,.07)');
+    g.lineWidth = (aiming ? 1.15 : 1) * k;
     g.beginPath();
     for (let x = 0; x <= GRID_W; x++) { g.moveTo(x * TILE, 0); g.lineTo(x * TILE, MAP_H); }
     for (let y = 0; y <= GRID_H; y++) { g.moveTo(0, y * TILE); g.lineTo(MAP_W, y * TILE); }
     g.stroke();
     /* 建造模式下高亮所有合法落点，手指扫一眼就知道能点哪 */
     if (ui.buildId) {
-      g.fillStyle = 'rgba(90,169,255,.10)';
+      g.fillStyle = 'rgba(90,169,255,.14)';
       for (let y = 0; y < GRID_H; y++) {
         for (let x = 0; x < GRID_W; x++) {
           const c = st.grid.at(x, y);

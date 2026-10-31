@@ -21,6 +21,23 @@ const storage = {
   clear: () => memStore.clear(),
 };
 const noop = () => {};
+/* mini-DOM 只**记录**监听器，不自己派发：测试用 fire() 按真实序列手工派发指针 / 键盘事件，
+   这样 input.js 的手势状态机（press / drag / pinch / long）能在 Node 里跑起来。 */
+const mkLs = () => {
+  const ls = {};
+  return {
+    _ls: ls,
+    addEventListener(ev, fn) { (ls[ev] = ls[ev] || []).push(fn); },
+    removeEventListener(ev, fn) { const a = ls[ev] || [], i = a.indexOf(fn); if (i >= 0) a.splice(i, 1); },
+  };
+};
+/** 手工派发一个事件：补齐 preventDefault / stopPropagation，返回事件对象供断言查看标志 */
+function fire(el, ev, e) {
+  const fns = (el && el._ls && el._ls[ev]) || [];
+  const ev2 = Object.assign({ type: ev, target: el, currentTarget: el, cancelable: true, bubbles: true, preventDefault: noop, stopPropagation: noop }, e);
+  for (const fn of fns.slice()) fn(ev2);
+  return ev2;
+}
 function makeCtx(canvas) {
   const target = { canvas, font: '', fillStyle: '', globalAlpha: 1 };
   return new Proxy(target, {
@@ -48,7 +65,7 @@ function makeEl(tag, id) {
       toggle(c, force) { const on = force === undefined ? !set.has(c) : !!force; if (on) set.add(c); else set.delete(c); return on; },
       add(c) { set.add(c); }, remove(c) { set.delete(c); }, contains(c) { return set.has(c); }, replace(a, b) { set.delete(a); set.add(b); },
     },
-    addEventListener: noop, removeEventListener: noop,
+    ...mkLs(),
     appendChild(c) { this.children.push(c); this.firstChild = this.firstChild || c; return c; },
     removeChild(c) { const i = this.children.indexOf(c); if (i >= 0) this.children.splice(i, 1); return c; },
     insertBefore(c) { this.children.push(c); return c; },
@@ -86,7 +103,7 @@ const doc = {
   createElementNS: (ns, t) => makeEl(t),
   documentElement: makeEl('html'), body: makeEl('body'), head: makeEl('head'),
   getElementById: elFor, getElementsByName: () => [],
-  addEventListener: noop, removeEventListener: noop, dispatchEvent: noop,
+  ...mkLs(), dispatchEvent: noop,
   querySelector: () => null, querySelectorAll: () => [],
   activeElement: null, fonts: { ready: Promise.resolve() },
 };
@@ -103,7 +120,7 @@ def('getComputedStyle', () => ({ getPropertyValue: () => '' }));
 def('window', {
   document: doc, localStorage: storage, navigator: globalThis.navigator, location: globalThis.location,
   devicePixelRatio: 2, innerWidth: 390, innerHeight: 720, outerWidth: 390, outerHeight: 720,
-  addEventListener: noop, removeEventListener: noop, dispatchEvent: noop,
+  ...mkLs(), dispatchEvent: noop,
   matchMedia: mm, visualViewport: { width: 390, height: 640, scale: 1, addEventListener: noop },
   performance: globalThis.performance, requestAnimationFrame: () => 1, cancelAnimationFrame: noop,
   getComputedStyle: globalThis.getComputedStyle, __tdBootFail: noop,
@@ -125,6 +142,8 @@ const gameM = await import('../js/game.js');
 const saveM = await import('../js/save.js');
 const uiM = await import('../js/ui.js');
 const engineM = await import('../js/engine.js');
+const renderM = await import('../js/render.js');
+const cfg = await import('../js/config.js');
 
 console.log('塔防要塞 · 无头装配测试（mini-DOM · 真实 Game.frame 驱动）');
 
@@ -289,10 +308,230 @@ const hpBefore = g.st.hp, tBefore = g.st.time;
 run(120);
 ok('暂停期间引擎冻结（血量与时间不推进）', g.st.hp === hpBefore && g.st.time === tBefore, `hp ${g.st.hp} t ${g.st.time.toFixed(1)}`);
 g.setPaused(false);
-g.renderer.resize(g.st); g.renderer.fitView(g.st, false); g.camIn(); g.camOut(); g.camFit();
-ok('相机：缩放 / 看全图后视口有限且不低于铺满比例',
-  Number.isFinite(g.renderer.view.zoom) && g.renderer.view.zoom >= g.renderer.view.fit - 1e-6,
-  `zoom=${g.renderer.view.zoom.toFixed(2)} fit=${g.renderer.view.fit.toFixed(2)}`);
+/* 相机：默认禁缩放 → 只剩「重新铺满」，任何手势 / 快捷键都改不动 zoom */
+g.renderer.resize(g.st); g.renderer.fitView(g.st, false); g.camFit();
+const cv = g.renderer.view;
+ok('相机：视口锁全图（zoom ≡ fit），🧭 重新铺满幂等、画布尺寸变化不涨缩放',
+  Number.isFinite(cv.zoom) && Math.abs(cv.zoom - cv.fit) < 1e-9 && cv.fit > 0,
+  `zoom=${cv.zoom.toFixed(3)} fit=${cv.fit.toFixed(3)} 画布 CSS ${g.renderer.cssW}×${g.renderer.cssH}`);
+g.renderer.zoomAt(g.renderer.cssW / 2, g.renderer.cssH / 2, 1.7);
+g.renderer.zoomAt(g.renderer.cssW / 2, g.renderer.cssH / 2, 0.5);
+let fitHits = 0;
+const camFit0 = g.camFit.bind(g);
+g.camFit = () => { fitHits++; camFit0(); };
+for (const k of ['+', '-', '=', '_']) fire(window, 'keydown', { key: k, target: { tagName: 'BODY' } });
+ok('相机：zoomAt 空实现 + 键盘 +/−/=/ 都不改 zoom（缩放入口已全部撤掉）',
+  Math.abs(g.renderer.view.zoom - g.renderer.view.fit) < 1e-9, `zoom=${g.renderer.view.zoom.toFixed(3)}`);
+fire(window, 'keydown', { key: 'f', target: { tagName: 'BODY' } });
+fire(window, 'keydown', { key: 'F', target: { tagName: 'BODY' } });
+ok('键盘：F 走 onKey("fit") → camFit()（与 🧭 按钮同一条路径：fitView + 准星按手指重算）', fitHits === 2, `camFit 命中 ${fitHits} 次`);
+
+/* ---------------- 触屏落塔链路：真指针事件序列（#25 的回归钉：预览瓦 == 落塔瓦） ----------------
+ * mini-DOM 记录监听器 → 手工派发 pointerdown/move/up，跑真实的 input.js 状态机 + game.js 落塔链。
+ * 引擎不推进（不调 g.frame），只看「手指 → 预览 → 落塔」是否同源；落瓦用当前 view 独立复算，
+ * 不借 screenToTile，避免「用实现验实现」。 */
+g.startLevel(1);
+g.setPaused(false);
+g.st.gold = 1400;
+g.clearBuild(); g.selectTower(null); g.clearAim();
+const T = cfg.TILE, GW = cfg.GRID_W, GH = cfg.GRID_H;
+const lift = renderM.reticleLiftTiles(g.renderer.view.zoom, 'touch');
+/** 用**当前**视口独立复算落瓦：liftTiles 按整瓦抬升（屏幕抬升 = tiles·TILE·zoom） */
+const tileAt = (sx, sy, liftTiles = 0) => {
+  const v = g.renderer.view, z = v.zoom;
+  const tx = Math.floor((v.x + sx / z) / T), ty = Math.floor((v.y + (sy - liftTiles * T * z) / z) / T);
+  return { tx: Math.min(Math.max(tx, 0), GW - 1), ty: Math.min(Math.max(ty, 0), GH - 1) };
+};
+/** 扫画布采样点，找第一个「预览格合法可建、且落瓦没被上下边界钳制」的手指屏幕点
+ *  （指尖行至少 liftTiles+1，保证抬升后的落瓦真在地图内 → 断言测的是抬升数学，不是钳制） */
+function pickBuildPoint(id, liftTiles = 2, maxTy = GH - 3) {
+  for (let sy = 250; sy <= 470; sy += 6) {
+    for (let sx = 30; sx <= 360; sx += 6) {
+      const f = tileAt(sx, sy, 0);
+      if (f.ty < liftTiles + 1) continue;
+      const t = tileAt(sx, sy, liftTiles);
+      if (t.ty > maxTy || t.ty < 1) continue;
+      if (engineM.canBuild(g.st, id, t.tx, t.ty).ok) return { sx, sy, t };
+    }
+  }
+  throw new Error(`pickBuildPoint(${id}, lift=${liftTiles}) 找不到可建预览格（金币 / 塔数上限 / 采样范围）`);
+}
+const pdn = (sx, sy, o = {}) => fire(canvas, 'pointerdown', { pointerId: o.id || 1, clientX: sx, clientY: sy, pointerType: o.type || 'touch', button: 0, isPrimary: true });
+const pmv = (sx, sy, o = {}) => fire(canvas, 'pointermove', { pointerId: o.id || 1, clientX: sx, clientY: sy, pointerType: o.type || 'touch' });
+const pup = (o = {}) => fire(canvas, 'pointerup', { pointerId: o.id || 1, pointerType: o.type || 'touch', button: 0 });
+const lastTower = () => g.st.towers[g.st.towers.length - 1] || null;
+const snap = (r) => (r ? `(${r.tx},${r.ty})` : 'null');
+
+/* 1) 按下即出预览：落瓦 = 指尖瓦上方整 2 瓦，且预览对象带落瓦中心坐标 */
+g.selectTray('arrow');
+const A = pickBuildPoint('arrow', lift);
+const Afinger = tileAt(A.sx, A.sy, 0);
+pdn(A.sx, A.sy);
+const rA = g.reticle ? { ...g.reticle } : null;
+ok('触屏按下即出预览：落瓦 = 指尖瓦上方整 2 瓦（禁缩放后抬升恒为 2 瓦，与 zoom 无关、不抖格）',
+  !!rA && rA.ty === Afinger.ty - lift && rA.tx === Afinger.tx,
+  `指尖瓦${snap(Afinger)} → 预览瓦${snap(rA)}，lift=${lift} 瓦，zoom=${g.renderer.view.zoom.toFixed(3)}`);
+ok('预览带落瓦中心 (tx+.5)·TILE：历史上写的是 wx/wy，渲染读 x/y → translate(undefined) → 准星钉死在世界 (0,0)',
+  !!rA && Math.abs(rA.x - (rA.tx + 0.5) * T) < 1e-9 && Math.abs(rA.y - (rA.ty + 0.5) * T) < 1e-9 && rA.inb === true,
+  rA ? `预览中心=(${rA.x},${rA.y})` : 'null');
+ok('抬升 2 瓦在竖屏 fit 下 ≥ 44px 触摸标准（手指不压住落点格）',
+  lift * T * g.renderer.view.zoom >= 44,
+  `抬升 ${(lift * T * g.renderer.view.zoom).toFixed(1)} CSS px，瓦片 ${(T * g.renderer.view.zoom).toFixed(1)} CSS px`);
+
+/* 2) 点按落塔 == 预览瓦（核心回归钉） */
+const n0 = g.st.towers.length;
+pup();
+const twA = lastTower();
+ok('点按落塔 == 预览瓦（预览与提交同源；历史上点按走指尖瓦 → 差 2 格，就是报来的「摆放定位错位」）',
+  g.st.towers.length === n0 + 1 && !!twA && twA.x === rA.tx && twA.y === rA.ty,
+  twA ? `塔${snap({ tx: twA.x, ty: twA.y })} 预览${snap(rA)} 指尖瓦${snap(Afinger)}` : `未落塔（预览${snap(rA)}）`);
+ok('塔不落在指尖瓦：塔在手指上方 2 格 = 「手指不挡视线」的设计意图',
+  !!twA && !(twA.x === Afinger.tx && twA.y === Afinger.ty), `塔${snap({ tx: twA && twA.x, ty: twA && twA.y })} 指尖瓦${snap(Afinger)}`);
+
+/* 3) 拖拽微调后松手：落塔 == 松手瞬间的预览瓦 */
+g.clearBuild(); g.selectTray('arrow');
+const B = pickBuildPoint('arrow', lift);
+pdn(B.sx, B.sy);
+let moved = null;
+for (let dy = -22; dy <= 22 && !moved; dy += 4) {
+  for (let dx = -22; dx <= 22 && !moved; dx += 4) {
+    if (Math.hypot(dx, dy) < 8) continue;              // 位移 > DRAG_MIN(6) 才进 drag 态
+    pmv(B.sx + dx, B.sy + dy);
+    if (g.reticleOk) moved = { dx, dy, r: { ...g.reticle } };
+  }
+}
+const pvB = moved && moved.r;
+pup();
+const twB = lastTower();
+ok('拖拽微调后松手：落塔 == 松手瞬间的预览瓦（drag 与 tap 同一个 aimFromScreen）',
+  !!moved && !!twB && twB.x === pvB.tx && twB.y === pvB.ty,
+  moved ? `位移(${moved.dx},${moved.dy}) 预览${snap(pvB)} 塔${snap({ tx: twB && twB.x, ty: twB && twB.y })}` : '没找到可建的拖拽目标');
+
+/* 4) 视口变化（旋转屏幕 / 地址栏收缩）后准星按手指重算，不留在旧瓦 */
+const C = pickBuildPoint('arrow', lift, GH - 4);
+pdn(C.sx, C.sy);
+const rC0 = { ...g.reticle };
+g.renderer.view.y += T;                                 // 模拟 fitView 之后视口原点移动（整 1 瓦）
+g.updateReticleScreen();
+const rC1 = g.reticle ? { ...g.reticle } : null;
+const cWant = tileAt(C.sx, C.sy, lift);
+pup();
+ok('视口变化后准星按手指重算：落瓦跟随手指下移 1 瓦（不留在旧瓦上）',
+  !!rC1 && rC1.ty === rC0.ty + 1 && rC1.tx === cWant.tx && rC1.ty === cWant.ty,
+  `变化前${snap(rC0)} → 变化后${snap(rC1)}，按手指期望${snap(cWant)}`);
+g.renderer.fitView(g.st, false);
+
+/* 5) 第二根手指落下 = 放弃瞄准，不是落塔 */
+let aimClears = 0;
+const clearAim0 = g.clearAim.bind(g);
+g.clearAim = () => { aimClears++; clearAim0(); };
+const E = pickBuildPoint('arrow', lift, GH - 4);
+const n1 = g.st.towers.length;
+pdn(E.sx, E.sy, { id: 1 });
+const rE0 = !!g.reticle;
+const clears0 = aimClears;
+pdn(E.sx + 34, E.sy + 22, { id: 2 });
+ok('第二指落下即放弃瞄准：准星清空、塔数不变（旧代码把 pinch 当 tap → 捏合第一指静默造塔）',
+  rE0 && g.reticle === null && aimClears > clears0 && g.st.towers.length === n1,
+  `单指有预览=${rE0}，双指后预览=${g.reticle ? '有' : 'null'}，clearAim ${aimClears - clears0} 次，塔数 ${g.st.towers.length}/${n1}`);
+pmv(E.sx + 44, E.sy + 30, { id: 2 });
+pup({ id: 2 }); pup({ id: 1 });
+ok('双指平移 + 抬起全程不落塔、不改 zoom（panBy 被 clampCam 钳成居中）',
+  g.st.towers.length === n1 && Math.abs(g.renderer.view.zoom - g.renderer.view.fit) < 1e-9,
+  `塔数 ${g.st.towers.length}/${n1} zoom=${g.renderer.view.zoom.toFixed(3)}`);
+
+/* 6) 手指落在地图下方 letterbox 死区：建造合法（落瓦钳到底行）；选塔不成立（指尖瓦在图外） */
+let F = null;
+for (let sx = 30; sx <= 360 && !F; sx += 6) {
+  const t = tileAt(sx, 662, lift);
+  if (t.ty === GH - 1 && engineM.canBuild(g.st, 'arrow', t.tx, t.ty).ok) F = { sx, t };
+}
+g.clearBuild(); g.selectTray('arrow');
+const n2 = g.st.towers.length;
+pdn(F.sx, 662);
+const rF = g.reticle ? { ...g.reticle } : null;
+pup();
+const twF = lastTower();
+ok('手指在画布底部 letterbox（地图下方死区）也能建：落瓦钳到最后一行，inb 只描述指尖瓦（不作建造门槛）',
+  !!rF && rF.inb === false && rF.ty === GH - 1 && g.st.towers.length === n2 + 1 && !!twF && twF.y === GH - 1,
+  `预览${snap(rF)} inb=${rF && rF.inb} 塔${snap({ tx: twF && twF.x, ty: twF && twF.y })} 底行=${GH - 1}`);
+g.clearBuild();
+g.selectTower(g.st.towers[0] || null);
+const selBefore = !!g.sel;
+pdn(F.sx, 662); pup();
+ok('死区里的非建造点按 = 取消选中（指尖瓦在图外时不做吸附选塔）',
+  g.sel === null && selBefore, `点前 sel=${selBefore ? '有塔' : '空'} 点后 sel=${g.sel ? '有塔' : '空'}`);
+
+/* 7) 点塔按屏幕距离吸附（TAP_SNAP_PX = 26 CSS px）：邻瓦点得中，隔两瓦点空。
+      先清空棋盘、只用一次真点按落一座塔 → 场上唯一目标，吸附结果不受邻塔干扰。 */
+g.clearBuild(); g.selectTower(null);
+g.st.towers.length = 0;
+const S = pickBuildPoint('arrow', lift, GH - 4);
+g.selectTray('arrow');
+pdn(S.sx, S.sy); pup();
+const tS = lastTower();
+const sc = g.renderer.worldToScreen((tS.x + 0.5) * T, (tS.y + 0.5) * T);
+const tilePx = T * g.renderer.view.zoom;
+g.clearBuild(); g.selectTower(null);
+pdn(sc.x + tilePx * 0.9, sc.y); pup();
+const near = g.sel;
+const pickNear = g.pickTowerAt({ x: sc.x + tilePx * 0.9, y: sc.y });
+pdn(sc.x + tilePx * 2.1, sc.y); pup();
+const far = g.sel;
+ok('点塔按屏幕距离吸附：隔壁瓦（22 CSS px ≤ 26）点得中，隔两瓦（51 CSS px > 26）不吸附（竖屏瓦片仅 24 CSS px，按瓦选塔必点空）',
+  !!tS && near === tS && pickNear === tS && far === null,
+  `瓦片 ${tilePx.toFixed(1)} CSS px：+0.9 瓦 → ${near === tS ? '吸附到目标塔' : (near ? '选到别处' : '未选中')}，+2.1 瓦 → ${far === null ? '取消选中' : '仍选中'}`);
+
+/* 8) 鼠标：0 抬升，预览瓦 == 落塔瓦 == 指尖瓦（所见即所得） */
+g.clearBuild(); g.selectTray('arrow');
+const Hm = pickBuildPoint('arrow', 0, GH - 2);
+const Hf = tileAt(Hm.sx, Hm.sy, 0);
+pdn(Hm.sx, Hm.sy, { type: 'mouse' });
+const rH = g.reticle ? { ...g.reticle } : null;
+pup({ type: 'mouse' });
+const twH = lastTower();
+ok('鼠标 0 抬升：预览瓦 == 落塔瓦 == 指尖瓦（桌面所见即所得，不抬升）',
+  renderM.reticleLiftTiles(g.renderer.view.zoom, 'mouse') === 0 && !!rH && rH.tx === Hf.tx && rH.ty === Hf.ty
+  && !!twH && twH.x === rH.tx && twH.y === rH.ty,
+  `指尖瓦${snap(Hf)} 预览${snap(rH)} 塔${snap({ tx: twH && twH.x, ty: twH && twH.y })}`);
+
+/* 9) 长按速建：落塔 == 长按瞬间的预览瓦 */
+const K = pickBuildPoint('arrow', lift, GH - 4);
+const n3 = g.st.towers.length;
+pdn(K.sx, K.sy);
+await new Promise((r) => setTimeout(r, 430));           // LONG_MS = 400
+const rK = g.reticle ? { ...g.reticle } : null;
+pup();
+const twK = lastTower();
+ok('长按速建：落塔 == 长按瞬间的预览瓦（长按门槛是「手指在画布内」，不是「在地图内」）',
+  g.st.towers.length === n3 + 1 && !!twK && !!rK && twK.x === rK.tx && twK.y === rK.ty,
+  `预览${snap(rK)} 塔${snap({ tx: twK && twK.x, ty: twK && twK.y })} 塔数 ${g.st.towers.length}/${n3 + 1}`);
+
+/* 10) 浏览器把页面放大（visualViewport.scale > 1.05）→ 坐标口径不可信：整次手势丢弃 + 只提示一次 */
+window.visualViewport.scale = 2.2;
+g.input.vvWarned = false;
+const J = pickBuildPoint('arrow', lift, GH - 4);
+const n4 = g.st.towers.length, toastBefore = seen.toast || 0;
+pdn(J.sx, J.sy);
+const rJ = g.reticle;
+pup();
+ok('页面被浏览器放大时丢弃手势：不出预览、不落塔、提示一次「请缩回 100%」',
+  rJ === null && g.st.towers.length === n4 && (seen.toast || 0) > toastBefore && /100%/.test(String(seen.lastToast || '')),
+  `预览=${rJ === null ? 'null' : '有'} 塔数=${g.st.towers.length}/${n4} toast=「${seen.lastToast || ''}」`);
+window.visualViewport.scale = 1;
+g.input.reset();
+g.clearAim();
+const n5 = g.st.towers.length, P = pickBuildPoint('arrow', lift, GH - 4);
+g.selectTray('arrow');
+pdn(P.sx, P.sy);
+const rP = !!g.reticle;
+pup();
+ok('scale 复位后手势重新可用（同一点位可正常落塔，提示不刷屏）',
+  rP && g.st.towers.length > n5 && Math.abs(g.renderer.view.zoom - g.renderer.view.fit) < 1e-9,
+  `塔数 ${g.st.towers.length}/${n5} zoom=${g.renderer.view.zoom.toFixed(3)}`);
+ok('触屏链路全程 zoom 恒等于 fit：没有任何手势 / 快捷键改得动缩放',
+  Math.abs(g.renderer.view.zoom - g.renderer.view.fit) < 1e-9,
+  `zoom=${g.renderer.view.zoom.toFixed(3)} fit=${g.renderer.view.fit.toFixed(3)} 塔数 ${g.st.towers.length}`);
 g.destroy();
 ok('destroy：停止 rAF 调度并可安全卸载', g.raf === 0);
 

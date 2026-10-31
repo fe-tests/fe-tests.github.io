@@ -86,8 +86,8 @@ export class UI {
     on('dw-target', () => this.cycleTarget());
     on('dw-sell', () => this.armSell());
     $$('[data-cam]').forEach((b) => b.addEventListener('click', () => {
-      const k = b.dataset.cam;
-      if (k === 'fit') this.g.camFit(); else if (k === 'in') this.g.camIn(); else this.g.camOut();
+      /* 禁缩放后 data-cam 只剩 fit（重新铺满）；保留遍历，将来 cover 模式加按钮不用再接线 */
+      if (b.dataset.cam === 'fit') this.g.camFit();
     }));
     $$('#skills .skill').forEach((b) => b.addEventListener('click', () => this.g.fireSkill(b.dataset.skill)));
     on('m-play', () => this.g.startLevel(Math.min(this.g.save.unlocked, LAST_LEVEL)));
@@ -284,18 +284,19 @@ export class UI {
     oPane.innerHTML = `<div class="helpgrid">${[
       helpBox('🎯 三步开局', [
         '<b>点底部塔卡</b>选中要建的塔，射程圈会先显示',
-        '<b>点格子</b>放下；也可以<b>按住拖到</b>满意位置再松手',
+        '<b>点一下</b>就落在<b>准星那一格</b>；也可以<b>按住拖到</b>满意位置再松手',
         '底部 <b>🔁 连放</b>开着时放完不退出，可以一路点着建',
       ]),
       helpBox('👆 手指不挡视线', [
-        '触屏落点自动<b>抬到指尖上方 36px</b>，看得见再松手',
-        '<b>长按</b>约 0.4 秒 = 直接在点中的格子快速建',
+        '触屏落点固定<b>抬到指尖上方 2 格</b>，整格对齐、不随缩放漂',
+        '准星画在<b>落瓦中心</b>：看到的预览格 = 塔真正落下的格子',
+        '<b>长按</b>约 0.4 秒 = 直接在准星格快速建',
         '塔盘可<b>左右滑动</b>；横屏自动变成右侧竖栏',
       ]),
       helpBox('🗺 看地图', [
-        '<b>双指捏合</b>缩放，<b>双指拖动</b>平移，单指拖动也平移',
-        '左下 <b>🧭</b> 一键看全图，<b>＋／－</b> 手动缩放',
-        '放大后屏幕外的<b>出怪口与基地</b>会显示方向箭头',
+        '视口<b>固定铺满全图</b>：不做缩放，落点才不会随缩放漂移（16×12 格全看得见）',
+        '旋转屏幕、地址栏收缩后点左下 <b>🧭</b> 重新铺满',
+        '出怪口、基地与<b>屏幕外敌人箭头</b>都在视野内，不用来回拖',
       ]),
       helpBox('🗼 管理防御塔', [
         '<b>点一座塔</b>弹出抽屉：升级 / 目标优先级 / 出售',
@@ -313,7 +314,7 @@ export class UI {
         '<b>1-9</b> 选塔 · <b>点击</b>放置 · <b>U</b> 升级 · <b>X</b> 出售',
         '<b>空格</b> 开波 · <b>P</b> 暂停 · <b>Esc</b> 取消 / 返回 · <b>?</b> 帮助',
         SKILLS.map((s, i) => `<b>${s.key}</b> ${s.name}`).join(' · ') + '（W 已用于平移，故技能绑 J/K/L）',
-        '<b>方向键 / WASD</b> 平移 · <b>F</b> 看全图 · <b>+ / −</b> 缩放',
+        '<b>方向键 / WASD</b> 平移 · <b>F</b> 重新铺满（视口锁全图时平移不生效）',
       ]),
       helpBox('🌦 关卡机制', [
         '<b>石台</b>只能建在刻好的石台上；<b>限量</b>关有塔数上限',

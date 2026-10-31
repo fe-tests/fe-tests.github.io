@@ -12,7 +12,7 @@ import {
   newState, step, drainEvents, towerAt, canBuild, placeTower, upgradeTower, sellTower,
   startWave, wavePreview, useSkill, summary, rangePx,
 } from './engine.js';
-import { Renderer, RETICLE_LIFT } from './render.js';
+import { Renderer, reticleLiftTiles, screenToTile, TAP_SNAP_PX } from './render.js';
 import { Fx } from './fx.js';
 import { Input } from './input.js';
 import * as Save from './save.js';
@@ -48,17 +48,19 @@ export class Game {
     this.build = null;          // {id,def,cost}
     this.armed = null;          // 技能 id（需要落点时）
     this.sel = null;            // 选中的塔
-    this.reticle = null;        // {tx,ty,wx,wy}
+    this.reticle = null;        // {tx,ty,x,y,inb} 落瓦中心（x/y 是世界坐标，渲染层直接 translate）
+    this.aimAt = null;          // {x,y,type} 手指屏幕点（相机变化后按它重算落瓦）
     this.prevShots = 0;
     this.prevBeams = 0;
     this.input = new Input(canvas, {
       onTap: (tx, ty, t, p, e) => this.onTap(tx, ty, t, p, e),
       onDragStart: (tx, ty, t, p) => this.onDragStart(t, p),
       onDragMove: (tx, ty, t, p, dx, dy) => this.onDragMove(t, p, dx, dy),
-      onDragEnd: (tx, ty, t, p, isTap) => this.onDragEnd(t, p, isTap),
+      onDragEnd: (tx, ty, t, p, isTap, reason) => this.onDragEnd(t, p, isTap, reason),
       onLongPress: (tx, ty, t, p) => this.onLongPress(t, p),
       onCamera: () => this.updateReticleScreen(),
       onKey: (k) => this.onKey(k),
+      onToast: (m) => this.hooks.toast(m, 'warn'),
       onUnlock: () => { Sfx.unlock(); },
     }, this.renderer);
     this.bindWindow();
@@ -68,9 +70,8 @@ export class Game {
   /* ---------------- 生命周期 ---------------- */
   bindWindow() {
     const onResize = () => {
-      this.renderer.resize(this.st);
-      this.renderer.fitView(this.st, true);
-      this.updateReticleScreen();
+      this.renderer.resize(this.st);   // resize 内部已 fitView（zoom 恒 = 铺满比例）
+      this.updateReticleScreen();      // 相机变了：按手指重算落瓦，准星跟手
     };
     window.addEventListener('resize', onResize);
     window.addEventListener('orientationchange', () => setTimeout(onResize, 180));
@@ -93,7 +94,7 @@ export class Game {
     this.last = 0;
     this.sel = null;
     this.armed = null;
-    this.reticle = null;
+    this.clearAim();
     this.build = null;
     this.prevShots = 0;
     this.prevBeams = 0;
@@ -181,8 +182,10 @@ export class Game {
       buildId: this.build ? this.build.id : (this.armed ? 'skill' : null),
       buildDef: this.build ? this.build.def : null,
       buildRange: this.ghostRange(),
+      armed: this.armed,
       reticle: this.reticle,
       reticleOk: this.reticleOk,
+      finger: this.aimAt,          // 指尖屏幕坐标：渲染层画「指尖 → 落瓦」连线
       dmgNum: !!this.s.dmgNum,
     };
     this.renderer.draw(this.st, ui, dt);
@@ -377,7 +380,7 @@ export class Game {
     }
     this.armed = null;
     this.build = { id, def, cost: costOf(def) };
-    this.reticle = null;
+    this.clearAim();
     this.hooks.traySel(id);
     this.hooks.drawer(null);
     this.sel = null;
@@ -386,7 +389,7 @@ export class Game {
   clearBuild() {
     this.build = null;
     this.armed = null;
-    this.reticle = null;
+    this.clearAim();
     this.hooks.traySel(null);
     this.hooks.buildTip(null);
   }
@@ -421,7 +424,7 @@ export class Game {
     const r = placeTower(st, this.build.id, tx, ty);
     if (!r.ok) { this.hooks.toast(r.reason || '建造失败', 'warn'); Sfx.play('deny'); return false; }
     this.sel = r.tower;
-    if (!this.s.keep) { this.build = null; this.reticle = null; this.hooks.traySel(null); }
+    if (!this.s.keep) { this.build = null; this.clearAim(); this.hooks.traySel(null); }
     this.hooks.buildTip(this.build ? this.build.def : null, this.costOfBuild(), true);
     this.hooks.refresh();
     return true;
@@ -488,7 +491,7 @@ export class Game {
   }
 
   cancelArmed() {
-    if (this.armed) { this.armed = null; this.hooks.buildTip(null); return true; }
+    if (this.armed) { this.armed = null; this.clearAim(); this.hooks.buildTip(null); return true; }
     if (this.build) { this.clearBuild(); return true; }
     if (this.sel) { this.selectTower(null); return true; }
     return false;
@@ -511,41 +514,47 @@ export class Game {
     startWave(st, true);
   }
 
-  /* ---------------- 输入回调 ---------------- */
+  /* ---------------- 输入回调 ----------------
+   * 落塔口径只有一条：所有建造/技能落点都走 aimFromScreen（手指 → 抬升整瓦 → 落瓦），
+   * 按下时的预览、点按、拖拽松手、长按四条路径共用同一个函数，预览瓦 == 落塔瓦。
+   * 历史 bug：点按曾走「指尖瓦」而预览/拖拽走「抬升瓦」，手机上预览与落塔差 1~2 格，
+   * 且抬升量按屏幕像素算，zoom 一变差更多（见 docs/devlog.md #25）。 */
   onTap(tx, ty, t, p) {
     if (!this.st || this.st.over) return;
-    if (!t.inb) return;
-    if (this.armed) {
-      this.fireSkill(this.armed, tx, ty);
-      this.hooks.buildTip(null);
+    if (this.armed || this.build) {
+      const r = this.reticle || this.aimFromScreen(p, t.type);   // 按下时已算过，正常直接复用
+      if (!r) return;
+      if (this.armed) { this.fireSkill(this.armed, r.tx, r.ty); this.hooks.buildTip(null); return; }
+      this.placeAt(r.tx, r.ty);
       return;
     }
-    if (this.build) {
-      this.placeAt(tx, ty);
-      return;
-    }
-    const t2 = towerAt(this.st, tx, ty);
-    if (t2) { this.selectTower(t2); Sfx.play('click'); }
+    /* 非建造态（选塔 / 取消选中）：所见即所得，不抬升；按屏幕距离吸附最近塔 */
+    if (!t.inb) { this.selectTower(null); return; }
+    const tw = this.pickTowerAt(p) || towerAt(this.st, tx, ty);
+    if (tw) { this.selectTower(tw); Sfx.play('click'); }
     else this.selectTower(null);
   }
 
   onDragStart(t, p) {
     if (!this.st || this.st.over) return;
-    if (!this.build && !this.armed) { this.reticle = null; return; }
-    this.setReticleFromScreen(p, t.type);
+    if (!this.build && !this.armed) { this.clearAim(); return; }
+    this.aimFromScreen(p, t.type);
     this.showTip();
   }
 
   onDragMove(t, p, dx, dy) {
     if (!this.st || this.st.over) return;
     if (!this.build && !this.armed) return;
-    this.setReticleFromScreen(p, t.type);
+    this.aimFromScreen(p, t.type);
     this.showTip();
     void dx; void dy;
   }
 
-  onDragEnd(t, p, isTap) {
+  onDragEnd(t, p, isTap, reason) {
     if (!this.st || this.st.over) return;
+    /* cancel / pinch：这次手势作废（手指滑出画布、第二指落下），只清准星，绝不落塔 ——
+       缺了 pinch 分支时，捏合的第一指会在抬起前被当成「拖拽结束」静默造一座塔。 */
+    if (reason === 'cancel' || reason === 'pinch') { this.clearAim(); this.hooks.buildTip(null); return; }
     if (isTap) return;                      // 点按交给 onTap，避免重复建造
     if (!this.reticle) return;
     if (this.armed) { this.fireSkill(this.armed, this.reticle.tx, this.reticle.ty); this.hooks.buildTip(null); return; }
@@ -553,33 +562,59 @@ export class Game {
   }
 
   onLongPress(t, p) {
-    if (!this.st || this.st.over || !t.inb) return;
-    if (this.build) {
-      this.setReticleFromScreen(p, t.type);
-      const r = this.reticle || { tx: t.tx, ty: t.ty };
-      this.placeAt(r.tx, r.ty);
+    if (!this.st || this.st.over) return;
+    if (this.build || this.armed) {
+      const r = this.aimFromScreen(p, t.type);
+      if (!r) return;
+      if (this.armed) { this.fireSkill(this.armed, r.tx, r.ty); this.hooks.buildTip(null); }
+      else this.placeAt(r.tx, r.ty);
       Sfx.vibrate(18);
       return;
     }
-    const tw = towerAt(this.st, t.tx, t.ty);
+    if (!t.inb) return;
+    const tw = this.pickTowerAt(p) || towerAt(this.st, t.tx, t.ty);
     if (tw) { this.selectTower(tw); Sfx.play('click'); Sfx.vibrate(14); }
   }
 
-  /** 建造准星：触屏把落点抬到指尖上方，手指不再挡住格子；鼠标则所见即所得 */
-  setReticleFromScreen(p, type) {
-    const lift = type === 'mouse' ? 0 : (this.reduced ? RETICLE_LIFT * 0.6 : RETICLE_LIFT);
-    const w = this.renderer.screenToWorld(p.x, p.y - lift);
-    const tx = clamp(Math.floor(w.x / TILE), 0, GRID_W - 1);
-    const ty = clamp(Math.floor(w.y / TILE), 0, GRID_H - 1);
-    this.reticle = { tx, ty, wx: (tx + 0.5) * TILE, wy: (ty + 0.5) * TILE };
+  /** 落塔瞄准的唯一入口：手指屏幕点 → 抬升 reticleLiftTiles 整瓦 → 落瓦中心。
+   *  抬升按「整瓦」而不是屏幕像素：与 zoom 无关，且手指在同一瓦内移动不会抖到隔壁瓦。
+   *  落瓦钳制在地图内（手指落在 letterbox 死区也能瞄到底行），inb 只描述手指自身所在瓦。 */
+  aimFromScreen(p, type) {
+    if (!this.st || !p) return null;
+    const v = this.renderer.view;
+    const r = screenToTile(p.x, p.y, v, reticleLiftTiles(v.zoom, type));
+    const tx = clamp(r.tx, 0, GRID_W - 1), ty = clamp(r.ty, 0, GRID_H - 1);
+    this.reticle = { tx, ty, x: (tx + 0.5) * TILE, y: (ty + 0.5) * TILE, inb: r.inb };
+    this.aimAt = { x: p.x, y: p.y, type: type || 'touch' };
     this.checkReticle();
+    return this.reticle;
   }
 
+  clearAim() { this.reticle = null; this.aimAt = null; }
+
+  /** 相机变化（旋转 / 尺寸变化）后**按手指重算**落瓦：准星跟着手指走，不留在旧瓦上 */
   updateReticleScreen() {
-    if (!this.reticle) return;
-    this.reticle.wx = (this.reticle.tx + 0.5) * TILE;
-    this.reticle.wy = (this.reticle.ty + 0.5) * TILE;
-    this.checkReticle();
+    if (this.aimAt && (this.build || this.armed)) this.aimFromScreen(this.aimAt, this.aimAt.type);
+    else this.reticle = null;
+  }
+
+  /** 点塔容差：fit 竖屏瓦片只有 ~24 CSS px，纯按指尖所在瓦选塔会频繁点空。
+   *  在指尖瓦的 3×3 邻域里取「屏幕距离」最近的一座，半径 TAP_SNAP_PX CSS px。 */
+  pickTowerAt(p) {
+    if (!this.st || !p) return null;
+    const w = this.renderer.screenToWorld(p.x, p.y);
+    const cx = Math.floor(w.x / TILE), cy = Math.floor(w.y / TILE);
+    let best = null, bestD = TAP_SNAP_PX * TAP_SNAP_PX;
+    for (let y = cy - 1; y <= cy + 1; y++) {
+      for (let x = cx - 1; x <= cx + 1; x++) {
+        const tw = towerAt(this.st, x, y);
+        if (!tw) continue;
+        const s = this.renderer.worldToScreen(tw.px, tw.py);
+        const d = (s.x - p.x) * (s.x - p.x) + (s.y - p.y) * (s.y - p.y);
+        if (d < bestD) { bestD = d; best = tw; }
+      }
+    }
+    return best;
   }
 
   checkReticle() {
@@ -603,7 +638,7 @@ export class Game {
     if (!this.st) return;
     if (k === 'space') { this.nextWave(); return; }
     if (k === 'escape') { if (!this.cancelArmed()) this.setPaused(true); return; }
-    if (k === 'fit') { this.renderer.fitView(this.st, false); return; }
+    if (k === 'fit') { this.camFit(); return; }   // 与左下 🧭 按钮同一条路径：fitView + 准星按手指重算
     if (k === 'sell') { this.sellSelected(); return; }
     if (k === 'upgrade') { this.upgradeSelected(); return; }
     if (k === 'skill1') { this.fireSkill(SKILLS[0].id); return; }
@@ -619,9 +654,8 @@ export class Game {
   }
 
   /* ---------------- 相机按钮 ---------------- */
-  camFit() { this.renderer.fitView(this.st, false); }
-  camIn() { this.renderer.zoomAt(this.renderer.cssW / 2, this.renderer.cssH / 2, 1.25); }
-  camOut() { this.renderer.zoomAt(this.renderer.cssW / 2, this.renderer.cssH / 2, 1 / 1.25); }
+  /** 相机按钮：禁缩放后只剩「重新铺满」——旋转屏幕 / 地址栏收缩后复位视角 */
+  camFit() { this.renderer.fitView(this.st, false); this.updateReticleScreen(); }
 
   /* ---------------- 给 UI 层的只读数据 ---------------- */
   get preview() { return this.st ? wavePreview(this.st) : []; }

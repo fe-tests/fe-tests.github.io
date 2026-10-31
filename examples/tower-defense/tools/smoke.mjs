@@ -5,7 +5,7 @@ import { LEVELS, ENDLESS, selfCheck, endlessWave } from '../js/levels.js';
 import { TOWERS, upgradeCost, investedGold, sellValue, dpsOf, towerLv } from '../js/towers.js';
 import { ENEMIES } from '../js/enemies.js';
 import { simulateLevel, newState, buildGrid, startWave, step, wavePreview, summary } from '../js/engine.js';
-import { CELL, GRID_W, GRID_H, TILE, SKILLS } from '../js/config.js';
+import { CELL, GRID_W, GRID_H, TILE, SKILLS, MAP_W, MAP_H } from '../js/config.js';
 import { readFileSync } from 'node:fs';
 
 let fail = 0;
@@ -27,14 +27,53 @@ try {
     ['save.js', saveM, ['load', 'save', 'reset', 'recordLevel', 'recordEndless', 'totalStars', 'isUnlocked']],
     ['audio.js', sfxM, ['init', 'unlock', 'setEnabled', 'isEnabled', 'play', 'vibrate', 'soundNames']],
     ['fx.js', fxM, ['Fx', 'FX_KINDS']],
-    ['render.js', renderM, ['Renderer', 'buildTerrain', 'drawTower', 'drawEnemy', 'RETICLE_LIFT']],
+    ['render.js', renderM, ['Renderer', 'buildTerrain', 'drawTower', 'drawEnemy', 'reticleLiftTiles', 'screenToTile', 'screenToWorldPt', 'LIFT_MIN_TILES', 'TAP_SNAP_PX', 'RETICLE_MIN_PX']],
     ['input.js', inputM, ['Input', 'toTile']],
     ['game.js', gameM, ['Game', 'LEVELS', 'TOWERS', 'SKILLS', 'SPEEDS']],
   ];
   let missing = [];
   for (const [name, mod, keys] of need) for (const k of keys) if (!mod[k]) missing.push(`${name}.${k}`);
   ok('模块图：6 个 DOM 层模块可在 Node 里 import，关键导出齐全', missing.length === 0, missing.join(' | '));
-  ok('触控建造准星抬升量 = 36px', renderM.RETICLE_LIFT === 36);
+  /* 瞄准数学（触屏落点口径）：整瓦抬升 + 屏幕坐标 → 瓦，纯函数，无 DOM 可测。
+     这组断言是「摆放定位错位」的回归钉：预览瓦必须 == 落塔瓦，且不随缩放抖格。 */
+  const renderSrc = readFileSync(new URL('../js/render.js', import.meta.url), 'utf8');
+  const liftAt = (z) => renderM.reticleLiftTiles(z, 'touch');
+  ok('抬升口径：鼠标 / 手写笔 = 0 瓦（所见即所得），触屏 ≥ 2 瓦',
+    renderM.reticleLiftTiles(1, 'mouse') === 0 && renderM.reticleLiftTiles(2, 'pen') === 0
+    && liftAt(0.381) === 2 && liftAt(2.6) === 2 && liftAt(0.05) >= 2);
+  ok('抬升口径：恒为整数瓦且随 zoom 单调不增（同一次点按不因缩放差 1~2 格）',
+    [0.2, 0.38, 0.4, 0.8, 1.6, 2.6, 8].every((z, i, a) =>
+      Number.isInteger(liftAt(z)) && (i === 0 || liftAt(z) <= liftAt(a[i - 1]))),
+    [0.2, 0.38, 2.6].map((z) => `${z}→${liftAt(z)}瓦`).join(' '));
+  /* 390×720 竖屏 letterbox：fit 由宽决定（1024 宽铺满），高度方向被居中出现上下死区 */
+  const fit390 = Math.min(390 / MAP_W, 720 / MAP_H);
+  const V390 = { x: (MAP_W - 390 / fit390) / 2, y: (MAP_H - 720 / fit390) / 2, zoom: fit390, fit: fit390, cssW: 390, cssH: 720 };
+  const fingerRow = Math.floor((V390.y + 300 / V390.zoom) / TILE);
+  const aim = renderM.screenToTile(180, 300, V390, renderM.reticleLiftTiles(V390.zoom, 'touch'));
+  ok('落瓦 = 指尖瓦正上方整 2 瓦（预览格与落塔格同一个）',
+    aim.ty === fingerRow - 2 && aim.tx === Math.floor((V390.x + 180 / fit390) / TILE),
+    `指尖第 ${fingerRow} 行 → 落第 ${aim.ty} 行，tx=${aim.tx}`);
+  ok('落瓦中心 = 瓦心 (tx+.5)·TILE（准星画在落瓦中心，渲染 translate 不再吃到 undefined）',
+    Math.abs(aim.x - (aim.tx + 0.5) * TILE) < 1e-9 && Math.abs(aim.y - (aim.ty + 0.5) * TILE) < 1e-9,
+    `x=${aim.x.toFixed(1)} y=${aim.y.toFixed(1)}`);
+  ok('inb 只描述指尖所在瓦：手指落在地图下方 letterbox 死区时 inb=false，落瓦仍算得出（由 game 钳到边界行）',
+    renderM.screenToTile(180, 650, V390, 2).inb === false
+    && renderM.screenToTile(180, 650, V390, 2).ty === Math.floor((V390.y + 650 / fit390) / TILE) - 2);
+  ok('常量：抬升意图 36 CSS px / 下限 2 瓦 / 点塔吸附 26 CSS px / 准星环 ≥14 CSS px',
+    renderM.RETICLE_LIFT_PX === 36 && renderM.LIFT_MIN_TILES === 2
+    && renderM.TAP_SNAP_PX === 26 && renderM.RETICLE_MIN_PX === 14);
+  ok('相机：视口锁死铺满比例（fitView 写死 v.zoom = fit，zoomAt 空实现，无 MAX_ZOOM 残留）',
+    /v\.zoom = fit;/.test(renderSrc) && /zoomAt\(\)\s*\{/.test(renderSrc) && !/MAX_ZOOM/.test(renderSrc));
+  /* 手势作废口径：input 必须把 reason 传满 6 参（第 6 个才是 reason），game 对 cancel/pinch 只清准星。
+     少传一个参数时 reason 落到 isTap 上 → 捏合 / 滑出画布会被当「拖拽结束」静默造一座塔（#25 实测踩到）。 */
+  const gestureInputSrc = readFileSync(new URL('../js/input.js', import.meta.url), 'utf8');
+  const gestureGameSrc = readFileSync(new URL('../js/game.js', import.meta.url), 'utf8');
+  ok('手势作废：input 传满 6 参 reason（pinch / long / cancel），game 对 cancel|pinch 只清准星不落塔',
+    /onDragEnd\(null,\s*null,\s*null,\s*null,\s*false,\s*'pinch'\)/.test(gestureInputSrc)
+    && /onDragEnd\(null,\s*null,\s*null,\s*null,\s*true,\s*'long'\)/.test(gestureInputSrc)
+    && /onDragEnd\(null,\s*null,\s*null,\s*null,\s*false,\s*'cancel'\)/.test(gestureInputSrc)
+    && /reason === 'cancel' \|\| reason === 'pinch'/.test(gestureGameSrc)
+    && /onDragEnd: \(tx, ty, t, p, isTap, reason\)/.test(gestureGameSrc));
 
   /* DOM 契约（无浏览器）：ui.js / main.js 引用的每个 id、选择器、类名都必须在 index.html + ui.css 里存在 */
   const uiM = await import('../js/ui.js');
@@ -63,8 +102,9 @@ try {
     `segb=${(html.match(/segb/g) || []).length}`);
   ok('DOM 契约：3 个技能按钮 id 与 SKILLS 对齐',
     SKILLS.every((s) => html.includes(`data-skill="${s.id}"`)), SKILLS.map((s) => s.id).join('/'));
-  ok('DOM 契约：相机按钮 fit/in/out 与星级 3 个 span 就位',
-    ['fit', 'in', 'out'].every((k) => html.includes(`data-cam="${k}"`)) && /id="stars"[^>]*>(\s*<span>★<\/span>){3}/.test(html.replace(/\s+/g, ' ')));
+  ok('DOM 契约：相机按钮只剩「重新铺满」fit（in/out 已随禁缩放撤掉）+ 星级 3 个 span 就位',
+    html.includes('data-cam="fit"') && !/data-cam="(in|out)"/.test(html)
+    && /id="stars"[^>]*>(\s*<span>★<\/span>){3}/.test(html.replace(/\s+/g, ' ')));
   /* 键位契约：帮助页与提示条写出去的按键，必须就是 input.js 真绑的键（文档替代码说谎是一类隐蔽回归） */
   const inputSrc = readFileSync(new URL('../js/input.js', import.meta.url), 'utf8');
   const keyBind = SKILLS.map((s, i) => {
@@ -76,6 +116,26 @@ try {
   ok('文案契约：#hint 的键位写 1-9 与 J/K/L（无 1-0、无 Q/W/E 漂移）',
     /<b>1-9<\/b>/.test(html) && /<b>J\/K\/L<\/b>/.test(html) && !/1-0/.test(html) && !/Q\/W\/E/.test(html),
     (html.match(/id="hint"[^>]*>([\s\S]*?)<\/div>/) || [, ''])[1].replace(/\s+/g, ' ').trim().slice(0, 46) + '…');
+  /* 文案契约：「默认禁缩放 + 整瓦抬升」是产品决策，话术必须与代码同源，
+     帮助页写的抬升瓦数直接取常量（改常量不改文案 → 这里立刻红） */
+  ok('文案契约：帮助页写「抬到指尖上方 2 格」，与 LIFT_MIN_TILES 常量一致',
+    new RegExp('抬到指尖上方 ' + renderM.LIFT_MIN_TILES + ' 格').test(uiSrc), `LIFT_MIN_TILES=${renderM.LIFT_MIN_TILES}`);
+  const staleCopy = [];
+  const banned = [
+    ['index.html', [/36\s*px/i, /双指/, /data-cam="(in|out)"/]],
+    ['js/ui.js', [/36\s*px/i, /双指/, /camIn\(|camOut\(/]],
+    ['README.md', [/36\s*px/i, /双指捏合/, /2\.6×/, /\bRETICLE_LIFT\b/]],
+    ['docs/design.md', [/36\s*px/i, /双指捏合/, /fit\s*\.\.\s*2\.6/, /\+\s*\/\s*-\s*缩放/]],
+    ['js/game.js', [/\bMAX_ZOOM\b/, /\bRETICLE_LIFT\b/, /setReticleFromScreen/]],
+    ['js/input.js', [/\bMAX_ZOOM\b/, /api\.zoomAt/]],
+    ['js/render.js', [/\bMAX_ZOOM\b/, /\bRETICLE_LIFT\b/]],
+  ];
+  for (const [f, pats] of banned) {
+    const src = readFileSync(new URL('../' + f, import.meta.url), 'utf8');
+    for (const re of pats) { const m = src.match(re); if (m) staleCopy.push(`${f} 残留「${m[0]}」`); }
+  }
+  ok('文案契约：禁缩放决策已落地（用户话术里无 36px / 双指 / ＋－ 缩放，代码里无 MAX_ZOOM / camIn / 旧准星函数）',
+    staleCopy.length === 0, staleCopy.slice(0, 6).join(' | '));
   ok('DOM 契约：结算屏关键节点齐备',
     ['stars', 'w-next', 'd-why', 'e-best', 'lvgrid', 'tray-list', 'drawer', 'buildtip', 'nw-icons'].every((i) => ids.has(i)));
   const cssNeed = ['tcard', 'poor', 'sel', 'tabpane', 'helpbox', 'codex', 'cdx', 'swatch', 'tagline', 'nwi',

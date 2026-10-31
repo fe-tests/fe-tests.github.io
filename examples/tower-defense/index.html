@@ -13,7 +13,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#070b12">
-<meta name="description" content="塔防要塞 · 原生 Canvas 塔防：12 个手工关卡 + 无尽模式、10 种塔三级升级、14 种敌人与 3 个 BOSS、3 个主动技能，竖屏拇指热区与双指捏合缩放。">
+<meta name="description" content="塔防要塞 · 原生 Canvas 塔防：12 个手工关卡 + 无尽模式、10 种塔三级升级、14 种敌人与 3 个 BOSS、3 个主动技能，竖屏拇指热区与整瓦抬升准星（视口默认锁定全图，禁缩放）。">
 <title>塔防要塞</title>
 <link rel="stylesheet" href="./css/ui.css">
 </head>
@@ -57,11 +57,9 @@
         <button class="skill" data-skill="greed" aria-label="富矿">💰<i></i></button>
       </div>
 
-      <!-- 左下相机控制 -->
+      <!-- 左下：重新铺满（默认禁缩放后唯一的相机操作，旋转屏幕后复位视角） -->
       <div id="camctl">
-        <button class="cbtn" data-cam="fit" aria-label="看全图">🧭</button>
-        <button class="cbtn" data-cam="in" aria-label="放大">＋</button>
-        <button class="cbtn" data-cam="out" aria-label="缩小">－</button>
+        <button class="cbtn" data-cam="fit" aria-label="重新铺满全图">🧭</button>
       </div>
 
       <!-- 底部居中：下一波预览 + 速度切换 -->
@@ -260,7 +258,7 @@
     </div>
   </div>
 
-  <div id="hint"><b>点塔卡 → 点格子</b> 建造 · <b>点塔</b> 升级/出售 · <b>双指</b> 缩放平移 · <b>长按</b> 快速建造 · 桌面 <b>1-9</b> 选塔 <b>Space</b> 开波 <b>J/K/L</b> 技能</div>
+  <div id="hint"><b>点塔卡 → 看准星</b> 建造 · <b>准星 = 指尖上方 2 格</b> · <b>点塔</b> 升级/出售 · <b>长按</b> 快速建造 · 桌面 <b>1-9</b> 选塔 <b>Space</b> 开波 <b>J/K/L</b> 技能</div>
 </div>
 
 <!-- file:// 直开 / 模块加载失败的可读面板（硬性要求：不得白屏） -->
