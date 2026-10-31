@@ -535,15 +535,6 @@ ok('触屏链路全程 zoom 恒等于 fit：没有任何手势 / 快捷键改得
 g.destroy();
 ok('destroy：停止 rAF 调度并可安全卸载', g.raf === 0);
 
-/* UI 在无头 DOM 下可实例化：塔盘按塔表生成，选择器为空不抛异常 */
-let uiOk = false, uiExtra = '';
-try {
-  const u = new uiM.UI(null);
-  uiOk = u.cards.size === gameM.TOWERS.length;
-  uiExtra = `塔卡 ${u.cards.size} 张 / 节点缓存 ${Object.keys(u.n).length} 个`;
-} catch (e) { uiExtra = e && e.message ? e.message : String(e); }
-ok('UI 构造：无头 DOM 下生成塔盘与节点缓存，不抛异常', uiOk, uiExtra);
-
 /* 入口模块：真实 boot 路径（index.html 的 #game 画布 → UI + Game 接线 → window.TD） */
 let mainErr = '';
 try { await import('../js/main.js'); } catch (e) { mainErr = e && e.stack ? String(e.stack).split('\n').slice(0, 3).join(' | ') : String(e); }
@@ -551,6 +542,24 @@ ok('入口 main.js：boot 无异常，__tdBooted 置位且版本号合法',
   !mainErr && window.__tdBooted === true && !!window.TD && /^\d+\.\d+\.\d+$/.test(window.TD.version),
   mainErr || `v${window.TD && window.TD.version}`);
 const pageTest = window.TD ? window.TD.selfTest() : { ok: false, steps: ['TD 缺失'] };
+/* 回归：菜单点「开始第 N 关」必须自己收起 #overlay。覆盖屏是 inset:0 + z-index:10 的整屏层，
+   不收起就一直盖在画布上（还带 blur 背景），战场在弹层后面跑，玩家点不到地图。 */
+{
+  const u = window.TD && window.TD.ui;
+  const ov = document.getElementById('overlay');
+  const mp = document.getElementById('m-play');
+  let pass = false, extra = 'TD / DOM 缺失';
+  if (u && ov && mp) {
+    u.showScreen('menu');                                   // 回到开局菜单：#overlay.show
+    const before = ov.classList.contains('show');
+    const want = Number(document.getElementById('m-play-no').textContent);
+    fire(mp, 'click');
+    pass = before && !ov.classList.contains('show') && u.screen === null
+      && u.g.levelId === want && u.g.paused === false && u.n.overlay === ov;
+    extra = `点前 overlay=${before ? 'show' : '无'} 点后=${ov.classList.contains('show') ? 'show（仍挡画布）' : '已收起'} · 进第 ${u.g.levelId} 关（按钮写第 ${want} 关）· paused=${u.g.paused}`;
+  }
+  ok('菜单「开始第 N 关」点一下就收起弹层并直接开局（不留下盖住画布的 #overlay）', pass, extra);
+}
 ok('页内自检 TD.selfTest()：引擎推进 → HUD 文本 → 塔盘 → Fx 全链路成立',
   pageTest.ok === true, pageTest.steps.filter((s) => /胜|HUD|第1关/.test(s)).join(' · ') || pageTest.steps.join(' · '));
 const tSim = window.TD ? window.TD.simulate(2, { ai: true }) : null;
@@ -562,6 +571,16 @@ ok('TD.simulate 直接返回结算摘要（无 .sum 包装，README 口径一致
 const engineSim = engineM.simulateLevel((await import('../js/levels.js')).LEVELS[0], { ai: true });
 ok('引擎层独立可模拟（UI 未参与玩法）', !!engineSim && engineSim.win === true,
   engineSim ? `第 1 关 ★${engineSim.stars} 漏 ${engineSim.leaks} 塔 ${engineSim.towers}` : 'simulateLevel 缺失');
+
+/* UI 构造（放在最后）：mini-DOM 的元素缓存是全测试共用的，多建一个 UI 就会在 #m-play 等
+   节点上**追加**一份 click 监听器（g 为 null 的孤儿实例）。所以按钮点击类测试必须跑在它前面。 */
+let uiOk = false, uiExtra = '';
+try {
+  const u = new uiM.UI(null);
+  uiOk = u.cards.size === gameM.TOWERS.length;
+  uiExtra = `塔卡 ${u.cards.size} 张 / 节点缓存 ${Object.keys(u.n).length} 个`;
+} catch (e) { uiExtra = e && e.message ? e.message : String(e); }
+ok('UI 构造：无头 DOM 下生成塔盘与节点缓存，不抛异常', uiOk, uiExtra);
 
 console.log(fail ? `\n失败 ${fail} 项` : '\n全部通过 ✅');
 process.exit(fail ? 1 : 0);

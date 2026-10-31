@@ -39,13 +39,13 @@ function boot() {
     SKILLS,
     SPEEDS,
     save: () => Save.load(),
-    startLevel: (id) => { ui.hideOverlay(); return game.startLevel(id); },
+    startLevel: (id) => ui.launchLevel(id),
     startEndless: () => boot_endless(),
     simulate: (id, opts) => simulateLevel(LEVELS.find((l) => l.id === id) || LEVELS[0], opts),
     selfTest: () => selfTest(),
   };
 
-  function boot_endless() { ui.hideOverlay(); return game.startLevel(0); }
+  function boot_endless() { return ui.launchLevel(0); }
 
   /* 自检：不开画布也能验证「引擎 → UI 文本」这条链路是否接好 */
   function selfTest() {

@@ -90,9 +90,9 @@ export class UI {
       if (b.dataset.cam === 'fit') this.g.camFit();
     }));
     $$('#skills .skill').forEach((b) => b.addEventListener('click', () => this.g.fireSkill(b.dataset.skill)));
-    on('m-play', () => this.g.startLevel(Math.min(this.g.save.unlocked, LAST_LEVEL)));
+    on('m-play', () => this.launchLevel(Math.min(this.g.save.unlocked, LAST_LEVEL)));
     on('m-levels', () => { this.refresh(); this.showScreen('levels'); });
-    on('m-endless', () => this.g.startLevel(0));
+    on('m-endless', () => this.launchLevel(0));
     on('m-help2', () => this.showScreen('help'));
     on('m-settings', () => this.showScreen('settings'));
     on('l-back', () => this.showScreen('menu'));
@@ -108,7 +108,7 @@ export class UI {
     on('w-menu', () => { this.refresh(); this.showScreen('levels'); });
     on('d-retry', () => { this.hideOverlay(); this.g.restart(); });
     on('d-menu', () => { this.refresh(); this.showScreen('levels'); });
-    on('e-retry', () => { this.hideOverlay(); this.g.startLevel(0); });
+    on('e-retry', () => this.launchLevel(0));
     on('e-menu', () => { this.refresh(); this.showScreen('levels'); });
     $$('.tgl[data-set]').forEach((b) => b.addEventListener('click', () => this.g.setSetting(b.dataset.set, !this.g.save[b.dataset.set])));
     $$('.seg[data-set]').forEach((seg) => $$('.segb', seg).forEach((b) => b.addEventListener('click', () => {
@@ -127,7 +127,7 @@ export class UI {
       if (k === 'escape' && this.screen) { this.backFromModal(); return; }
       if ((k === 'enter' || k === ' ') && this.screen === 'menu') {
         e.preventDefault();
-        this.g.startLevel(Math.min(this.g.save.unlocked, LAST_LEVEL));
+        this.launchLevel(Math.min(this.g.save.unlocked, LAST_LEVEL));
       }
     });
   }
@@ -146,6 +146,13 @@ export class UI {
     this.screen = null;
     this.n['overlay'].classList.remove('show');
     $$('.screen').forEach((s) => s.classList.remove('show'));
+  }
+
+  /** 从任意覆盖屏进关卡：先收起 #overlay（inset:0 + z-index:10 会盖住画布并吃掉点击），再进关。
+   *  所有「点按钮直接开局」的入口都走这里，别再直接调 g.startLevel，否则战场在弹层后面跑。 */
+  launchLevel(id) {
+    this.hideOverlay();
+    return this.g.startLevel(id);
   }
 
   togglePause() {
@@ -169,8 +176,7 @@ export class UI {
 
   nextLevelAction() {
     if (this.g.levelId >= LAST_LEVEL) { this.refresh(); this.showScreen('levels'); return; }
-    this.hideOverlay();
-    this.g.startLevel(this.g.levelId + 1);
+    this.launchLevel(this.g.levelId + 1);
   }
 
   /* ============ 建造塔盘 ============ */
@@ -240,7 +246,7 @@ export class UI {
         + `<div class="ds">${lv.desc}</div>`
         + `<div class="st">${locked ? '🔒 先通上一关' : starStr(stars)}</div>`
         + `<div class="bs">${best ? `最高分 ${fmt(best)}` : '未通关'}${tags.length ? ' · ' + tags.slice(0, 2).join(' · ') : ''}</div>`;
-      if (!locked) card.addEventListener('click', () => { this.hideOverlay(); this.g.startLevel(lv.id); });
+      if (!locked) card.addEventListener('click', () => this.launchLevel(lv.id));
       else card.addEventListener('click', () => this.toast(`第 ${lv.id - 1} 关拿到 1 星后解锁`, 'warn'));
       grid.appendChild(card);
     }
@@ -251,7 +257,7 @@ export class UI {
       + `<div class="ds">每 5 波一个 BOSS，血量与护甲逐波成长，只冲自己的纪录。</div>`
       + `<div class="st">${s.endless.bestWave ? `最佳 第 ${s.endless.bestWave} 波` : '尚未挑战'}</div>`
       + `<div class="bs">${s.endless.bestScore ? `最高分 ${fmt(s.endless.bestScore)}` : '死亡即结算'}</div>`;
-    e.addEventListener('click', () => { this.hideOverlay(); this.g.startLevel(0); });
+    e.addEventListener('click', () => this.launchLevel(0));
     grid.appendChild(e);
   }
 

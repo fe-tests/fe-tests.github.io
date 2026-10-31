@@ -152,6 +152,21 @@ README 承诺的每个 `window.TD` API 从此都有断言兜着。影响面：`j
 解法：以实现为准统一（技能 `J K L`——W 已绑平移，同手位不能撞键；选塔 `1-9`），并给 `smoke.mjs` 补两条契约：`SKILLS[].key` 必须等于 `input.js` 里 `skill1/2/3` 实际绑定的键；`#hint` 文案不得出现 `1-0` / `Q/W/E`。影响面：`config.js`、`index.html` 的 `#hint`、`ui.js` 键盘帮助表。
 **教训**：凡是「写给用户看的常量」（键位、冷却、返还率、上限）都要被机器校验一次，否则它就是漂移的起点。
 
+**25. 点「开始第 N 关」开局了，战场却在弹层后面跑（点不到地图）**
+现象：主菜单点 `▶ 开始第 1 关`（`♾ 无尽模式`、键盘 Enter / Space 同）之后，波次在推进、HUD 在跳，
+可画布上的落塔与选塔点击全部没反应，那层「弹框」得手动按 Esc 才收得掉。
+根因：`#overlay` 是 `position:absolute; inset:0; z-index:10` 的整屏覆盖层（半透明 + `backdrop-filter: blur`），
+显隐只由 `ui.showScreen` / `hideOverlay` 切 `.show`。关卡卡、无尽卡、结算屏「再玩一次」都成对写了 `hideOverlay()`，
+**唯独 `m-play` / `m-endless` / 键盘 Enter·Space 这三条入口直接调 `g.startLevel()`**——`game.js` 不碰 DOM，覆盖层于是原样盖着吃掉点击。
+`main.js` 的 `TD.startLevel()` 里带了 `ui.hideOverlay()`，所以控制台与自动化脚本看着一切正常，只有真人点按钮会中招。
+解法：`ui.js` 加 `launchLevel(id)`（先 `hideOverlay()` 再 `g.startLevel(id)`），把所有「点按钮直接开局」的入口收敛到它：
+`m-play`、`m-endless`、键盘 Enter·Space、关卡卡、无尽卡、`e-retry`、`nextLevelAction`；`main.js` 的 `TD.startLevel` / `boot_endless` 也走这同一条。
+影响面：`js/ui.js`、`js/main.js`。
+**教训**：「谁把弹层显示出来」与「谁负责关掉它」是一对；再加"点一下直接进战斗"的入口，必须复用既有的那条收敛函数，不能各写一份。
+`headless.mjs` 已补断言：派发 `#m-play` 的 click 之后 `#overlay` 必须不含 `.show` 且 `ui.screen === null`（把写法退回旧的直接 `startLevel`，它稳定报 `点后=show（仍挡画布）`）。
+顺带记一条测试口径：mini-DOM 的元素缓存是整套测试共用的，多 `new UI(null)` 一次就在 `#m-play` 上多挂一份监听器（`g` 为 null 的孤儿实例会抢先抛异常），
+所以按钮点击类用例必须排在「UI 构造」那条之前。
+
 ## 平衡基线（`tools/smoke.mjs` 自动玩家，逐关断言）
 
 | 关 | 结果 | 漏怪 | 塔数 | 备注 |
