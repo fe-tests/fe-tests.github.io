@@ -43,9 +43,10 @@ export function buildWorld(THREE, opts = {}) {
   const kit = buildTextureKit(THREE, { maxAnisotropy: opts.maxAnisotropy || 1 });
 
   // 天穹球：T17 的垂直渐变包在大球内侧（scene.background 用贴图会拉伸，故用几何体贴图）。
-  // 相机在球心，只能看到三角面的内表面 → side 必须 BackSide；r128 的 FrontFace 判定是
+  // 相机在球心附近，只能看到三角面的内表面 → side 必须 BackSide；r128 的 FrontFace 判定是
   // 「投影面积 > 0」而非叉积符号，所以不能靠 scale(-1) 反翻（实测行列式仍为 +1）。
-  const domeGeo = new THREE.SphereGeometry(RENDER.far * 0.55, 24, 16);
+  // 半径写死 2400：俯瞰机位离地 ~1.1 km，天穹球必须包住最远的机位，否则它会缩成画面里的一块黑。
+  const domeGeo = new THREE.SphereGeometry(2400, 24, 16);
   const domeMat = new THREE.MeshBasicMaterial({ map: kit.tex.skyGradient, side: THREE.BackSide, depthWrite: false, fog: false });
   const dome = new THREE.Mesh(domeGeo, domeMat);
   dome.name = 'dome';
@@ -102,13 +103,16 @@ function makeGround(THREE, kit) {
   mesh.rotation.x = -Math.PI / 2;
   mesh.receiveShadow = true;
 
+  // ⚠️ 地面**永远不挪**：main.js 的「视点跟随」只作用于 chunk 化之后的地形（阶段 4）。
+  // 这块平面是宫城的两倍多，一旦跟视点平移，整座城就会跟着镜头跑（见 PROGRESS.md D21）。
+
   // 中轴石板带（纯视觉引导，不参与碰撞）
   const stripGeo = new THREE.PlaneGeometry(14, CITY.lenN * 1.35, 1, 1);
   const stripMat = new THREE.MeshStandardMaterial({ color: 0xcfc6b4, roughness: 0.9 });
   const strip = new THREE.Mesh(stripGeo, stripMat);
   strip.name = 'strip';
-  // PlaneGeometry 局部中心在原点：绕 X 转 -90° 后，几何体 +Y 轴落在世界 -Z（北），
-  // 故中点取 (wumen + shenwumen)/2 = -37.5，让石板带正好横跨午门→神武门。
+  // 与地面同一口径：绕 X 转 -90° 后局部 +Y 落在世界 +Z（南）；平面中心对称，故中点直接取
+  // (wumen + shenwumen)/2 = -37.5，石板带正好横跨午门→神武门。
   strip.rotation.x = -Math.PI / 2;
   strip.position.set(0, 0.02, (AXES.wumen + AXES.shenwumen) / 2);
   mesh.add(strip);

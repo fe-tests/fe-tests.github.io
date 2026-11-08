@@ -9,7 +9,7 @@ import { SELL_RATE, BAL } from './config.js';
 export const TOWERS = [
   {
     id: 'arrow', name: '箭塔', icon: '🏹', color: '#7fd4ff', role: '速射单体', shot: 'arrow',
-    dmgType: 'physical', cost: 40, unlockAt: 1, bullet: 14, targetDefault: 'first',
+    dmgType: 'physical', cost: 40, unlockAt: 1, bullet: 14, targetDefault: 'first', air: false,
     tags: ['单体', '穿透'],
     notes: ['最低成本的主力，性价比之王', 'Lv.2 起每箭额外穿透 1 个目标', '对重甲目标乏力，交给炮塔/狙击'],
     lv: [
@@ -20,7 +20,7 @@ export const TOWERS = [
   },
   {
     id: 'arcane', name: '奥术塔', icon: '🔮', color: '#b07cff', role: '范围魔法', shot: 'orb',
-    dmgType: 'magic', cost: 70, unlockAt: 1, bullet: 10, targetDefault: 'first',
+    dmgType: 'magic', cost: 70, unlockAt: 1, bullet: 10, targetDefault: 'first', air: true,
     tags: ['溅射', '魔法'],
     notes: ['落点溅射，专治成群步兵', '魔法伤害看魔抗而不是护甲，克重甲', '单发伤害不高，别单独守长线'],
     lv: [
@@ -31,7 +31,7 @@ export const TOWERS = [
   },
   {
     id: 'frost', name: '冰塔', icon: '❄️', color: '#8fe3ff', role: '减速光环', shot: 'aura',
-    dmgType: 'magic', cost: 60, unlockAt: 1, targetDefault: 'first',
+    dmgType: 'magic', cost: 60, unlockAt: 1, targetDefault: 'first', air: false,
     tags: ['减速', '光环'],
     notes: ['光环持续掉血 + 减速，是其它塔的乘数', 'Lv.3 有 18% 概率冻结 0.6 秒', '自身 DPS 很低，别指望它杀敌'],
     lv: [
@@ -42,7 +42,7 @@ export const TOWERS = [
   },
   {
     id: 'forge', name: '工坊塔', icon: '⚒️', color: '#f2c14e', role: '经济支援', shot: 'forge',
-    dmgType: 'true', cost: 90, unlockAt: 2, targetDefault: 'first',
+    dmgType: 'true', cost: 90, unlockAt: 2, targetDefault: 'first', air: false,
     tags: ['经济', '光环'],
     notes: ['每波结算给金，击杀额外加赏金', 'Lv.3 提升全场击杀赏金 12%', '越早越划算：一次投资吃完整局'],
     lv: [
@@ -53,7 +53,7 @@ export const TOWERS = [
   },
   {
     id: 'venom', name: '毒塔', icon: '☠️', color: '#7ee787', role: '叠毒持续', shot: 'venom',
-    dmgType: 'poison', cost: 85, unlockAt: 3, bullet: 11, targetDefault: 'weak',
+    dmgType: 'poison', cost: 85, unlockAt: 3, bullet: 11, targetDefault: 'weak', air: false,
     tags: ['持续伤害', '无视护甲'],
     notes: ['毒层可叠加，完全无视护甲，重甲亲妈', '需要时间生效：配减速塔放在长路入口', '对高速敌人收益偏低'],
     lv: [
@@ -64,7 +64,7 @@ export const TOWERS = [
   },
   {
     id: 'javelin', name: '标枪塔', icon: '🛡️', color: '#ffd9a0', role: '对空特化', shot: 'javelin',
-    dmgType: 'physical', cost: 95, unlockAt: 3, bullet: 18, targetDefault: 'last',
+    dmgType: 'physical', cost: 95, unlockAt: 3, bullet: 18, targetDefault: 'last', air: true,
     tags: ['对空', '高速'],
     notes: ['对飞行敌人 2.0~2.4 倍伤害，飞行关必备', '对地面目标有轻微惩罚，别当主力', '弹速极快，几乎无 miss'],
     lv: [
@@ -75,7 +75,7 @@ export const TOWERS = [
   },
   {
     id: 'tesla', name: '雷电塔', icon: '⚡', color: '#9fd0ff', role: '链式闪电', shot: 'chain',
-    dmgType: 'magic', cost: 120, unlockAt: 4, targetDefault: 'first',
+    dmgType: 'magic', cost: 120, unlockAt: 4, targetDefault: 'first', air: false,
     tags: ['链式', '魔法'],
     notes: ['闪电链弹射 2~4 个目标，越挤越赚', '对机械敌人 1.3 倍伤害', '瞬发无弹道，适合弯道交叉口'],
     lv: [
@@ -86,7 +86,7 @@ export const TOWERS = [
   },
   {
     id: 'flame', name: '喷火塔', icon: '🔥', color: '#ff8f3c', role: '近程锥形', shot: 'flame',
-    dmgType: 'fire', cost: 130, unlockAt: 5, targetDefault: 'first',
+    dmgType: 'fire', cost: 130, unlockAt: 5, targetDefault: 'first', air: false,
     tags: ['锥形', '灼烧'],
     notes: ['扇形持续灼烧，清虫群/自爆群最快', '射程很短，必须放在弯道内侧', '灼烧是无视护甲的火焰伤害'],
     lv: [
@@ -97,7 +97,7 @@ export const TOWERS = [
   },
   {
     id: 'cannon', name: '炮塔', icon: '💣', color: '#ffb37f', role: '重炮溅射', shot: 'cannon',
-    dmgType: 'physical', cost: 110, unlockAt: 2, bullet: 8, targetDefault: 'strong',
+    dmgType: 'physical', cost: 110, unlockAt: 2, bullet: 8, targetDefault: 'strong', air: true,
     tags: ['溅射', '破甲'],
     notes: ['单发高伤 + 大溅射，专打扎堆的重甲', '对护甲目标有 35% 加成', '射速慢，配减速塔才吃得满'],
     lv: [
@@ -108,7 +108,7 @@ export const TOWERS = [
   },
   {
     id: 'sniper', name: '狙击塔', icon: '🎯', color: '#ffe08a', role: '超远狙击', shot: 'snipe',
-    dmgType: 'physical', cost: 150, unlockAt: 5, targetDefault: 'strong',
+    dmgType: 'physical', cost: 150, unlockAt: 5, targetDefault: 'strong', air: true,
     tags: ['远程', '单体爆发'],
     notes: ['射程 5.5~7 瓦，覆盖整条长路', '自带护甲穿透，专门点名精英与 BOSS', '默认「最强」索敌，别调成「最先」'],
     lv: [

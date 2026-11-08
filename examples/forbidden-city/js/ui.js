@@ -13,6 +13,7 @@ export class UI {
       hud: $('hud'), fps: $('dbg-fps'), calls: $('dbg-calls'), tris: $('dbg-tris'),
       level: $('dbg-level'), zone: $('dbg-zone'), toast: $('toast'), panelFallback: $('fallback'),
     };
+    this._mode = 'walk';
     this._acc = 0;
     this._frames = 0;
     this._toastTimer = 0;
@@ -82,7 +83,7 @@ export class UI {
   }
 
   /** 每帧更新读数与 toast 计时。@param {object} q quality.summary() @param {string} zone */
-  update(dt, q, zone) {
+  update(dt, q, zone, mode) {
     if (this._toastTimer > 0) {
       this._toastTimer -= dt;
       if (this._toastTimer <= 0 && this.el.toast) this.el.toast.classList.remove('on');
@@ -96,8 +97,26 @@ export class UI {
     if (this.el.fps) this.el.fps.textContent = Math.round(fps) + ' fps';
     if (this.el.calls) this.el.calls.textContent = 'draw ' + q.calls;
     if (this.el.tris) this.el.tris.textContent = fmtTris(q.tris);
-    if (this.el.level) this.el.level.textContent = q.name + ' · dpr' + q.dpr;
+    if (this.el.level) this.el.level.textContent = q.name + ' · dpr' + q.dpr + (mode ? ' · ' + mode : '');
     if (this.el.zone && zone) this.el.zone.textContent = zone;
+  }
+
+  /** 高亮当前视角档（漫步/飞行/俯瞰）。@param {string} id */
+  setMode(id) {
+    this._mode = id;
+    const btns = document.querySelectorAll('[data-mode]');
+    for (let i = 0; i < btns.length; i++) {
+      btns[i].classList.toggle('on', btns[i].getAttribute('data-mode') === id);
+    }
+  }
+
+  /** 绑定视角档按钮。@param {Function} onPick(modeId) */
+  bindMode(onPick) {
+    const btns = document.querySelectorAll('[data-mode]');
+    for (let i = 0; i < btns.length; i++) {
+      btns[i].addEventListener('click', function () { onPick(btns[i].getAttribute('data-mode')); });
+    }
+    this.setMode(this._mode);
   }
 
   /** 绑定画质档按钮（低/中/高）。@param {Function} onPick(level) */

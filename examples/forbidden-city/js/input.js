@@ -18,6 +18,8 @@ export class Input {
     this.look = { dx: 0, dy: 0 };
     this.fovTarget = RENDER.fovDesktop;
     this.run = false;
+    // 滚轮/捏合的**增量**意图（overview 用它拉轨道半径）；每帧被 consumeZoom() 取走
+    this.zoomDelta = 0;
 
     this._keys = Object.create(null);
     this._pointers = new Map();      // pointerId → {kind:'stick'|'look', x, y, sx, sy}
@@ -42,7 +44,9 @@ export class Input {
     /* ------------------------------ 滚轮 / 捏合：调 FOV ------------------------------ */
     el.addEventListener('wheel', (e) => {
       e.preventDefault();
-      this.fovTarget = clamp(this.fovTarget + Math.sign(e.deltaY) * 3, RENDER.fovTouchMin, RENDER.fovTouchMax);
+      const step = Math.sign(e.deltaY) * 3;
+      this.fovTarget = clamp(this.fovTarget + step, RENDER.fovTouchMin, RENDER.fovTouchMax);
+      this.zoomDelta += Math.sign(e.deltaY);
     }, { passive: false });
 
     // iOS Safari 的捏合缩放手势：页面是全屏画布，不允许整页缩放
@@ -93,6 +97,8 @@ export class Input {
       } else {
         const ratio = this._pinch.dist / Math.max(24, dist);
         this.fovTarget = clamp(this._pinch.fov0 * ratio, RENDER.fovTouchMin, RENDER.fovTouchMax);
+        // 捏合的增量口径与滚轮一致：>0 表示拉远
+        this.zoomDelta += clamp(Math.log2(dist / Math.max(24, this._pinch.dist)), -1, 1);
       }
       a.x = e.clientX; a.y = e.clientY;
       return;
@@ -132,6 +138,22 @@ export class Input {
   consumeLook() {
     const v = { dx: this.look.dx, dy: this.look.dy };
     this.look.dx = 0; this.look.dy = 0;
+    return v;
+  }
+
+  /** 取走并清空「拉近/拉远」增量（>0 拉远）。 */
+  consumeZoom() {
+    const v = this.zoomDelta;
+    this.zoomDelta = 0;
+    return v;
+  }
+
+  /** 垂直意图：飞行模式用（空格 / E 上升，Ctrl / Q 下降）。 */
+  vertical() {
+    const k = this._keys;
+    let v = 0;
+    if (k[' '] || k['e']) v += 1;
+    if (k['control'] || k['q']) v -= 1;
     return v;
   }
 

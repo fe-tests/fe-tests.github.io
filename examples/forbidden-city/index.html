@@ -41,11 +41,20 @@
   /* ------------------------------ HUD ------------------------------ */
   #hud { position: fixed; inset: 0; z-index: 20; pointer-events: none; }
   #hud.hide .dbg, #hud.hide .zone { opacity: 0; }
+  /* 隐藏读数时保留视角按钮：否则移动端只剩摇杆，回不到地面 */
+  #hud.hide .modes { opacity: 1; }
   .dbg { position: fixed; top: calc(8px + env(safe-area-inset-top)); right: calc(8px + env(safe-area-inset-right)); display: flex; gap: 8px;
     font: 11px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; color: #cfd8de; background: rgba(12,14,18,.5); padding: 4px 10px;
     border-radius: 8px; transition: opacity .3s; }
   .zone { position: fixed; top: calc(46px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
     font-size: 13px; letter-spacing: .2em; color: #f2e6cf; background: rgba(18,20,26,.42); padding: 4px 16px; border-radius: 999px; transition: opacity .3s; }
+
+  /* 视角档：左下角，移动端拇指区（俯瞰是「走得太慢」的解药，必须一眼可见） */
+  .modes { position: fixed; left: calc(12px + env(safe-area-inset-left)); bottom: calc(12px + env(safe-area-inset-bottom)); display: flex; gap: 6px; pointer-events: auto; }
+  .modes button { min-width: 48px; height: 34px; font-size: 12px; color: #e7eaf0; background: rgba(18,20,26,.5);
+    border: 1px solid rgba(231,234,240,.22); border-radius: 8px; }
+  .modes button.on { color: #1a1206; background: linear-gradient(180deg,#f2e6cf,#d9c48f); border-color: rgba(242,230,207,.7); font-weight: 600; }
+  .modes button:active { background: rgba(200,162,74,.35); }
 
   /* 画质档：右下角，移动端手指够得着 */
   .levels { position: fixed; right: calc(12px + env(safe-area-inset-right)); bottom: calc(12px + env(safe-area-inset-bottom)); display: flex; gap: 6px; pointer-events: auto; }
@@ -91,6 +100,11 @@
 <div id="hud">
   <div class="dbg"><span id="dbg-fps">-- fps</span><span id="dbg-calls">draw --</span><span id="dbg-tris">-- tris</span><span id="dbg-level">--</span></div>
   <div class="zone" id="dbg-zone"></div>
+  <div class="modes">
+    <button type="button" data-mode="walk">漫步</button>
+    <button type="button" data-mode="fly">飞行</button>
+    <button type="button" data-mode="overview">俯瞰</button>
+  </div>
   <div class="levels">
     <button type="button" data-level="low">流畅</button>
     <button type="button" data-level="mid">标准</button>

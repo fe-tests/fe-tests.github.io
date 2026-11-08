@@ -65,6 +65,16 @@ export const TARGET_MODES = [
 ];
 export const targetLabel = (id) => (TARGET_MODES.find((m) => m.id === id) || TARGET_MODES[0]).name;
 
+/* ---------- 目标类型过滤（与优先级正交：先用过滤决定「打不打得到」，再用优先级决定「先打谁」）
+ * 可选档位由塔表的 `air` 字段推导（见 towers.js 的 filtersOf）：不能对空的塔只有 ground 一档。
+ * 过滤只约束**主目标选择**；溅射 / 链式弹射按原有波及规则走（在 README「管理塔」里写明）。 */
+export const TARGET_FILTERS = [
+  { id: 'all', name: '全部', tip: '地面与飞行都打（默认）', icon: '🌍' },
+  { id: 'ground', name: '仅地面', tip: '只打地面目标，火力留给步兵群', icon: '🚶' },
+  { id: 'air', name: '仅飞行', tip: '只打飞行目标，标枪/炮/奥术/狙击可用', icon: '✈️' },
+];
+export const filterLabel = (id) => (TARGET_FILTERS.find((f) => f.id === id) || TARGET_FILTERS[0]).name;
+
 /* ---------- 主动技能 ----------
  * key 是给用户看的键位标签，真实绑定在 input.js（skill1/2/3）：W 已被「平移」占用，
  * 所以技能绑 J/K/L；改键位时三处要一起改（此表、input.js 的映射、#hint 与帮助页文案）。 */
