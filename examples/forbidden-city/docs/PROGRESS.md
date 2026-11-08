@@ -8,7 +8,7 @@
 
 ## 1. 当前阶段
 
-**阶段 1（渲染骨架 + 画质档）已完成 → 下一步做阶段 2（素材工厂）。**
+**阶段 2（素材工厂）已完成 → 下一步做阶段 3（构件库 + 数据表）。**
 
 - slug：`forbidden-city` · 入口：[index.html](../index.html) · 注册项：`registry.json` 最后一条（`status: alpha`）
 - 依赖：**Three.js r128**（已入库，未新增 vendor 文件）→ `../../assets/vendor/three/r128/three.min.js`
@@ -27,13 +27,18 @@
 | 1 | 纯状态机：9 条成就表、分区判定 `zoneOfZ`、中轴里程碑、存档迁移与容错（损坏档/配额满/版本不符都不炸） | `js/state.js`（`ENGINE-START/END` 段） |
 | 1 | 输入层：`body.touch` 开关、左半屏浮动摇杆 + 右半屏看视角、双指捏合调 FOV、WASD/Shift/H 键位 | `js/input.js` |
 | 1 | **校验网**：30 条纯逻辑断言（数据表 / 成就幂等 / 存档往返 / 离线钉测 / r128 色彩口径）+ headless Chrome CDP 探针（THREE 版本、无异常、真实 drawCalls>0）+ 截图 | `tools/{package.json,smoke.mjs,headless.mjs}` |
+| 2 | **素材工厂**：`textures.js` T01–T18 全部实现（琉璃瓦 / 汉白玉 / 金砖 / 红墙 / 菱花窗 / 门钉 / 彩画 / 蟠龙藻井 / 匾额 / 青铜 / 水面法线 / 天穹…）。工厂是纯 Canvas2D 函数，`makeTexture()` 才碰 three.js → 可在 Node 里注入 provider 测试 | `js/textures.js`、config 增 `TEX`/`TEX_BUDGET` |
+| 2 | **贴图校验三层**：① shim 下 18 工厂全部可执行且确定性噪声可平铺；② 在 vm 里加载**真实 three.min.js** 钉测 `encoding/wrapS/anisotropy` 用法；③ headless 打样总览图供肉眼复核 | `tools/smoke.mjs`、`tools/preview-textures.mjs` |
 
 **验证记录（阶段 1）**：`node examples/forbidden-city/tools/smoke.mjs` → 全部通过；
 `node examples/forbidden-city/tools/headless.mjs`（需先 `node server.js`）→ 7 条全过，REVISION=128、`draw 3 / 6 tris`、无异常。
 
+**验证记录（阶段 2）**：smoke 新增 12 条断言后仍全部通过；贴图显存实测 **24.69 MB / 18 张**（上限 128 MB）；
+打样图 `tools/out/textures.png`（不入库）肉眼复核一轮，已修 T04 浮雕对比度、T05 金砖太暗、T16 水面法线幅度过大。
+
 ## 3. 未完成（按阶段，含验收要点）
 
-- [ ] **2 素材工厂**：`textures.js` 实现 T01–T18，`smoke.mjs` 断言预算表
+- [x] **2 素材工厂**：`textures.js` 实现 T01–T18，`smoke.mjs` 断言预算表 ✅ 阶段 2
 - [ ] **3 构件库**：`parts.js` G01–G22 + `buildings.js` 组合器 + `layout.js` 数据表自检（中轴 `cx=0`、间数×BAY≈实测面阔）
 - [ ] **4 外朝中轴**：午门凹字城台与五凤楼、内金水河与五孔桥、左右阙亭、廊庑围合、太和门 → `drawCalls ≤ 260`
 - [ ] **5 三层台基 + 三大殿**：8.13 m 三层须弥座 + 栏杆螭首；三殿形制（庑殿 / 四角攒尖 / 歇山）与实测尺度
@@ -47,9 +52,13 @@
 
 ## 4. 下一步（≤3 条，可直接执行）
 
-1. 写 `js/textures.js`：值噪声/fbm 工具 + T01–T18 工厂；每个工厂返回 `{map, bumpMap?, roughnessMap?}`，统一设 `encoding = THREE.sRGBEncoding`（albedo）、`anisotropy = min(4, maxAnisotropy)`。
-2. 在 `smoke.mjs` 加贴图预算断言：按工厂表累加「宽×高×4B×1.33」≤ 128MB、单张 ≤ 1024px、材质数 ≤ 24。
-3. 写 `js/layout.js` 数据表（单一数据源）+ `tools/export-layout.mjs`，把 research.md §1–§4 的实测值全部落成字段；`smoke.mjs` 里断言中轴 `cx=0` 与「间数 × BAY ≈ 实测面阔」。
+1. **`js/layout.js`（先做数据表，它是单一数据源）**：把 research.md §1–§4 的实测值全部落成字段——
+   每座建筑一条记录：`{id, cn, cx:0, cz, bays, depthBays, bayW, hRoof, form:'庑殿|歇山|攒尖', tier, doors:[...], interior:{...}}`；
+   三大殿按 `面阔 = bays × BAY ≈ 63.96 m`、台基三层各高约 2.71 m（合计 8.13 m）写死并注释出处。
+2. **`js/parts.js`**：G01–G03（台基/栏杆/螭首）+ G04 柱网 + G07/G08/G09 三种屋顶形制 + G11/G12 脊与走兽；
+   每个构件返回 `THREE.Group`，尺寸参数全部来自 layout 记录，不许在构件里写死建筑尺度。
+3. **`js/buildings.js`**：`hall()/gate()/tower()/corridorRun()/pavilion()` 组合器 + `smoke.mjs` 加数据表自检
+   （中轴 `cx===0`、`bays×BAY` 与实测面阔误差 <5%、屋顶形制与 research.md §5 一致、相邻建筑不重叠）。
 
 ## 5. 已知坑与决策
 
@@ -67,6 +76,8 @@
 | D10 | headless 截图里 HUD 读数是 `-- fps`，容易误判成「主循环没跑」 | 实为 `virtual-time-budget` 冻结了 rAF；改用 CDP 探针取 `renderer.info`（drawCalls）判定真实渲染 |
 | D11 | 冒烟断言用正则扫源码时，**注释里的字符串也会命中**（曾误报 outputColorSpace） | 断言前先 `stripComments()`；跨文件常量放单一来源（如 `SAVE_VERSION` 在 config.js） |
 | D12 | **模板残留的 `js/render.js` 与本特性分层不符**（3D 需要「数据 → 构件 → 装配 → 碰撞」四层，不是单一渲染层） | 阶段 1 已删除该文件；世界装配改名 `world.js`，模块边界记在 devlog「拆分记录」 |
+| D13 | **贴图工厂若在顶层碰 `document`/THREE，Node 侧就无法测试** | 工厂签名统一为纯函数 `draw(ctx,w,h,opts)`；`makeTexture(THREE, entry, opts, {provider})` 才接触 three.js。测法：shim / vm 真实 three.min.js / headless 打样三种口径 |
+| D14 | **Canvas2D 的 `drawImage(canvas)` 合成在 Node 侧不可用**（做旧叠加曾这样写） | 改用 `getImageData`/`putImageData` 直接读写像素，浏览器与 Node 两侧行为一致 |
 
 ## 6. 校验怎么跑
 

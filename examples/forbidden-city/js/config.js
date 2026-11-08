@@ -89,6 +89,10 @@ export const BUDGET = {
   materials: 24,
 };
 
+// 贴图工厂的预算口径（textures.js 的 TEXTURES 表按此自检）：单张最长边、总量上限
+export const TEX = { maxAnisotropy: 4 };
+export const TEX_BUDGET = { maxSide: 1024, totalMB: 128 };
+
 /* ------------------------------ 玩法与持久化（阶段 10）------------------------------ */
 export const SAVE_KEY = 'forbidden-city.v1';
 export const SAVE_VERSION = 1;   // 存档结构版本；字段变更时递增并在 state.js migrateSave 里加迁移
