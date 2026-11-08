@@ -1,0 +1,29 @@
+/* 3D 故宫游览 · css/main.css —— 非首屏样式（首屏关键样式留在 index.html 的 <style>）
+ * 阶段 1：说明浮层 / 按钮通用态。阶段 9–10 会加导览卡、小地图、成就面板。
+ */
+
+/* 通用按钮态：HUD 上的可点元素统一手感（≥44px 命中区在移动端由媒体查询保证） */
+button { font-family: inherit; cursor: pointer; }
+button:focus-visible { outline: 2px solid #f2e6cf; outline-offset: 2px; }
+
+/* 说明浮层：首屏右下角「怎么操作」，可关闭（阶段 9 起与导览卡合并） */
+#help { position: fixed; right: calc(12px + env(safe-area-inset-right)); bottom: calc(54px + env(safe-area-inset-bottom));
+  z-index: 26; max-width: 300px; padding: 12px 14px; font-size: 12px; line-height: 1.85; color: #cfd8de;
+  background: rgba(12,14,18,.72); border: 1px solid rgba(231,234,240,.16); border-radius: 12px; backdrop-filter: blur(8px); }
+#help h3 { margin: 0 0 6px; font-size: 13px; color: #f2e6cf; letter-spacing: .08em; }
+#help kbd { display: inline-block; min-width: 18px; padding: 0 5px; font: inherit; font-size: 11px; text-align: center;
+  background: rgba(242,230,207,.14); border: 1px solid rgba(242,230,207,.3); border-radius: 4px; }
+#help .close { position: absolute; top: 6px; right: 8px; width: 24px; height: 24px; padding: 0; font-size: 14px; line-height: 1;
+  color: #98a2b3; background: none; border: 0; }
+#help.gone { display: none; }
+
+/* 移动端：说明浮层收到底部横条，避免遮住摇杆与画质档按钮 */
+@media (max-width: 640px) {
+  #help { left: calc(12px + env(safe-area-inset-left)); right: calc(12px + env(safe-area-inset-right)); bottom: calc(52px + env(safe-area-inset-bottom));
+    max-width: none; }
+}
+
+/* 无动效偏好：把 HUD 的过渡关掉（渲染层的降档由 quality.js 处理） */
+@media (prefers-reduced-motion: reduce) {
+  #loading, #toast, .dbg, .zone { transition: none !important; }
+}

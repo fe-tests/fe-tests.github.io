@@ -330,6 +330,19 @@
       "thumbnail": null,
       "createdAt": "2026-10-31 10:36:03",
       "updatedAt": "2026-10-31 14:24:00"
+    },
+    {
+      "title": "3D 故宫游览",
+      "description": "全屏 3D 紫禁城：中轴三大殿可入内游览，程序化琉璃瓦与汉白玉材质，移动端摇杆操控。",
+      "url": "examples/forbidden-city/index.html",
+      "category": "game",
+      "emoji": "🏯",
+      "tags": ["threejs","3d","mobile","故宫","触摸"],
+      "status": "alpha",
+      "pinned": false,
+      "thumbnail": null,
+      "createdAt": "2026-11-08 17:30:51",
+      "updatedAt": "2026-11-08 17:30:51"
     }
   ]
 }

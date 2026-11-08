@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<!--
+  3D 故宫游览（forbidden-city）· 页面入口
+  创建：2026-11-08 17:30:51 · 由 tools/new-page.js 生成（--split：是），阶段 1 起改写
+  文档：README.md（玩法与用法）· docs/PROGRESS.md（接续入口）· docs/design.md · docs/devlog.md
+        docs/research.md（实测数据与素材来源）· docs/assets.md（程序化素材台账）
+  依赖：Three.js r128（本地化资源，UMD 全局 THREE），加载后必须探测 typeof THREE === 'undefined'
+  路径约定：返回门户 href="/"；顶级共享资源 ../../assets/...；页面自身文件 ./js/... ./css/...
+  已拆分：入口只留骨架与样式，逻辑在 ./js/*.js（ES module，需 HTTP 访问，不能 file:// 直开）
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#12141a">
+<title>3D 故宫游览</title>
+<link rel="stylesheet" href="./css/main.css">
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; font-family: system-ui, "PingFang SC", "Microsoft YaHei", sans-serif; background: #0f1115; color: #e7eaf0; overflow: hidden; touch-action: none; overscroll-behavior: none; }
+  #gl { position: fixed; inset: 0; display: block; width: 100%; height: 100%; }
+
+  /* 返回门户：小按钮，移动端也够点（≥44px 命中区） */
+  .back { position: fixed; top: calc(8px + env(safe-area-inset-top)); left: calc(8px + env(safe-area-inset-left)); z-index: 30;
+    display: inline-flex; align-items: center; height: 32px; padding: 0 12px; color: #f2e6cf; text-decoration: none; font-size: 13px;
+    background: rgba(18,20,26,.5); border: 1px solid rgba(242,230,207,.28); border-radius: 999px; backdrop-filter: blur(6px); }
+  .back:hover { background: rgba(18,20,26,.75); text-decoration: none; }
+
+  /* ------------------------------ 加载条 ------------------------------ */
+  #loading { position: fixed; inset: 0; z-index: 40; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 18px; background: radial-gradient(120% 90% at 50% 30%, #2a2018 0%, #14161c 70%); transition: opacity .5s ease; }
+  #loading.gone { opacity: 0; pointer-events: none; }
+  #loading h1 { font-size: 26px; margin: 0; letter-spacing: .18em; color: #f2e6cf; font-weight: 600; }
+  #loading .sub { font-size: 13px; color: #b9a98f; letter-spacing: .1em; }
+  #load-bar { width: min(420px, 76vw); height: 4px; background: rgba(242,230,207,.16); border-radius: 999px; overflow: hidden; }
+  #load-pct { height: 100%; width: 0; background: linear-gradient(90deg,#c8a24a,#f2e6cf); transition: width .3s ease; }
+  #load-msg { font-size: 12px; color: #8f9aa8; min-height: 1.2em; }
+
+  /* ------------------------------ HUD ------------------------------ */
+  #hud { position: fixed; inset: 0; z-index: 20; pointer-events: none; }
+  #hud.hide .dbg, #hud.hide .zone { opacity: 0; }
+  .dbg { position: fixed; top: calc(8px + env(safe-area-inset-top)); right: calc(8px + env(safe-area-inset-right)); display: flex; gap: 8px;
+    font: 11px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; color: #cfd8de; background: rgba(12,14,18,.5); padding: 4px 10px;
+    border-radius: 8px; transition: opacity .3s; }
+  .zone { position: fixed; top: calc(46px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
+    font-size: 13px; letter-spacing: .2em; color: #f2e6cf; background: rgba(18,20,26,.42); padding: 4px 16px; border-radius: 999px; transition: opacity .3s; }
+
+  /* 画质档：右下角，移动端手指够得着 */
+  .levels { position: fixed; right: calc(12px + env(safe-area-inset-right)); bottom: calc(12px + env(safe-area-inset-bottom)); display: flex; gap: 6px; pointer-events: auto; }
+  .levels button { min-width: 44px; height: 30px; font-size: 12px; color: #e7eaf0; background: rgba(18,20,26,.5); border: 1px solid rgba(231,234,240,.22);
+    border-radius: 8px; }
+  .levels button:active { background: rgba(200,162,74,.35); }
+
+  /* 成就 / 提示 */
+  #toast { position: fixed; left: 50%; bottom: calc(96px + env(safe-area-inset-bottom)); transform: translateX(-50%) translateY(8px);
+    max-width: 84vw; padding: 9px 18px; font-size: 13px; color: #1a1206; background: linear-gradient(180deg,#f2e6cf,#d9c48f);
+    border-radius: 999px; opacity: 0; transition: opacity .3s ease, transform .3s ease; }
+  #toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ------------------------------ 虚拟摇杆（触屏才显示）------------------------------ */
+  #stick { position: fixed; width: 128px; height: 128px; margin: -64px 0 0 -64px; border-radius: 50%;
+    background: radial-gradient(circle at 50% 50%, rgba(242,230,207,.10), rgba(242,230,207,.02)); border: 1px solid rgba(242,230,207,.22);
+    opacity: 0; transition: opacity .18s; pointer-events: none; z-index: 25; }
+  #stick.on { opacity: 1; }
+  #stick-knob { position: absolute; left: 50%; top: 50%; width: 54px; height: 54px; margin: -27px 0 0 -27px; border-radius: 50%;
+    background: rgba(242,230,207,.30); border: 1px solid rgba(242,230,207,.5); }
+  body.touch #stick { display: block; }
+
+  /* ------------------------------ 降级面板（不得白屏）------------------------------ */
+  #fallback { position: fixed; inset: 0; z-index: 50; display: none; align-items: center; justify-content: center; padding: 24px; background: #12141a; }
+  #fallback.on { display: flex; }
+  .fb-box { max-width: 620px; padding: 22px; background: #171a21; border: 1px solid #2a2f3a; border-radius: 16px; }
+  .fb-title { font-size: 18px; margin: 0 0 12px; color: #f2e6cf; }
+  .fb-lines { margin: 0 0 14px; padding-left: 20px; font-size: 13px; line-height: 1.9; color: #b9c2ce; }
+  .fb-actions { display: flex; gap: 10px; }
+  .fb-box button { height: 40px; padding: 0 18px; font-size: 14px; color: #1a1206; background: #f2e6cf; border: 0; border-radius: 10px; }
+  .fb-hint { margin-top: 14px; font-size: 12px; color: #7d8794; }
+
+  @media (max-width: 640px) {
+    .dbg { font-size: 10px; padding: 3px 8px; }
+    .zone { top: calc(42px + env(safe-area-inset-top)); font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+<a class="back" href="/">← 门户</a>
+
+<!-- HUD：读数 / 分区 / 画质档 / 摇杆 / 提示 -->
+<div id="hud">
+  <div class="dbg"><span id="dbg-fps">-- fps</span><span id="dbg-calls">draw --</span><span id="dbg-tris">-- tris</span><span id="dbg-level">--</span></div>
+  <div class="zone" id="dbg-zone"></div>
+  <div class="levels">
+    <button type="button" data-level="low">流畅</button>
+    <button type="button" data-level="mid">标准</button>
+    <button type="button" data-level="high">精细</button>
+  </div>
+  <div id="stick"><div id="stick-knob"></div></div>
+  <div id="toast"></div>
+</div>
+
+<!-- 加载条 -->
+<div id="loading">
+  <h1>紫禁城</h1>
+  <div class="sub">THE FORBIDDEN CITY · 3D 游览</div>
+  <div id="load-bar"><div id="load-pct"></div></div>
+  <div id="load-msg">正在准备…</div>
+</div>
+
+<!-- 降级面板：依赖缺失 / 无 WebGL 时显示（文案写本地路径与修复办法） -->
+<div id="fallback">
+  <div class="fb-box">
+    <h2 class="fb-title">无法启动 3D 场景</h2>
+    <ul class="fb-lines"></ul>
+    <div class="fb-actions"></div>
+    <p class="fb-hint">本页面须经 HTTP 访问（ES module 在 file:// 下受 CORS 限制）：站点根目录执行 <code>node server.js</code>，再打开 <code>http://localhost:39977/examples/forbidden-city/</code></p>
+  </div>
+</div>
+
+<!-- 依赖：Three.js r128（本地化资源，登记见 assets/vendor/README.md）。
+     main.js 里先探测 typeof THREE === 'undefined' 再使用；缺失时走 #fallback 面板。 -->
+<script src="../../assets/vendor/three/r128/three.min.js"></script>
+<script type="module" src="./js/main.js"></script>
+</body>
+</html>
