@@ -9,7 +9,7 @@ import { UI } from './ui.js';
 import { Input } from './input.js';
 import { buildWorld } from './world.js';
 import { newState, recordZone, zoneOfZ, saveProgress, loadProgress } from './state.js';
-import { WALK_SPEED, RUN_SPEED, EYED_H } from './config.js';
+import { RENDER, WALK_SPEED, RUN_SPEED, EYED_H } from './config.js';
 
 const VENDOR_THREE = '../../assets/vendor/three/r128/three.min.js';
 const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
@@ -86,7 +86,9 @@ function boot() {
   document.body.appendChild(renderer.domElement);
 
   ui.progress(0.4, '装配场景…');
-  const world = buildWorld(THREE);
+  let aniso = 1;
+  try { aniso = Math.min(RENDER.maxAnisotropy, renderer.capabilities.getMaxAnisotropy()); } catch (e) { aniso = 1; }
+  const world = buildWorld(THREE, { quality: Quality.detectLevel(navigator), maxAnisotropy: aniso });
 
   const quality = new Quality({ THREE: THREE, renderer: renderer, scene: world.scene });
   // 阴影相机跟随玩家，避免整城范围导致纹素过粗
@@ -156,10 +158,10 @@ function boot() {
     if (quality.update(dt)) ui.toast('画质自动调整为「' + quality.params.name + '」', 2200);
 
     renderer.render(world.scene, world.camera);
-    ui.update(dt, quality.summary(), zoneName(zone));
+    // now = rAF 时间戳，与定时器解耦（见 PROGRESS.md D15）
+    ui.update(now, quality.summary(), zoneName(zone));
 
     saveAcc += dt;
-    if (saveAcc > 5) { saveAcc = 0; saveProgress(state); }
 
     requestAnimationFrame(frame);
   }

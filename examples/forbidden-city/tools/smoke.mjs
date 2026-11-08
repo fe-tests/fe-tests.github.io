@@ -125,10 +125,69 @@ ok('三大殿成就与建筑 id 同名（recordInterior 依赖这一点）',
   })());
 }
 
+/* ============ 3b) layout.js：建筑数据表自检（单一数据源） ============ */
+{
+  const L = await import('../js/layout.js');
+  const bs = L.buildings();
+  const ids = bs.map((b) => b.id);
+  ok('layout：记录数足够且 id 唯一', bs.length >= 14 && new Set(ids).size === ids.length, bs.length + ' 条');
+
+  // 中轴严格居中：除已知对峙配殿外，cx 必须为 0
+  const OFF_AXIS = ['tirenPavilion', 'hongyiPavilion'];
+  const off = bs.filter((b) => b.cx !== 0 && !OFF_AXIS.includes(b.id));
+  ok('layout：中轴建筑 cx 恒为 0（配殿除外）', off.length === 0, off.map((b) => b.id + '=' + b.cx).join(','));
+
+  // 中轴记录按 z 由南到北单调
+  const axis = bs.filter((b) => b.cx === 0 && b.form !== '河' && b.form !== '园').map((b) => b.cz);
+  ok('layout：中轴记录 cz 单调递增', axis.every((v, i) => i === 0 || v > axis[i - 1]));
+
+  // 实测面阔反算 bayW：三大殿误差必须极小
+  const face = (id) => L.faceWidth(L.byId(id));
+  ok('layout：太和殿面阔 ≈ 63.96 m', Math.abs(face('taihe') - 63.96) < 0.5, face('taihe').toFixed(2));
+  ok('layout：中和殿方形面阔 = 进深 ≈ 27 m',
+    Math.abs(face('zhonghe') - 27) < 0.5 && Math.abs(L.byId('zhonghe').depthM - 27) < 1e-9, face('zhonghe').toFixed(2));
+  ok('layout：保和殿九间面阔 ≈ 60 m', Math.abs(face('baohe') - 60) < 0.5, face('baohe').toFixed(2));
+  ok('layout：太和殿间数与进深间数取自实测（11 / 5）', L.byId('taihe').bays === 11 && L.byId('taihe').depthBays === 5);
+
+  // 屋顶形制必须与 research.md §5 的术语表一致
+  const FORM = { taihe: '庑殿', zhonghe: '攒尖', baohe: '歇山', qianqing: '庑殿', kunning: '庑殿' };
+  const formBad = Object.entries(FORM).filter(([id, f]) => L.byId(id).form !== f).map(([id, f]) => id + '≠' + f);
+  ok('layout：屋顶形制与 research.md §5 一致', formBad.length === 0, formBad.join(','));
+  ok('layout：太和殿/保和殿重檐、中和殿单檐攒尖带宝顶',
+    L.byId('taihe').tier === 2 && L.byId('baohe').tier === 2 && L.byId('zhonghe').tier === 1 && L.byId('zhonghe').roofTop === true);
+
+  // 台基：三层合计 8.13 m，且由外向内逐层内收
+  ok('layout：三层台基总高 ≈ 8.13 m', Math.abs(L.TERRACE.layers * L.TERRACE.layerH - L.TERRACE.totalH) < 0.05,
+    (L.TERRACE.layers * L.TERRACE.layerH).toFixed(2));
+  ok('layout：台基逐层内收（halfW 递减、南北边界收紧）',
+    L.TERRACE.tiers.every((t, i) => i === 0 || (t.halfW < L.TERRACE.tiers[i - 1].halfW && t.z0 > L.TERRACE.tiers[i - 1].z0 && t.z1 < L.TERRACE.tiers[i - 1].z1)));
+
+  // 可进入的三大殿必须有 interior，且地板在台基顶面
+  const noInt = L.HALL_IDS.filter((id) => !L.byId(id).interior);
+  ok('layout：三大殿都有 interior 记录（阶段 6 入口）', noInt.length === 0, noInt.join(','));
+  ok('layout：三大殿室内地板 = 台基顶面 8.13 m', L.HALL_IDS.every((id) => Math.abs(L.byId(id).interior.floorY - L.TERRACE.totalH) < 1e-6));
+  ok('layout：减柱造登记在保和殿（−6 金柱）', L.byId('baohe').columns.reduced === 6);
+
+  // 占位矩形不得互相重叠（同轴相邻建筑之间要留缝）
+  const rects = bs.filter((b) => b.form !== '河' && b.form !== '廊').map((b) => { const f = L.footprint(b); return { id: b.id, cx: f.cx, cz: f.cz, halfW: f.halfW, hD: f.halfD }; });
+  const hits = [];
+  for (let i = 0; i < rects.length; i++) {
+    for (let j = i + 1; j < rects.length; j++) {
+      const a = rects[i], b = rects[j];
+      if (Math.abs(a.cx - b.cx) < a.halfW + b.halfW && Math.abs(a.cz - b.cz) < a.hD + b.hD) hits.push(a.id + '↔' + b.id);
+    }
+  }
+  ok('layout：建筑占位互不重叠（碰撞层可依赖）', hits.length === 0, hits.join(' | '));
+
+  // 派生表可用：linear() 与 byId()
+  ok('layout：linear() 提供东西庑廊与景山，且左右对称', (() => {
+    const cs = L.linear(); const e = cs.find((c) => c.id === 'eastCorridor'), w = cs.find((c) => c.id === 'westCorridor');
+    return !!e && !!w && e.cx === -w.cx && e.z0 === w.z0 && !!cs.find((c) => c.id === 'jingshan');
+  })());
+  ok('layout：byId 未知 id 返回 null（不得抛错）', L.byId('__nope__') === null);
+}
+
 /* ============ 4) 素材预算（assets.md §7） ============ */
-ok('性能预算表数值合理（drawCalls ≤ 420、tris ≥ 100k、贴图 ≤ 128MB）',
-  cfg.BUDGET.drawCallsMid > 0 && cfg.BUDGET.drawCallsMid <= cfg.BUDGET.drawCallsHigh
-  && cfg.BUDGET.triangles >= 100000 && cfg.BUDGET.textureMB > 0 && cfg.BUDGET.textureMB <= 256);
 
 /* ============ 4b) 贴图工厂：像素级冒烟（最小 Canvas2D shim，零依赖） ============ */
 const tx = await import('../js/textures.js');
@@ -288,6 +347,66 @@ ok('模块图：textures.js 可 import 且 18 个工厂齐备',
     }
   }
 }
+
+/* ============ 4d) 构件库 + 组合器：用 vm 里的真实 three.min.js 装配全场景 ============ */
+{
+  const vendorPath = path.join(PAGE, '..', '..', 'assets', 'vendor', 'three', 'r128', 'three.min.js');
+  if (!existsSync(vendorPath)) {
+    console.log('  · 未找到 three.min.js，跳过构件装配测试');
+  } else {
+    const vm = await import('node:vm').then((m) => m.default || m);
+    const sb = { window: {}, self: {}, console }; sb.global = sb; vm.createContext(sb);
+    vm.runInContext(readFileSync(vendorPath, 'utf8'), sb, { filename: 'three.min.js' });
+    const THREE = sb.THREE || sb.self.THREE;
+
+    // 真实 THREE + 惰性材质 kit（贴图走假 provider，避免 Node 侧碰 DOM）
+    const provider = { create: (w, h) => ({ canvas: { width: w, height: h }, ctx: (() => { const grad = { addColorStop() {} }, noop = () => {}; return new Proxy({ canvas: null, globalCompositeOperation: '', globalAlpha: 1, lineCap: '', lineWidth: 1, strokeStyle: '', fillStyle: '', font: '', textAlign: '', textBaseline: '' }, { get(t, k) { if (k in t) return t[k]; if (/^create(Linear|Radial)Gradient|^Pattern$/.test(k)) return () => grad; if (k === 'createImageData' || k === 'getImageData') return (a, b, c, d) => ({ width: c || a, height: d || b, data: new Uint8ClampedArray((c || a) * (d || b) * 4) }); if (k === 'measureText') return () => ({ width: 10 }); return noop; }, set(t, k, v) { t[k] = v; return true; } }); })() }), finish() {} };
+    const kit = tx.buildTextureKit(THREE, { provider, maxAnisotropy: 4 });
+
+    const B = await import('../js/buildings.js');
+    const P = await import('../js/parts.js');
+    ok('parts：G 编号构件齐备（21 个）', P.PARTS.length >= 21, P.PARTS.length + ' 个');
+    ok('buildings：组合器齐备', B.COMBINERS.every((k) => typeof B[k] === 'function'));
+
+    let built = null, err = '';
+    try { built = B.buildAll(THREE, kit, { quality: 'mid' }); } catch (e) { err = e.message + '\n' + (e.stack || '').split('\n')[1]; }
+    ok('buildAll：全场景装配无异常', !err, err);
+
+    if (built) {
+      // 统计：Mesh 数（≈drawCalls）、三角面、实例化数量、材质复用数
+      let meshes = 0, tris = 0, inst = 0, instCount = 0, badTransform = [];
+      const matSeen = new Set();
+      built.group.traverse((o) => {
+        if (o.isInstancedMesh) { inst++; instCount += o.count; }
+        else if (!o.isMesh) return;
+        meshes++;
+        if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => matSeen.add(m.name || m.uuid));
+        const g = o.geometry;
+        if (g) { const n = g.index ? g.index.count : (g.attributes.position ? g.attributes.position.count : 0); tris += Math.floor(n / 3); }
+        if (!Number.isFinite(o.scale.x) || !Number.isFinite(o.position.x)) badTransform.push(o.name || o.type);
+      });
+      ok('buildAll：节点变换都是有限数（无 NaN）', badTransform.length === 0, badTransform.slice(0, 4).join(','));
+      ok('buildAll：entries 覆盖所有 layout 记录', built.entries.length >= 19, built.entries.length + ' 条');
+      ok('buildAll：每条 entry 都带 footprint（碰撞/小地图可直接用）',
+        built.entries.every((e) => e.fp && [e.fp.cx, e.fp.cz, e.fp.halfW, e.fp.halfD].every(Number.isFinite)));
+      console.log(`  · 装配统计：Mesh ${meshes}（InstancedMesh ${inst}，实例 ${instCount}）｜三角面 ${(tris / 1000).toFixed(1)}k｜材质 ${matSeen.size}`);
+
+      // 单一数据源：太和殿的屋顶必须落在中轴上（x=0），且占位与 layout 一致
+      const L = await import('../js/layout.js');
+      const taihe = built.entries.find((e) => e.id === 'taihe');
+      ok('buildAll：太和殿 group 位于 x=0（中轴严格）', !!taihe && taihe.group.position.x === 0);
+      ok('buildAll：太和殿 fp 半宽×2 = 实测面阔 + 出檐', Math.abs(taihe.fp.halfW * 2 - L.faceWidth(L.byId('taihe')) - 4.8) < 1e-6);
+
+      // 预算预警（阶段 11 才要求达标，这里只做量级检查）
+      ok('buildAll：三角面在量级内（< 3M；阶段 11 收敛到 ≤900k）', tris < 3e6, (tris / 1000).toFixed(0) + 'k');
+      ok('buildAll：材质实例数受控（≤24，见 assets.md §7）', matSeen.size <= 24, matSeen.size + ' 个材质');
+    }
+  }
+}
+
+ok('性能预算表数值合理（drawCalls ≤ 420、tris ≥ 100k、贴图 ≤ 128MB）',
+  cfg.BUDGET.drawCallsMid > 0 && cfg.BUDGET.drawCallsMid <= cfg.BUDGET.drawCallsHigh
+  && cfg.BUDGET.triangles >= 100000 && cfg.BUDGET.textureMB > 0 && cfg.BUDGET.textureMB <= 256);
 
 /* ============ 5) 源码口径钉测：全站离线 + 色彩口径 + 无 DOM 顶层 ============ */
 const allJs = ['config', 'state', 'quality', 'world', 'ui', 'input', 'main'].map((n) => ['js/' + n + '.js', read('js/' + n + '.js')]);

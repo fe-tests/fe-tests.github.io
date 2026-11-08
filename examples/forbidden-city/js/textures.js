@@ -654,11 +654,63 @@ export function makeTexture(THREE, entry, opts = {}, o = {}) {
   return tex;
 }
 
-/** 一次性生成全部常用材质贴图（阶段 3 起按需在 buildings.js 里取用）。 */
+/** 材质表（assets.md §7：材质数 ≤24）。贴图按需惰性生成并缓存，避免一次性吃掉显存。
+ *  buildings.js / parts.js 只通过 kit.mat.<name> 取材质，从而保证同一材质全局复用。 */
+const MATERIALS = {
+  roofTiles: (k) => ({ map: k.roofTiles, roughness: .55, metalness: .05 }),
+  ridgeTile: (k) => ({ map: k.ridgeTile, roughness: .55, metalness: .05 }),
+  marble: (k) => ({ map: k.marble, roughness: .62, metalness: 0 }),
+  marbleCarve: (k) => ({ map: k.marbleCarve, bumpMap: k.marbleCarve, bumpScale: .02, roughness: .6, metalness: 0 }),
+  goldBrick: (k) => ({ map: k.goldBrick, roughness: .5, metalness: .04 }),
+  stonePaving: (k) => ({ map: k.stonePaving, roughness: .8, metalness: 0 }),
+  redWall: (k) => ({ map: k.redWall, roughness: .82, metalness: 0 }),
+  lattice: (k) => ({ map: k.latticeWindow, transparent: true, alphaTest: .45, roughness: .7, metalness: 0 }),
+  doorLeaf: (k) => ({ map: k.doorLeaf, roughness: .6, metalness: .08 }),
+  caihua: (k) => ({ map: k.caihua, roughness: .7, metalness: .05 }),
+  woodColumn: (k) => ({ map: k.woodColumn, roughness: .62, metalness: .04 }),
+  goldColumn: (k) => ({ map: k.woodColumn, color: 0xd8b45a, emissive: 0x30240a, roughness: .38, metalness: .55 }),
+  gold: (k) => ({ color: 0xe0bd63, emissive: 0x2e2409, roughness: .34, metalness: .72 }),
+  cloudDragon: (k) => ({ map: k.cloudDragon, roughness: .6, metalness: .12 }),
+  bronze: (k) => ({ map: k.bronzeVessel, roughness: .52, metalness: .68 }),
+  gravel: (k) => ({ map: k.gravel, roughness: .95, metalness: 0 }),
+  water: (k) => ({ color: 0x2b4a52, normalMap: k.waterNormal, roughness: .12, metalness: .35, transparent: true, opacity: .9 }),
+  sky: (k) => ({ map: k.skyGradient, side: 's', depthWrite: false, fog: false }),   // 's' → THREE.BackSide（由调用方注入的 THREE 解析）
+  stoneRamp: (k) => ({ map: k.stoneRamp, roughness: .85, metalness: 0 }),
+  treeLeaf: (k) => ({ color: 0x2f5136, roughness: .9, metalness: 0 }),
+};
+
+/** 生成材质 kit：kit.mat.<name> 惰性建材质；kit.tex.<name> 惰性建贴图；plaqueFor 出匾额。 */
 export function buildTextureKit(THREE, o = {}) {
-  const kit = {};
-  for (const e of TEXTURES) kit[e.name] = () => makeTexture(THREE, e, {}, o);
-  kit.plaqueFor = (text, vertical) => makeTexture(THREE, TEXTURES.find((t) => t.name === 'plaque'), { text, vertical }, o);
-  kit.report = textureBudgetReport();
+  const texCache = {};
+  const getTex = (name) => {
+    if (!texCache[name]) {
+      const e = TEXTURES.find((t) => t.name === name);
+      texCache[name] = e ? makeTexture(THREE, e, {}, o) : null;
+    }
+    return texCache[name];
+  };
+  const kit = { report: textureBudgetReport(), tex: {} };
+  for (const e of TEXTURES) Object.defineProperty(kit.tex, e.name, { get: () => getTex(e.name), enumerable: true });
+
+  // 便捷：kit.<name> 直接取贴图（旧调用点保持可用）
+  for (const e of TEXTURES) Object.defineProperty(kit, e.name, { get: () => getTex(e.name), enumerable: true });
+
+  const matCache = {};
+  kit.mat = {};
+  for (const name of Object.keys(MATERIALS)) {
+    Object.defineProperty(kit.mat, name, {
+      get() {
+        if (!matCache[name]) {
+          const spec = MATERIALS[name]({ ...kit.tex });
+          if (spec.side === 's') spec.side = THREE.BackSide;
+          matCache[name] = new THREE.MeshStandardMaterial(spec);
+          matCache[name].name = name;
+        }
+        return matCache[name];
+      },
+      enumerable: true,
+    });
+  }
+  kit.plaqueFor = (text, vertical) => new THREE.MeshBasicMaterial({ map: makeTexture(THREE, TEXTURES.find((t) => t.name === 'plaque'), { text, vertical }, o) });
   return kit;
 }

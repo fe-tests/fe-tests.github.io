@@ -13,6 +13,7 @@
 | 2026-11-08 17:55 | **校验网**：`tools/smoke.mjs`（30 条纯逻辑断言）+ `tools/headless.mjs`（Chrome CDP 探针，零 npm 依赖）+ 截图复核 | 用户要求「整体结构严谨」；纯靠肉眼看 WebGL 页面会反复回退，必须有回归钉 | smoke 全部通过；headless 7 条全过 |
 | 2026-11-08 18:20 | **阶段 2**：`js/textures.js` 实现 T01–T18 全部程序化材质（琉璃瓦、汉白玉、金砖、红墙、菱花窗、门钉铺首、梁枋彩画、蟠龙藻井、匾额、青铜氧化、散水、水面法线、天穹渐变、踏道/土山） | 用户要求「全部程序化生成」且不下载二进制素材；同时材质必须能一眼判断对不对，不能只做数值断言 | 显存实测 24.69 MB / 18 张（预算 128 MB）；smoke 新增 12 条断言仍全绿 |
 | 2026-11-08 18:25 | **贴图打样**：`tools/preview-textures.mjs` 生成带标签总览图（平铺的按 2×2 重复以暴露接缝）；据此修 T04 浮雕对比、T05 金砖太暗、T16 水面法线幅度过大 | 材质是"看着对不对"的东西，纯断言查不出审美与尺度问题 | 打样图两轮复核通过；`tools/out/` 已加 `.gitignore` 不入库 |
+| 2026-11-08 21:15 | **阶段 3**：layout.js 数据表（14 条中轴建筑 + 廊庑/景山，全部按实测值）+ parts.js G01–G21 构件（台基/栏杆螭首/instanced 柱网/斗栱/庑殿·歇山·四角攒尖三种屋顶/脊兽/鸱吻/菱花扇门/城楼/廊庑/亭/桥/城墙/角楼）+ uildings.js 按 form 派发的组合器 + world.js 接入 | 用户要求「中轴三大殿可以进入内部查看」——先把形制与尺度做对，阶段 6 才有可入内的真结构；构件不 import three 才能整条链路在 Node 里跑通 | smoke 装配段全绿（Mesh 1283 / 实例 6306 / tris 25.6k / 材质 20）；headless draw 1212 / 162k tris；截图复核地面在下、建筑直立 |
 
 ## 踩坑与解法
 
@@ -55,6 +56,30 @@
 - 解法：写了个一次性小工具（忽略注释与字符串后统计括号深度、指出第一个失配行）定位到重复片段；用完即删。
 - 影响面：若后续再遇到同类问题，优先用「剥注释/字符串 + 括号深度」的方式定位，而不是逐行看。
 
+**8. HUD 卡在 `-- fps / draw --`（rAF 时间戳与 performance.now 混用）**
+- 现象：阶段 3 装配后 headless 探针读到 `0 fps`、HUD 文本仍是 `-- fps`，看着像主循环没跑。
+- 根因：headless 里 `ui.toast()` / `hideLoading()` 的 `setTimeout` 回调会先于 rAF 执行并推进虚拟时钟；`UI.update` 用「rAF 的 now − 启动时的 performance.now()」算 dt，得到**负数**被夹成 0 → 累加器 `_acc` 永远不到 0.25 s，HUD 一次都没写。
+- 解法：`ui.update(now, …)` 直接传 rAF 的 `now`（见 PROGRESS.md D15），不再混用两套时钟。
+- 影响面：任何「按时间片刷新」的 UI 计数都只用单一时钟；调试这类问题先 hook `UI.prototype.update` 打印入参，而不是猜主循环没跑。
+
+**9. r128 背面剔除不吃 `scale(-1)`：天穹变成全屏灰幕**
+- 现象：整个画面被一层灰盖住，建筑完全看不见。
+- 根因：想用一个负缩放反翻三角朝向来代替 `side: BackSide`，但 r128 判定正反靠的是**投影面积的正负**，实测 `matrixWorld` 行列式仍是 +1 → 球内侧照样被剔掉，露出的是清屏色/雾色。
+- 解法：相机在球心只能看到内表面，老老实实 `side: THREE.BackSide`（world.js 注释已记因）。
+- 影响面：负缩放不能当反翻用；类似「看不见但几何确实在」的问题先查剔除与 side。
+
+**10. 整屏上下颠倒：lookAt 残留欧拉角与 YXZ 叠加成翻滚**
+- 现象：截图里地面在上、建筑倒挂，而 `camera.up` 明明是 (0, 1, 0)。
+- 根因：`world.js` 里 `camera.lookAt()` 留下的旋转（order 默认 XYZ，z 分量 ≈ π），与 main.js 运行时 `rotation.set(pitch, yaw, 0)`（YXZ）叠加 → 等效翻滚 π。
+- 解法：`world.js` **只摆机位不做 lookAt**，朝向全部交给控制器（D18）。截图探针也必须按 YXZ + up=+Y 设机位，才与真机一致。
+- 影响面：任何「场景装配函数」都只提供初始位置；相机朝向是控制器的职责。
+
+**11. 自我复读：反复跑同一支探针却以为修复无效**
+- 现象：换了文件名跑截图，得到的 png 字节数与 sha256 完全一致，我却当成「改动没生效」继续加码，一次会话里空转十几轮相同命令。
+- 根因：读图时上下文里的旧图被重复引用；没有先确认磁盘产物真的被覆盖。
+- 解法（已记进 D19）：截图前先 `Remove-Item *.png`；比对**磁盘上的 sha256** 而不是重看老图；同参探针结果不变就停下读源码、换假设。
+- 影响面：所有「跑一次看看」的可视化验证都要制造可辨识的新产物（删旧图 / 新文件名 / 打印关键数值）。
+
 ## 性能与兼容性记录
 
 - **入口体积**（阶段 1）：`index.html` 7.9 KB + `css/main.css` 1.9 KB + `js/*` 合计约 38 KB（config 4.6 / state 7.8 / quality 4.8 / world 3.4 / ui 4.0 / input 6.2 / main 8.0）；运行时依赖只有 three.min.js **603 KB**（已入库，非本页新增）。
@@ -69,6 +94,7 @@
 | --- | --- | --- | --- |
 | 2026-11-08 | 脚手架即按 `--split` 生成；随后把模板的 `render.js` 改名为 `world.js`，并新增 `config/quality/ui/state` | 3D 场景与 2D canvas 的职责不同：需要「数据 → 构件 → 装配 → 碰撞」四层，而非单一渲染层 | **纯逻辑层**（顶层不碰 DOM，可在 Node import）：`config.js`、`state.js`；后续 `layout.js`、`collision.js`。<br>**渲染层**（可碰 THREE，由 main 注入全局）：`world.js`、`quality.js`、后续 `textures/parts/buildings/interior`。<br>**DOM 层**：`ui.js`、`index.html`、`css/`。<br>**输入层**：`input.js`（只产出意图，不碰场景）。 |
 | 2026-11-08 | `state.js` 里划出 `/* ENGINE-START */ … /* ENGINE-END */` | 成就判定 / 分区 / 存档迁移是可单测的纯函数，IO 只留在段外 | 段内禁止 `document/window/localStorage/navigator`；smoke.mjs 有对应断言 |
+| 2026-11-08 | 阶段 3 拆出 `layout.js`（数据）/ `parts.js`（构件）/ `buildings.js`（组合），`world.js` 只做装配 | 用户要求「整体结构严谨」：尺度必须单一来源、构件不许写死建筑尺寸，且整条链路要能在 Node 里跑通 | **纯逻辑层**新增 `layout.js`（不碰 DOM/THREE）。<br>**渲染层**：`parts.js`、`buildings.js` **不 import three**，由 caller 注入 THREE；`world.js` 只管 kit / rebuild / 光照雾。<br>阶段 6 的 `interior.js` 与阶段 8 的 `collision.js` 都从 `layout.js` 的 entries（含 fp/cz）派生 |
 
 ## 提交历史
 

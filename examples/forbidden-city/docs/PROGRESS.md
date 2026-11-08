@@ -8,7 +8,7 @@
 
 ## 1. 当前阶段
 
-**阶段 2（素材工厂）已完成 → 下一步做阶段 3（构件库 + 数据表）。**
+**阶段 3（构件库 + 数据表）已完成 → 下一步做阶段 4（外朝中轴序列，并把 drawCalls 压回预算内）。**
 
 - slug：`forbidden-city` · 入口：[index.html](../index.html) · 注册项：`registry.json` 最后一条（`status: alpha`）
 - 依赖：**Three.js r128**（已入库，未新增 vendor 文件）→ `../../assets/vendor/three/r128/three.min.js`
@@ -30,17 +30,26 @@
 | 2 | **素材工厂**：`textures.js` T01–T18 全部实现（琉璃瓦 / 汉白玉 / 金砖 / 红墙 / 菱花窗 / 门钉 / 彩画 / 蟠龙藻井 / 匾额 / 青铜 / 水面法线 / 天穹…）。工厂是纯 Canvas2D 函数，`makeTexture()` 才碰 three.js → 可在 Node 里注入 provider 测试 | `js/textures.js`、config 增 `TEX`/`TEX_BUDGET` |
 | 2 | **贴图校验三层**：① shim 下 18 工厂全部可执行且确定性噪声可平铺；② 在 vm 里加载**真实 three.min.js** 钉测 `encoding/wrapS/anisotropy` 用法；③ headless 打样总览图供肉眼复核 | `tools/smoke.mjs`、`tools/preview-textures.mjs` |
 
+| 3 | **数据表**：`layout.js` 纯数据（不碰 DOM/THREE）——14 条中轴建筑记录 + 廊庑/景山，全部按 research.md 实测值写死；`TERRACE` 三层须弥座（8.13 m = 3×2.71）；`footprint()/faceWidth()/byId()` 派生 API | `js/layout.js` |
+| 3 | **构件库**：`parts.js` G01–G21（台基/栏杆/螭首/柱网 instanced/梁架/斗栱/庑殿/歇山/四角攒尖/檐层/正脊+走兽/鸱吻/菱花扇门/城楼/廊庑/亭/桥/城墙/角楼/树）。**不 import three**，由 caller 注入 THREE；举折起翘用 `roofProfile()` 的 `pow(t,1.62)` 曲线 | `js/parts.js` |
+| 3 | **组合器**：`buildings.js` 按 `form` 派发到 `hall/gate/wumen/bridges/corridorRun/gardenTrees/hill`；`doorList()` 兼容数组与 `{south,east,west,north}` 两种门形制；`buildAll() → {group, entries[]}`，entries 带 `fp/cz/rec` 供阶段 8 碰撞直接复用 | `js/buildings.js`、`js/world.js` 接入 |
+| 3 | **装配级校验**：smoke 4d 段用 vm 真实 three.min.js + Proxy ctx provider 跑通全场景（Mesh 1283 / InstancedMesh 79 / 实例 6306 / tris 25.6k / 材质 20），断言无 NaN 变换、太和殿 `x=0`、fp 半宽×2 = 实测面阔+出檐 | `tools/smoke.mjs` |
+
 **验证记录（阶段 1）**：`node examples/forbidden-city/tools/smoke.mjs` → 全部通过；
 `node examples/forbidden-city/tools/headless.mjs`（需先 `node server.js`）→ 7 条全过，REVISION=128、`draw 3 / 6 tris`、无异常。
 
 **验证记录（阶段 2）**：smoke 新增 12 条断言后仍全部通过；贴图显存实测 **24.69 MB / 18 张**（上限 128 MB）；
 打样图 `tools/out/textures.png`（不入库）肉眼复核一轮，已修 T04 浮雕对比度、T05 金砖太暗、T16 水面法线幅度过大。
 
+**验证记录（阶段 3）**：smoke 全部通过（新增装配段共 40+ 条）；headless CDP 探针 7/7 过，`REVISION=128`、
+`draw 1212 / 162k tris`、无异常。**注意：1212 drawCalls 已超 `BUDGET.drawCallsMid = 260`（见 §5 D16），阶段 4 起必须先合批再往里加建筑。**
+截图复核（临时探针，跑完即删）确认地面在下、天穹在上、建筑直立：见 §5 D17/D18。
+
 ## 3. 未完成（按阶段，含验收要点）
 
 - [x] **2 素材工厂**：`textures.js` 实现 T01–T18，`smoke.mjs` 断言预算表 ✅ 阶段 2
-- [ ] **3 构件库**：`parts.js` G01–G22 + `buildings.js` 组合器 + `layout.js` 数据表自检（中轴 `cx=0`、间数×BAY≈实测面阔）
-- [ ] **4 外朝中轴**：午门凹字城台与五凤楼、内金水河与五孔桥、左右阙亭、廊庑围合、太和门 → `drawCalls ≤ 260`
+- [x] **3 构件库**：`parts.js` G01–G22 + `buildings.js` 组合器 + `layout.js` 数据表自检（中轴 `cx=0`、间数×BAY≈实测面阔）✅ 阶段 3
+- [ ] **4 外朝中轴**：午门凹字城台与五凤楼、内金水河与五孔桥、左右阙亭、廊庑围合、太和门 → `drawCalls ≤ 260`（**当前 1212，见 D16；先合批再增量**）
 - [ ] **5 三层台基 + 三大殿**：8.13 m 三层须弥座 + 栏杆螭首；三殿形制（庑殿 / 四角攒尖 / 歇山）与实测尺度
 - [ ] **6 三大殿内部可入内**：宝座、藻井蟠龙、金柱（保和殿**减柱造**少 6 根）、匾额；门洞自动开合 + 室内碰撞层 → 不穿模
 - [ ] **7 内廷与后苑**：乾清门、后三宫（乾清宫重檐庑殿 + 「正大光明」匾）、东西六宫示意、御花园、景山借景
@@ -52,13 +61,15 @@
 
 ## 4. 下一步（≤3 条，可直接执行）
 
-1. **`js/layout.js`（先做数据表，它是单一数据源）**：把 research.md §1–§4 的实测值全部落成字段——
-   每座建筑一条记录：`{id, cn, cx:0, cz, bays, depthBays, bayW, hRoof, form:'庑殿|歇山|攒尖', tier, doors:[...], interior:{...}}`；
-   三大殿按 `面阔 = bays × BAY ≈ 63.96 m`、台基三层各高约 2.71 m（合计 8.13 m）写死并注释出处。
-2. **`js/parts.js`**：G01–G03（台基/栏杆/螭首）+ G04 柱网 + G07/G08/G09 三种屋顶形制 + G11/G12 脊与走兽；
-   每个构件返回 `THREE.Group`，尺寸参数全部来自 layout 记录，不许在构件里写死建筑尺度。
-3. **`js/buildings.js`**：`hall()/gate()/tower()/corridorRun()/pavilion()` 组合器 + `smoke.mjs` 加数据表自检
-   （中轴 `cx===0`、`bays×BAY` 与实测面阔误差 <5%、屋顶形制与 research.md §5 一致、相邻建筑不重叠）。
+1. **合批先行（阶段 4 的第一件事）**：`parts.js` 里同类构件（栏杆望柱、走兽、斗栱、廊柱）已用 `InstancedMesh`，
+   但每座建筑仍各自 `new Mesh` → 现状 **1212 calls**。做法：按材质合并 + 把「一组重复构件」整体实例化，
+   目标先降到 ≤400（临时阈值），阶段 11 再收到 ≤260。改完必须复跑 smoke 与 headless 看 `draw N` 变化。
+2. **午门凹字城台 + 五凤楼**：`layout.js` 里 `wumen` 已有记录，但 `buildings.wumen()` 目前是简模；
+   按 research.md §2 补凹字平面（东西各一翼亭）与五座方殿屋顶，别改中轴 `cx=0`。
+3. **内金水河 + 五孔桥 + 左右阙亭 + 廊庑围合**：`bridges()` / `corridorRun()` 已在 `buildings.js` 就位，
+   接进 `layout.js` 的 `AXES.innerRiver = -285` 序列即可；每加一项都在 smoke 里补一条「不重叠 + cx=0」断言。
+
+> 备注：`tools/export-layout.mjs`（导出 `data/buildings.json` 供小地图用）仍未做，属可选，别误当阻塞项。
 
 ## 5. 已知坑与决策
 
@@ -78,6 +89,11 @@
 | D12 | **模板残留的 `js/render.js` 与本特性分层不符**（3D 需要「数据 → 构件 → 装配 → 碰撞」四层，不是单一渲染层） | 阶段 1 已删除该文件；世界装配改名 `world.js`，模块边界记在 devlog「拆分记录」 |
 | D13 | **贴图工厂若在顶层碰 `document`/THREE，Node 侧就无法测试** | 工厂签名统一为纯函数 `draw(ctx,w,h,opts)`；`makeTexture(THREE, entry, opts, {provider})` 才接触 three.js。测法：shim / vm 真实 three.min.js / headless 打样三种口径 |
 | D14 | **Canvas2D 的 `drawImage(canvas)` 合成在 Node 侧不可用**（做旧叠加曾这样写） | 改用 `getImageData`/`putImageData` 直接读写像素，浏览器与 Node 两侧行为一致 |
+| D15 | **HUD 卡在 `-- fps / draw --`**：headless 里 `setTimeout` 回调先于 rAF 跑，`performance.now()` 起点比 rAF 时间戳新 → `dt` 被夹成 0、累加器永不达标 | `ui.update(now, …)` 直接传 **rAF 的 `now`**（与定时器解耦），别再混用 `performance.now()` |
+| D16 | **装配后 drawCalls = 1212，远超 `BUDGET.drawCallsMid = 260`**（tris 才 162k，瓶颈在批次不在面数） | 阶段 4 起「先合批再增量」：按材质合并 + 整组构件实例化；smoke/headless 每次都打印 `draw N` 当回归哨兵 |
+| D17 | **r128 的背面剔除不吃 `scale(-1)`**：天穹球用 `side: FrontSide` + `scale.set(-1,1,1)` 想反翻三角朝向，实测 `matrixWorld` 行列式仍是 **+1**（r128 靠投影面积正负判向），球内侧照样被剔掉 → 全屏灰幕 | 相机在球心只能看到内表面，**必须 `side: THREE.BackSide`**；不要试图用负缩放反翻 |
+| D18 | **整屏上下颠倒**（地面在上、建筑倒立）：`world.js` 里 `camera.lookAt()` 留下的残留欧拉角（order 默认 XYZ，z ≈ π），与 main.js 运行时 `rotation.set(pitch, yaw, 0)`（YXZ）叠加成翻滚 | `world.js` **只摆机位不做 lookAt**，朝向一律交给控制器；探针自建 world + YXZ 机位截图才与真机一致 |
+| D19 | **自我复读陷阱**：反复用相同参数跑同一支探针（文件名换了、图却一模一样），误判成「修复无效」继续加代码 → 一次会话里空转十几轮 | 截图前先 `Remove-Item *.png`；比对**磁盘上的 sha256**而不是重看已进过上下文的老图；同参探针结果不变就停下改读源码/换假设，别再加码 |
 
 ## 6. 校验怎么跑
 

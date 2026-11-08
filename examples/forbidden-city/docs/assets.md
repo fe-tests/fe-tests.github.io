@@ -22,8 +22,9 @@
 
 ## 2. 贴图工厂（`js/textures.js`）
 
-约定：所有工厂签名 `fn(opts) → { map, bumpMap?, roughnessMap? }`；输出 `CanvasTexture`，
-统一设 `colorSpace = SRGBColorSpace`（用于 albedo）、`anisotropy = min(4, maxAnisotropy)`、`generateMipmaps = true`。
+约定：所有工厂是纯 Canvas2D 函数 `draw(ctx, w, h, opts)`，`makeTexture(THREE, entry, opts, o)` 才接触 three.js（可在 Node 侧注入 provider 测试）。
+统一设 `.encoding = THREE.sRGBEncoding`（albedo；数据贴图如水面法线保持 Linear）、`anisotropy = min(4, maxAnisotropy)`、`generateMipmaps = true`。
+**r128 没有 `SRGBColorSpace`/`.colorSpace`，那是 r15x 的字段**（见 PROGRESS.md D9）。
 **预算口径**：显存 ≈ 宽 × 高 × 4 B × 1.33（mipmap）。目标总量 ≤ **128 MB**。
 
 | id | 函数 | 尺寸(px) | 用途 / 调用点 | 依赖噪声 | 状态 |
