@@ -77,7 +77,11 @@ export function buildWorld(THREE, opts = {}) {
     get entries() { return built.entries; },
     rebuild: rebuild,
     dome: dome,
-    setFogFar: function (far) { if (scene.fog) scene.fog.far = far; },
+    setFogFar: function (far, near) {
+      if (!scene.fog) return;
+      scene.fog.far = far;
+      if (typeof near === 'number') scene.fog.near = near;
+    },
   };
 }
 

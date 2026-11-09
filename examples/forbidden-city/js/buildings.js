@@ -10,7 +10,7 @@ import { CITY } from './config.js';
 import {
   terrace, chiShou, columnGrid, beamFrame, hipRoof, gableHipRoof, squareZuanjian,
   eaveLayer, beastRow, chiwen, latticeDoor, gateTower, corridor, pavilion, bridge,
-  wallCity, cornerTower, tree, douGong,
+  cityPlatform, bridgePavilion, river, wallCity, cornerTower, tree, douGong, mergeGroup,
 } from './parts.js';
 
 /* ------------------------------ 殿宇（庑殿 / 歇山 / 攒尖）------------------------------ */
@@ -95,31 +95,73 @@ export function gate(THREE, kit, b) { return gateTower(THREE, kit, Object.assign
 
 export function corridorRun(THREE, kit, c) { return corridor(THREE, kit, c); }
 
-/** 午门：台城 + 正面城楼 + 两侧雁翅楼 + 端头阙亭（平面「凹」字）。 */
-export function wumen(THREE, kit, b) {
+/** 午门：凹字平面（正面城台 + 两翼雁翅楼）+ 五凤楼（城楼 + 角亭 + 亭群）+ 五券门。
+ *  数据全部来自 layout.wumenPlan（尺度不许写死在构件里）。 */
+export function wumen(THREE, kit, b, opts = {}) {
   const g = new THREE.Group();
-  g.add(gateTower(THREE, kit, b));
-  const wingLen = b.wings.len, sideH = b.wings.sideH;
+  const p = b.wumenPlan;
+  const cityL = p.cityL, cityH = p.cityH, cityD = p.cityD;
+  const wingW = 12;                       // 雁翅楼城台（两翼）的宽度
+  const wingX = cityL / 2 - wingW / 2;    // 两翼城台中线 x
+  // 1) 正面城台：开五券门（layout.doors 同源）
+  g.add(cityPlatform(THREE, kit, { len: cityL, depth: cityD, hWall: cityH, doors: doorList(b) }));
+  // 2) 正面城楼：重檐庑殿（五凤楼正楼），落在城台顶
+  const tower = hall(THREE, kit, p.mainTower, { quality: opts.quality, withDoors: false });
+  tower.position.y = cityH; g.add(tower);
+  // 3) 凹字两翼：低城台 + 台上的雁翅楼廊庑（局部 -Z 方向伸出，随午门一起平移）
   for (const sgn of [1, -1]) {
-    const cx = sgn * (b.bays * b.bayW / 2 + 3);
-    // 雁翅楼：从城台侧边向南（-Z）伸出的一段廊庑（局部坐标，随午门一起平移）
-    g.add(corridor(THREE, kit, { cx, z0: -4, z1: -wingLen, hWall: sideH }));
-    // 阙亭：廊端各一座（四角亭 = 五凤楼的四个尖）
-    const pv = pavilion(THREE, kit, { width: 6.4, hWall: sideH });
-    pv.position.set(cx, 0, -wingLen); g.add(pv);
+    const plat = cityPlatform(THREE, kit, {
+      len: wingW, depth: p.wingLen, hWall: p.wingPlatformH, crenelAxis: 'z',
+    });
+    plat.position.set(sgn * wingX, 0, -p.wingLen / 2); g.add(plat);
+    const wing = corridor(THREE, kit, { cx: 0, z0: 0, z1: -p.wingLen, hWall: p.wingH });
+    wing.position.set(sgn * wingX, p.wingPlatformH, 0); g.add(wing);
+    // 角亭（凹字转角）：两翼各一座盝顶亭
+    const pv = pavilion(THREE, kit, { width: 6.4, hWall: p.wingH * .8, form: '盝顶', instanced: false });
+    pv.position.set(sgn * wingX, p.wingPlatformH, p.cornerZ); g.add(pv);
+  }
+  // 4) 亭群「前两后四」：雁翅楼尽端两座攒尖 + 四座盝顶（五凤楼的四尖）
+  for (const x of p.gablePav.xs) {
+    const pv = pavilion(THREE, kit, { width: p.gablePav.w, hWall: p.wingH, form: '攒尖', instanced: false });
+    pv.position.set(x, 0, p.gablePav.z); g.add(pv);
+  }
+  for (const x of p.ruffPav.xs) {
+    const pv = pavilion(THREE, kit, { width: p.ruffPav.w, hWall: p.wingH * .9, form: '盝顶', instanced: false });
+    pv.position.set(x, 0, p.ruffPav.z); g.add(pv);
   }
   return g;
 }
 
-/** 御路桥：中路的五孔桥 + 对称的四座朝房桥（简化为两座单孔）。 */
+/** 内金水河 + 内金水桥：河身（G25）+ 御路桥五孔居中 + 四座单孔朝房桥 + 外侧三间桥亭。
+ *  数据来自 layout.bridgePlan；河沿 x 展开，桥跨河（z 方向）。 */
 export function bridges(THREE, kit, r) {
   const g = new THREE.Group();
-  g.add(bridge(THREE, kit, { width: 48, span: r.width, holes: 5 }));
-  for (const sgn of [1, -1]) {
-    const b2 = bridge(THREE, kit, { width: 12, span: r.width, holes: 1 });
-    b2.position.x = sgn * 34; g.add(b2);
+  const p = r.bridgePlan;
+  g.add(river(THREE, kit, { len: p.len, width: r.width, bankH: r.bankH }));
+  const span = r.width + 4;   // 桥跨 = 河宽 + 两堤
+  g.add(bridge(THREE, kit, { width: p.main.width, span, holes: p.main.holes, railInst: true }));
+  for (const set of [p.inner, p.outer]) {
+    for (const x of set.xs) {
+      const br = bridge(THREE, kit, { width: set.width, span, holes: set.holes, railInst: false });
+      br.position.x = x; g.add(br);
+      if (set.pavilion) {
+        const pv = bridgePavilion(THREE, kit, {
+          width: set.width, bays: set.pavilion.bays, depth: set.pavilion.depth,
+          hWall: set.pavilion.hWall, y: 1.2, form: set.pavilion.form || '庑殿',
+        });
+        pv.position.x = x; g.add(pv);
+      }
+    }
   }
   return g;
+}
+
+/** 小亭（阙亭/井亭一类）：一条 layout 记录一座亭，顶形由 form 决定。 */
+export function pav(THREE, kit, b) {
+  return pavilion(THREE, kit, {
+    width: b.width || 6, hWall: b.hWall || 5, form: b.roofForm || '攒尖',
+    tiers: b.tiers || 1, instanced: false,
+  });
 }
 
 /** 御花园：古柏成对 + 堆秀山土山（低档只放稀疏树）。 */
@@ -157,7 +199,7 @@ export function hill(THREE, kit, c, quality = 'mid') {
 
 /* ------------------------------ 装配全场景（阶段 4/5 使用）------------------------------ */
 const BUILDERS = {
-  wumen: wumen, bridges,
+  wumen, bridges, pav,
   hall: (T, k, b, o) => hall(T, k, b, o),
   gate, corridorRun, gardenTrees, hill,
 };
@@ -165,8 +207,9 @@ const BUILDERS = {
 /** 一条 layout 记录 → Group（找不到形制则返回 null）。 */
 export function buildOne(THREE, kit, rec, opts = {}) {
   const f = rec.form;
-  if (rec.id === 'wumen') return BUILDERS.wumen(THREE, kit, rec);
+  if (rec.id === 'wumen') return BUILDERS.wumen(THREE, kit, rec, opts);
   if (f === '门') return BUILDERS.gate(THREE, kit, rec);
+  if (f === '亭') return BUILDERS.pav(THREE, kit, rec);
   if (f === '河') return BUILDERS.bridges(THREE, kit, rec);
   if (f === '庑殿' || f === '歇山' || f === '攒尖') return BUILDERS.hall(THREE, kit, rec, opts);
   if (f === '廊') return BUILDERS.corridorRun(THREE, kit, rec);
@@ -186,12 +229,18 @@ export function buildAll(THREE, kit, { quality = 'mid', only = null } = {}) {
   for (const [x, z] of [[t0.halfW, t0.z0], [-t0.halfW, t0.z0], [t0.halfW, t0.z1], [-t0.halfW, t0.z1]]) {
     terr.group.add(chiShou(THREE, kit, x, TERRACE.totalH - .2, z, Math.atan2(-x, -(z - (t0.z0 + t0.z1) / 2))));
   }
+  terr.group.updateMatrixWorld(true);
+  mergeGroup(terr.group, THREE);
   root.add(terr.group);
 
   const add = (rec, g, fpOverride) => {
     if (!g) return;
     // 廊与山的 builder 内部已按 cx/cz 定位，不再整体平移；其余按记录平移
     if (rec.form !== '廊' && rec.form !== '山') g.position.set(rec.cx, 0, rec.cz);
+    // D16 drawCalls 批处理：装配完成 → 刷新矩阵 → 按材质合并（InstancedMesh 批次保留）。
+    // 合并体烘 root 局部口径，root 的位移/摆位语义不变（见 parts.js mergeGroup 注释与探针）。
+    g.updateMatrixWorld(true);
+    mergeGroup(g, THREE);
     root.add(g);
     const cz = rec.z0 != null ? (rec.z0 + rec.z1) / 2 : rec.cz;
     entries.push({
@@ -211,10 +260,14 @@ export function buildAll(THREE, kit, { quality = 'mid', only = null } = {}) {
 
   // G19/G20 城墙与四角角楼（按记录里的 x/z 定位，不做整体平移）
   const walls = wallCity(THREE, kit, CITY);
+  walls.updateMatrixWorld(true);
+  mergeGroup(walls, THREE);
   root.add(walls);
   for (const sx of [1, -1]) for (const sz of [1, -1]) {
     const ct = cornerTower(THREE, kit, { x: 0, z: 0 });
     ct.position.set(sx * CITY.lenE / 2, 0, sz * CITY.lenN / 2);
+    ct.updateMatrixWorld(true);
+    mergeGroup(ct, THREE);
     root.add(ct);
   }
   return { group: root, entries };

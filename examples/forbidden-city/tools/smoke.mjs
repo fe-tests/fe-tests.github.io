@@ -185,6 +185,39 @@ ok('三大殿成就与建筑 id 同名（recordInterior 依赖这一点）',
     return !!e && !!w && e.cx === -w.cx && e.z0 === w.z0 && !!cs.find((c) => c.id === 'jingshan');
   })());
   ok('layout：byId 未知 id 返回 null（不得抛错）', L.byId('__nope__') === null);
+
+  // 阶段 5 数据：午门凹字 + 内金水桥（尺度全在数据表里，构件不得写死）
+  const wp = L.byId('wumen').wumenPlan;
+  ok('layout：午门凹字两翼对称（亭群 xs 关于中轴镜像）', (() => {
+    const mirror = (xs) => xs.length % 2 === 0 && xs.every((v, i) => Math.abs(v + xs[xs.length - 1 - i]) < 1e-9);
+    return !!wp && mirror(wp.gablePav.xs) && mirror(wp.ruffPav.xs) && wp.gablePav.xs.length === 2 && wp.ruffPav.xs.length === 4;
+  })(), wp ? '前两后四' : '缺 wumenPlan');
+  ok('layout：午门正面五券门 + 两翼长于进深（凹字展开）',
+    L.byId('wumen').doors.length === 5 && wp.wingLen > wp.cityD && wp.wingPlatformH < wp.cityH,
+    '门洞 ' + L.byId('wumen').doors.length + ' / 两翼 ' + wp.wingLen);
+  ok('layout：午门正楼（五凤楼正楼）重檐庑殿，落在城台顶',
+    wp.mainTower.form === '庑殿' && wp.mainTower.tier === 2 && wp.mainTower.hWall < wp.cityH);
+
+  const bp = L.byId('innerRiver').bridgePlan;
+  ok('layout：御路桥居中五孔，朝房桥左右对称',
+    bp.main.x === 0 && bp.main.holes === 5 && bp.inner.xs.length === 2 && bp.inner.xs[0] === -bp.inner.xs[1]
+    && bp.outer.xs.length === 2 && bp.outer.xs[0] === -bp.outer.xs[1] && bp.inner.xs.every((v, i) => Math.abs(v) < Math.abs(bp.outer.xs[i])));
+  ok('layout：外侧桥带三间桥亭（偶数桥配偶数亭）',
+    bp.outer.pavilion.bays === 3 && bp.outer.xs.length === 2 && bp.inner.pavilion === undefined);
+  ok('layout：河道长度覆盖全部桥的展开宽度', bp.len >= 2 * (Math.abs(bp.outer.xs[0]) + bp.outer.width));
+
+  ok('layout：午门广场围合（东西庑廊到午门 + 阙亭一对）', (() => {
+    const cs = L.linear();
+    const e = cs.find((c) => c.id === 'eastCorridor'), w = cs.find((c) => c.id === 'westCorridor');
+    const q = cs.filter((c) => c.form === '亭');
+    return e.z0 <= L.byId('wumen').cz + 8 && e.z0 === w.z0 && q.length === 2 && q[0].cx === -q[1].cx && q[0].cz === q[1].cz;
+  })());
+  const linRects = L.linear().filter((c) => c.form === '亭').map((c) => ({ id: c.id, cx: c.cx, cz: c.cz, halfW: 6, halfD: 6 }));
+  const linHits = [];
+  for (const a of linRects) for (const b of rects) {
+    if (Math.abs(a.cx - b.cx) < a.halfW + b.halfW && Math.abs(a.cz - b.cz) < 6 + b.hD) linHits.push(a.id + '↔' + b.id);
+  }
+  ok('layout：阙亭不与中轴/配殿建筑占位重叠', linHits.length === 0, linHits.join(' | '));
 }
 
 /* ============ 4) 素材预算（assets.md §7） ============ */
@@ -367,6 +400,9 @@ ok('模块图：textures.js 可 import 且 18 个工厂齐备',
     const P = await import('../js/parts.js');
     ok('parts：G 编号构件齐备（21 个）', P.PARTS.length >= 21, P.PARTS.length + ' 个');
     ok('buildings：组合器齐备', B.COMBINERS.every((k) => typeof B[k] === 'function'));
+    ok('批处理工具齐备（D16：mergeGroup / subtreeStats）',
+      typeof P.mergeGroup === 'function' && typeof P.subtreeStats === 'function'
+      && P.BATCH_TOOLS.includes('mergeGroup'), P.BATCH_TOOLS.join(','));
 
     let built = null, err = '';
     try { built = B.buildAll(THREE, kit, { quality: 'mid' }); } catch (e) { err = e.message + '\n' + (e.stack || '').split('\n')[1]; }
@@ -391,11 +427,60 @@ ok('模块图：textures.js 可 import 且 18 个工厂齐备',
         built.entries.every((e) => e.fp && [e.fp.cx, e.fp.cz, e.fp.halfW, e.fp.halfD].every(Number.isFinite)));
       console.log(`  · 装配统计：Mesh ${meshes}（InstancedMesh ${inst}，实例 ${instCount}）｜三角面 ${(tris / 1000).toFixed(1)}k｜材质 ${matSeen.size}`);
 
+      // D16 drawCalls 批处理：buildAll 已对每个 builder 组跑 mergeGroup →
+      //   Mesh 数（≈drawCalls）必须压进 mid 预算；InstancedMesh 批次语义保留。
+      ok('D16：装配后 Mesh 数 ≤ BUDGET.drawCallsMid', meshes <= cfg.BUDGET.drawCallsMid, `Mesh ${meshes} / 预算 ${cfg.BUDGET.drawCallsMid}`);
+      ok('D16：InstancedMesh 批次保留（实例化未被合并）', inst >= 70 && instCount >= 6000, `InstancedMesh ${inst}，实例 ${instCount}`);
+
+      // mergeGroup 的矩阵口径不变量（探针语义进 smoke）：装配后 root 摆位 → 顶点世界 = root × 局部。
+      const hallG = new THREE.Group();
+      const wallM = new THREE.Mesh(new THREE.BoxGeometry(4, 2, 2), kit.mat.marble);
+      wallM.position.set(3, 0, 0); hallG.add(wallM);
+      P.mergeGroup(hallG, THREE);
+      hallG.position.set(0, 0, -241.5);
+      hallG.updateMatrixWorld(true);
+      const pa = hallG.children[0].geometry.attributes.position;
+      const vw = new THREE.Vector3(pa.getX(0), pa.getY(0), pa.getZ(0)).applyMatrix4(hallG.matrixWorld);
+      ok('D16：合并体烘 root 局部口径（root 摆位后顶点随根移动）', Math.abs(vw.x - 2) < 1e-6 && Math.abs(vw.z + 240.5) < 1e-6, `world=(${vw.toArray().map((n) => n.toFixed(3))})`);
+      const st = P.subtreeStats(hallG);
+      ok('subtreeStats：合并后只剩合并体（Mesh 1，三角面 12）', st.mesh === 1 && st.triangles === 12, JSON.stringify({ mesh: st.mesh, triangles: st.triangles }));
+
       // 单一数据源：太和殿的屋顶必须落在中轴上（x=0），且占位与 layout 一致
       const L = await import('../js/layout.js');
       const taihe = built.entries.find((e) => e.id === 'taihe');
       ok('buildAll：太和殿 group 位于 x=0（中轴严格）', !!taihe && taihe.group.position.x === 0);
       ok('buildAll：太和殿 fp 半宽×2 = 实测面阔 + 出檐', Math.abs(taihe.fp.halfW * 2 - L.faceWidth(L.byId('taihe')) - 4.8) < 1e-6);
+
+      // 阶段 5：午门凹字（正面城台 + 两翼雁翅楼 + 五凤楼亭群）与内金水河五桥
+      const wm = built.entries.find((e) => e.id === 'wumen');
+      const wmBox = new THREE.Box3().setFromObject(wm.group);
+      const wpL = L.byId('wumen').wumenPlan;
+      ok('buildAll：午门凹字展开（面阔 ≥ 城台面阔，进深 ≥ 两翼长）',
+        wmBox.min.x <= -(wpL.cityL / 2) && wmBox.max.x >= wpL.cityL / 2 && (wmBox.max.z - wmBox.min.z) >= wpL.wingLen,
+        `X ${wmBox.min.x.toFixed(1)}..${wmBox.max.x.toFixed(1)}｜Z ${wmBox.min.z.toFixed(1)}..${wmBox.max.z.toFixed(1)}`);
+      ok('buildAll：午门高度 = 城台 + 正楼（凹字两翼略低）',
+        wmBox.max.y >= wpL.cityH + wpL.mainTower.hTotal * .7 && wmBox.max.y < 70, wmBox.max.y.toFixed(1));
+      // 亭群「前两后四」= 6 座 + 角亭 2 座：每座亭的顶有一颗鎏金宝顶。
+      // 注意在 builder 的**未合批**输出上测（mergeGroup 后几何类型被展平，几何名不再可靠）。
+      const wmRaw = B.wumen(THREE, kit, L.byId('wumen'), { quality: 'mid' });
+      let finial = 0;
+      wmRaw.traverse((o) => { if (o.isMesh && o.geometry && o.geometry.type === 'SphereGeometry' && o.material === kit.mat.gold) finial++; });
+      ok('buildAll：五凤楼亭群 6 座 + 角亭 2 座（每座亭一颗宝顶）', finial >= 8, finial + ' 颗宝顶');
+
+      // 内金水河：水面（G25 用 kit.mat.water，透明材质合批后仍是 1 个批次）+ 5 座桥
+      const rivRaw = B.bridges(THREE, kit, L.byId('innerRiver'));
+      let water = null, decks = 0;
+      rivRaw.traverse((o) => {
+        if (o.isMesh && o.name === 'water') water = o;
+        if (o.isMesh && o.material === kit.mat.marble && o.geometry.parameters && o.geometry.parameters.height === 1.2) decks++;
+      });
+      ok('buildAll：内金水河有水面（kit.mat.water 透明材质）',
+        !!water && water.material === kit.mat.water && water.material.transparent === true);
+      ok('buildAll：桥 5 座（御路桥 + 4 座朝房桥）桥面齐备', decks === 5, decks + ' 座桥面');
+      const bpL = L.byId('innerRiver').bridgePlan;
+      ok('buildAll：御路桥居中五孔 + 桥群左右对称（fp 同源）',
+        bpL.main.x === 0 && bpL.main.holes === 5 && bpL.main.width === 48
+        && built.entries.find((e) => e.id === 'innerRiver').fp.cx === 0);
 
       // 预算预警（阶段 11 才要求达标，这里只做量级检查）
       ok('buildAll：三角面在量级内（< 3M；阶段 11 收敛到 ≤900k）', tris < 3e6, (tris / 1000).toFixed(0) + 'k');

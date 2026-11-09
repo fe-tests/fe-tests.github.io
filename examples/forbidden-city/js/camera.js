@@ -17,8 +17,10 @@ export const CAM_MODES = [
   { id: 'overview', cn: '俯瞰' },
 ];
 
-/** overview 的取景参数（radius = 镜头到**地面圆心**的水平距离，不是斜距；拖拽/滚轮会改它）。 */
-export const OVERVIEW = { radius: 1000, flatMin: 340, flatMax: 2200, pitchMin: -1.5, pitchMax: -0.62, fov: 74, groundY: 0 };
+/** overview 的取景参数（radius = 镜头到**地面圆心**的水平距离，不是斜距；拖拽/滚轮会改它）。
+ *  fogNear/fogFar：俯瞰时镜头在 950 m 高空、看得最远约 1500 m，画质档的雾距（620–1400）
+ *  会把整座紫禁城糊成一片白雾（截图复核发现），故俯瞰档单开一份远雾。 */
+export const OVERVIEW = { radius: 1000, flatMin: 340, flatMax: 2200, pitchMin: -1.5, pitchMax: -0.62, fov: 74, groundY: 0, fogNear: 380, fogFar: 2400 };
 
 /** overview 默认机位：整城中轴上空俯视（方位角由拖拽轨道控制）。圆心在地面，故 y = r·|sin(pitch)|。 */
 export function overviewPose() {

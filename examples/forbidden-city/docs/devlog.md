@@ -16,6 +16,8 @@
 | 2026-11-08 21:15 | **阶段 3**：layout.js 数据表（14 条中轴建筑 + 廊庑/景山，全部按实测值）+ parts.js G01–G21 构件（台基/栏杆螭首/instanced 柱网/斗栱/庑殿·歇山·四角攒尖三种屋顶/脊兽/鸱吻/菱花扇门/城楼/廊庑/亭/桥/城墙/角楼）+ uildings.js 按 form 派发的组合器 + world.js 接入 | 用户要求「中轴三大殿可以进入内部查看」——先把形制与尺度做对，阶段 6 才有可入内的真结构；构件不 import three 才能整条链路在 Node 里跑通 | smoke 装配段全绿（Mesh 1283 / 实例 6306 / tris 25.6k / 材质 20）；headless draw 1212 / 162k tris；截图复核地面在下、建筑直立 |
 | 2026-11-08 22:15 | **三档视角**：新增 `js/camera.js`（纯逻辑 CameraRig + CAM_MODES/OVERVIEW/overviewPose/axisCenter），漫步 / 飞行（46 m/s）/ 俯瞰（绕取景中心轨道旋转 + 滚轮缩放 + ←→ 沿中轴跳档）；HUD 左下角档位按钮 + `V`/`1`/`2`/`3` 键位；input.js 加 `consumeZoom()` / `vertical()` | 用户反馈「只能漫步太慢」，要能一键看全局；相机拆成纯逻辑模块才能不开浏览器就验算机位 | smoke + headless 全绿；`camlogic.mjs` 11 条机位断言全过；截图 v-overview / v-focus / v-walk |
 
+| 2026-11-10 00:40 | **阶段 4（第一批）**：① 合批先行——`parts.js` 新增 `mergeGroup()` 按材质烘顶点、`world.js` 装配后统一跑一次；小体量构件（亭、内/外桥、桥栏）加 `instanced:false` / `railInst:false` 开关走「非实例化 + 合批」；② 午门凹字——`layout.wumenPlan` + 新构件 `cityPlatform`（红墙台体 + 券洞 + 海墁 + 女墙垛口）/`ruffTop`（盝顶），`buildings.wumen()` 从简模换成「城台 + 重檐庑殿五凤楼 + 两翼廊庑 + 四角亭 + 前两攒尖 + 后四盝顶」；③ 内金水河——新构件 `river`（河床 + `name='water'` 水面 + 石堤压顶）/`bridgePavilion`，`bridgePlan` 改「御路桥居中五孔 + 内桥 pair + 外桥 pair 带三间桥亭」并消掉旧版 x 重叠，`linear()` 把东西廊庑 `z0` 推到 -336 围合午门广场 + 补一对 `queLeft/queRight` 阙亭 | 用户要求「检查执行步骤，继续进行」；§4 的三项里合批是**门槛**：不先把 1212 calls 压回 260，后面每加一座建筑都在往超支里加。午门/河按 research.md §2 只做通识级（置信 medium），按「视觉比例优先 + TODO(verify)」落 | drawCalls 216（预算 260）／246（俯瞰视野），tris 51.2k、材质 21、贴图 24.69 MB；smoke 装配段全绿（新增 12 条：凹字对称 + 五券门 + 桥系对称/亭 + 围合廊 + 阙亭）；headless 7/7；俯瞰截图从白濛变成整城可读（顺手修了俯瞰雾距，见踩坑 16） |
+
 ## 踩坑与解法
 
 **1. r128 没有 `SRGBColorSpace` / `outputColorSpace`（那是 r15x）**
@@ -99,12 +101,32 @@
 - 解法：focus 改为**平移取景中心 + 相机同步平移**（保住水平距离与高度），末尾不再调 `orbit()`；`camlogic.mjs` 加断言钉住"画面中心命中午门"。
 - 影响面：轨道类控制器的 setter 要区分"挪视点"与"挪目标"，别在同一个函数里既平移又重算轨道参数。
 
+**15. 合批后「几何断言」集体失效：合并过的 mesh 查不出 `BoxGeometry` 参数**
+- 现象：`world.built.group` 上写的三条装配断言（宝顶颗数 / 水面材质 / 桥面厚度）跑出 `0 颗宝顶`、`无水面`、`0 座桥面`，而截图里明明看得见。
+- 根因：`mergeGroup()` 把同材质 Mesh **烘进一份顶点合并**，`geometry.type` 变成非命名几何、`parameters` 与 `name` 全丢；断言找的是命名几何，自然全空。
+- 解法：这类「看形制对不对」的断言改在 **builder 的未合批输出**上测：`B.wumen(THREE, kit, L.byId('wumen'))`、`B.bridges(THREE, kit, L.byId('innerRiver'))` 直接调；`built.group` 只用来测包围盒、材质种类与 Mesh 批次。
+- 影响面：断言有两套口径——**装配层测合批结果（批次/材质/bbox）**、**builder 层测形制（几何参数）**，混用就会出现「肉眼有、断言无」的假失败。
+
+**16. 俯瞰档把整座紫禁城糊成白雾**（PROGRESS.md D23）
+- 现象：`3` 号俯瞰 + 跳档到午门后截图，画面几乎全白，只剩地面与一圈城墙线；同机位漫步档却是清楚的。
+- 根因：俯瞰机位在 ~950 m 高空、水平距离可到 2200 m，而雾距按画质档只有 `low 620 / mid 900 / high 1400`（`RENDER.far` 才 2600）——镜头与整座城全在雾的 far 之外，被 fog 颜色盖满。
+- 解法：把雾距交给视角档联动——`camera.js` 的 `OVERVIEW` 增 `fogNear 380 / fogFar 2400`，`main.js` 加 `applyFog(mode)`：进俯瞰用远雾，出俯瞰回画质档；`quality.apply()` 会重写 `fog.far`，故 FPS 自动降档后立刻补一次 `applyFog(rig.mode)`。
+- 影响面：任何「按相机高度决定可见距离」的档，都要显式带一份雾参数；画质档的雾只对地面档有效，别当全局参数用。
+
+**17. 实例数从 6306 掉到 6076 时，护栏断言险被误伤**
+- 现象：内/外单孔桥的栏杆改 `railInst:false`（小体量走合批）后，`instCount >= 6000` 这条护栏从 6306 掉到 6076，离下限只剩 126。
+- 根因：断言写的是「实例总数」这种**会随策略漂移的量**，而真正要钉的是「大构件必须实例化」。
+- 解法：留阈值继续跑（本轮不改）；阶段 5 加台基/螭首时**优先用实例化**补回余量，若策略再变则把断言改成按构件类别查（`columnGrid` / 走兽 / 斗栱 各自必须是 InstancedMesh）。
+- 影响面：阈值贴近实测值时要在注释里写清「为什么留这个数」，否则下次合批优化会一头撞进假失败里。
+
 ## 性能与兼容性记录
 
 - **入口体积**（阶段 1）：`index.html` 7.9 KB + `css/main.css` 1.9 KB + `js/*` 合计约 38 KB（config 4.6 / state 7.8 / quality 4.8 / world 3.4 / ui 4.0 / input 6.2 / main 8.0）；运行时依赖只有 three.min.js **603 KB**（已入库，非本页新增）。
 - **贴图工厂**（阶段 2）：`js/textures.js` 约 26 KB 源码 → 18 张程序化材质，GPU 显存实测 **24.69 MB**（口径 w×h×4B×1.33；预算 128 MB）。首次生成耗时在 headless SwiftShader 下不明显（页面加载即收起进度条），真机待阶段 9 复测。
 - **帧率基线**：headless SwiftShader（无 GPU 软渲染）1280×720、空场景 → **32 fps**。这是纯 CPU 光栅化的下限参考，不代表真机；有 GPU 的桌面/手机需另测（阶段 9 / 11）。
 - **三档视角开销**（补丁）：漫步 792 calls / 153k tris，俯瞰 1212 calls / 162k tris —— 差值来自视锥剔除而非模式本身；俯瞰 fov 74、离地 ~946 m 会看到整座城，所以批次更高。移动端默认档在 overview 下需复测（阶段 9）。
+- **合批后的开销**（阶段 4 第一批）：`mergeGroup()` 落地后同一场景 **漫步 216 calls / 181k tris，俯瞰 246 calls / 185k tris**（1212 → 216，`BUDGET.drawCallsMid = 260` 达标）。代价是**顶点数换了批次**：smoke 装配统计 Mesh 243 / 实例 6076 / tris 51.2k（页面含地面与视锥内全量，所以 HUD 读数比 smoke 统计高），后续加建筑先看 calls 再看 tris。
+- **俯瞰的雾**：俯瞰档 `fogNear 380 / fogFar 2400`（画质档 620–1400 只给地面档用），`main.js` 的 `applyFog(mode)` 负责联动。
 - **相机模块体积**：`js/camera.js` 约 8 KB / 240 行，纯逻辑无 DOM 依赖 → 可在 Node 侧直接验算机位（`tools/out/camlogic.mjs` 口径，正式断言待并入 smoke）。
 - **测量方法**：`tools/headless.mjs`（CDP 读 `renderer.info`）+ HUD 常驻读数（`H` 键切换）。
 - **测试过的环境**：Chrome headless（new）+ SwiftShader，Windows；ES module 经 `node server.js` HTTP 访问正常。真机 iOS Safari / Android Chrome 待阶段 9。

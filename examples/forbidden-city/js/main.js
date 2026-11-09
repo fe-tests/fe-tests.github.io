@@ -8,7 +8,7 @@ import { Quality } from './quality.js';
 import { UI } from './ui.js';
 import { Input } from './input.js';
 import { buildWorld } from './world.js';
-import { CameraRig } from './camera.js';
+import { CameraRig, OVERVIEW } from './camera.js';
 import { newState, recordZone, zoneOfZ, saveProgress, loadProgress } from './state.js';
 import { RENDER, WALK_SPEED, RUN_SPEED, EYED_H, AXES } from './config.js';
 
@@ -193,7 +193,7 @@ function boot() {
       for (let i = 0; i < unlocked.length; i++) ui.toast('解锁成就 ' + unlocked[i].icon + ' ' + unlocked[i].name, 3200);
     }
 
-    if (quality.update(dt)) ui.toast('画质自动调整为「' + quality.params.name + '」', 2200);
+    if (quality.update(dt)) { ui.toast('画质自动调整为「' + quality.params.name + '」', 2200); applyFog(rig.mode); }  // 自动降档会重写 fog.far，俯瞰档要立刻拿回远雾
 
     applyCamera();
     renderer.render(world.scene, world.camera);
@@ -208,11 +208,19 @@ function boot() {
 
   function applyCamera() { rig.apply(); }
 
+  /** 雾距跟着视角档走：俯瞰在 ~950 m 高空看整城（看到 ~1500 m 外），
+   *  画质档的 620–1400 m 雾距会把整座紫禁城糊成白雾（俯瞰截图复核发现）。 */
+  function applyFog(mode) {
+    if (mode === 'overview') world.setFogFar(OVERVIEW.fogFar, OVERVIEW.fogNear);
+    else world.setFogFar(quality.params.fogFar, RENDER.fogNear);
+  }
+
   /** 切换视角档位（按钮与 V 键共用），并给出可操作提示。 */
   function pickMode(id) {
     const before = rig.mode;
     // 软渲染（SwiftShader）下每帧几秒，1.9 s 的缓动要几十秒才走完 → 直接落位
     const mode = rig.setMode(id, { instant: !gpuAccel });
+    applyFog(mode);                             // 雾距必须跟着档位走（见 applyFog）
     if (mode === 'overview') ui.toast('全局俯瞰 · 拖拽转方位、滚轮/捏合拉远近 · ←→ 沿中轴平移取景 · V 回漫步', 3600);
     else if (mode === 'fly' && before !== 'fly') ui.toast('自由飞行 · Shift 加速 · 空格上升 / Ctrl 下降', 3000);
     else if (mode === 'walk') ui.toast('人视漫步 · WASD 或左半屏摇杆', 2200);

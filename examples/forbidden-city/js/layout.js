@@ -34,14 +34,36 @@ export function buildings() {
       id: 'wumen', cn: '午门', cx: 0, cz: AXES.wumen, form: '门', tier: 1,
       // 平面呈「凹」字形：正面五间 + 两侧向前伸出的阙亭（雁翅楼）与角亭。
       bays: 5, depthBays: 2, bayW: 3.4, hWall: 12, hTotal: 28,
+      doors: [-12, -6, 0, 6, 12],             // 正面五券门（中三门 + 东西掖门）
       wings: { len: 76, bays: 5, sideH: 9 },   // 雁翅楼：面阔五间、单檐庑殿顶连廊
       towers: 4,                                // 阙亭四座（五凤楼）// TODO(verify) 门洞数与形制见 research.md §8
+      // 五凤楼细部（凹字平面，x=0 中轴口径；凹字两翼向午门广场一侧伸出 = -Z，午门 cz=-340）。
+      // 角亭在正面城台与两翼的交接处（x=±30），亭群在雁翅楼尽端（「前两后四」六亭）。
+      // TODO(verify) 凹字各段长度与亭群间数见 research.md §8，取近似值（视觉比例优先）。
+      wumenPlan: {
+        cityL: 60, cityH: 12, cityD: 14,            // 正面城台：面阔 60、高 = hWall、进深 14（开五券门）
+        wingPlatformH: 7.4,                         // 雁翅楼下的低城台高（凹字两翼，比正面城台略低）
+        wingLen: 76, wingH: 9,                      // 雁翅楼长度/楼高（与 wings 同源）
+        cornerZ: -10,                               // 角亭中心 z（城台南侧面外，x=±30）
+        mainTower: { form: '庑殿', bays: 9, depthBays: 3, bayW: 3.4, hWall: 10, hTotal: 24, tier: 2 }, // 城台上的重檐庑殿正楼
+        gablePav: { xs: [-14.5, 14.5], z: -56, w: 6.4 },   // 「前两」：两座攒尖方亭
+        ruffPav:  { xs: [-30, -22, 22, 30], z: -68, w: 5 }, // 「后四」：四座盝顶亭，对称排开
+      },
       doors: [0, -12, -6, 6, 12],               // 五个门洞的中线 x 位置
       hotspots: ['中轴最南的正门，皇帝下诏、献俘之处'],
     },
     {
       id: 'innerRiver', cn: '内金水河', cx: 0, cz: AXES.innerRiver, form: '河',
       width: 22, bankH: 1.6, bridges: ['fiveHole'], // 五孔桥居中，四座朝房桥对称
+      // 桥的摆放（x=0 中轴口径；TODO(verify) 朝房桥位置与形制见 research.md §8）：
+      // 御路桥居中五孔（面阔 48）；内侧一对单孔桥 x=±34；外侧一对单孔桥 x=±68，各带三间桥亭（G26）。
+      // river.len = 河道沿 x 展开的长度（河身长，跨中轴两侧对称）。
+      bridgePlan: {
+        len: 460,
+        main:  { x: 0, width: 48, holes: 5 },                                   // 御路桥（五孔桥，居中）
+        inner: { xs: [-34, 34], width: 14, holes: 1 },                          // 东西内朝房桥（单孔）
+        outer: { xs: [-68, 68], width: 12, holes: 1, pavilion: { bays: 3, depth: 8, hWall: 3.6 } }, // 外侧桥 + 三间桥亭
+      },
     },
     {
       id: 'taiheGate', cn: '太和门', cx: 0, cz: AXES.taiheGate, form: '门', tier: 1,
@@ -127,9 +149,12 @@ export function buildings() {
 /* ------------------------------ 轴线上的其它线性要素 ------------------------------ */
 export function linear() {
   return [
-    // 东西庑房/廊：从午门院到保和殿，两侧对称
-    { id: 'eastCorridor', cx: 128, z0: -300, z1: 60, form: '廊', hWall: 5, bayW: 3.0, bays: 116 },
-    { id: 'westCorridor', cx: -128, z0: -300, z1: 60, form: '廊', hWall: 5, bayW: 3.0, bays: 116 },
+    // 东西庑房/廊：从午门广场两侧一直到保和殿，两侧对称（廊庑围合 = 凹字两翼的延长）
+    { id: 'eastCorridor', cx: 128, z0: -336, z1: 60, form: '廊', hWall: 5, bayW: 3.0, bays: 116 },
+    { id: 'westCorridor', cx: -128, z0: -336, z1: 60, form: '廊', hWall: 5, bayW: 3.0, bays: 116 },
+    // 阙亭（午门广场内东西两侧，形制 = 盝顶）；TODO(verify) 位置见 research.md §8
+    { id: 'queLeft', cx: 120, cz: -330, form: '亭', width: 6, hWall: 5.4, roofForm: '盝顶' },
+    { id: 'queRight', cx: -120, cz: -330, form: '亭', width: 6, hWall: 5.4, roofForm: '盝顶' },
     // 四门（东华/西华/午门侧门等）与筒子河
     { id: 'donghuamen', cx: CITY.lenE / 2, cz: -40, form: '门', bays: 3, depthBays: 2, bayW: 3.2, hWall: 9, hTotal: 16 },
     { id: 'xihuamen', cx: -CITY.lenE / 2, cz: -40, form: '门', bays: 3, depthBays: 2, bayW: 3.2, hWall: 9, hTotal: 16 },

@@ -8,7 +8,7 @@
 
 ## 1. 当前阶段
 
-**阶段 3 + 「全局视角」补丁已完成 → 下一步做阶段 4（外朝中轴序列，并把 drawCalls 压回预算内）。**
+**阶段 4 第一批（合批 + 午门凹字 + 内金水河五孔桥）已完成 → 下一步做阶段 5（三层台基 + 三大殿，drawCalls 已达标 216）。**
 
 - slug：`forbidden-city` · 入口：[index.html](../index.html) · 注册项：`registry.json` 最后一条（`status: alpha`）
 - 依赖：**Three.js r128**（已入库，未新增 vendor 文件）→ `../../assets/vendor/three/r128/three.min.js`
@@ -45,6 +45,17 @@
 `draw 1212 / 162k tris`、无异常。**注意：1212 drawCalls 已超 `BUDGET.drawCallsMid = 260`（见 §5 D16），阶段 4 起必须先合批再往里加建筑。**
 截图复核（临时探针，跑完即删）确认地面在下、天穹在上、建筑直立：见 §5 D17/D18。
 
+| 4a | **合批先行**：`parts.js` 新增 `mergeGroup(root, THREE)`（按材质把普通 Mesh 烘成顶点合并；InstancedMesh 保留批次语义），`world.js` 装配后统一「组摆位 → `updateMatrixWorld(true)` → `mergeGroup`」；亭 / 内外单孔桥 / 桥栏改走「非实例化 + 合批」（开关 `pavilion({instanced})`、`railing({instanced})`、`bridge({railInst})`、`columnGrid({instanced})`） | `js/parts.js`、`js/world.js`；smoke 断言 `Mesh 数 ≤ BUDGET.drawCallsMid` |
+| 4b | **午门凹字 + 五凤楼**：`layout.wumenPlan`（城台 60×12×14、两翼 `wingLen 76` 向 -Z 伸出、正面 `doors:[-12,-6,0,6,12]` 五券门、主楼重檐庑殿 9 间、前两攒尖亭 + 后四盝顶亭）；新构件 **G23 `cityPlatform`**（红墙台体 + 券洞 + 海墁 + 四圈女墙 + 每 3.2 m 一齿垛口 instanced）、**G25 `ruffTop`** 盝顶（四坡梯形 + 平顶盘 + 四脊 + 鎏金宝球）；`buildings.wumen()` 从简模改为凹字全套 | `js/layout.js`、`js/parts.js`、`js/buildings.js` |
+| 4c | **内金水河 + 五孔桥 + 阙亭 + 廊庑围合**：`innerRiver.bridgePlan` 改「御路桥居中五孔（宽 48）+ 内桥 pair `x=±34` + 外桥 pair `x=±68` 带三间桥亭」（消掉旧版 inner/outer 的 x 重叠）；新构件 **G24 `bridgePavilion`**、**G25 `river`**（河床 + `name='water'` 水面用 `kit.mat.water` + 两岸石堤白石压顶）；`linear()` 把东西廊庑 `z0` 推到 -336 围住午门广场 + 补 `queLeft/queRight` 一对盝顶阙亭 | `js/layout.js`、`js/parts.js`、`js/buildings.js` |
+| 4d | **俯瞰雾距联动**：`camera.js` 的 `OVERVIEW` 增 `fogNear 380 / fogFar 2400`；`main.js` 加 `applyFog(mode)`（进俯瞰远雾 / 出俯瞰回画质档，FPS 自动降档后立刻补一次）；`world.setFogFar(far, near)` 加 near 参数 | `js/camera.js`、`js/main.js`、`js/world.js` |
+
+**验证记录（阶段 4 第一批）**：smoke 全部通过；装配统计 **Mesh 243（InstancedMesh 79，实例 6076）｜三角面 51.2k｜材质 21**；
+`D16` 哨兵达标：**drawCalls 漫步 216 / 俯瞰 246 ≤ 预算 260**（阶段 3 是 1212）。headless 7/7 全过（`draw 216 / 181k tris`、无异常）。
+新增断言要点：凹字两翼 xs 镜像 + `wingLen > cityD`、五券门、主楼庑殿 tier2 且 `hWall < cityH`、午门 bbox `X ≥ ±cityL/2` 且 Z 跨度 `≥ wingLen`（实测 -416.5…-304.6、高 38.3）、宝顶 8 颗、桥面 5 座 + 水面材质、御路桥居中五孔 + 内外桥对称且内短外长 + 外桥带三间亭内桥无亭、围合廊 `z0 ≤ 午门 cz+8`、阙亭一对对称。
+截图复核（CDP 探针 + `Page.captureScreenshot`，临时目录不入库）：俯瞰跳档到「午门」已能看清凹字平面、内金水河横带与五孔桥（修雾距前是整片白雾，见 D23）。
+> 口径提醒：**「形制对不对」的几何断言要在 builder 的未合批输出上测**（直接调 `B.wumen(...)` / `B.bridges(...)`），`built.group` 只测 bbox / 材质种类 / 批次数（见 D24）。
+
 **补丁（用户反馈「只能漫步太慢」）· 三档视角切换**：新增 `js/camera.js`（纯逻辑，Node 可 import）——
 `漫步 / 飞行 / 俯瞰` 三档 + HUD 档位按钮（左下角，H 隐藏 HUD 时仍保留）+ 键位 `V` 循环、`1/2/3` 直选。
 
@@ -62,7 +73,7 @@
 
 - [x] **2 素材工厂**：`textures.js` 实现 T01–T18，`smoke.mjs` 断言预算表 ✅ 阶段 2
 - [x] **3 构件库**：`parts.js` G01–G22 + `buildings.js` 组合器 + `layout.js` 数据表自检（中轴 `cx=0`、间数×BAY≈实测面阔）✅ 阶段 3
-- [ ] **4 外朝中轴**：午门凹字城台与五凤楼、内金水河与五孔桥、左右阙亭、廊庑围合、太和门 → `drawCalls ≤ 260`（**当前 1212，见 D16；先合批再增量**）
+- [x] **4 外朝中轴**：午门凹字城台与五凤楼、内金水河与五孔桥、左右阙亭、廊庑围合、太和门 → `drawCalls ≤ 260` ✅ 阶段 4 第一批（实测 216，见 §2 表 4a–4d）
 - [ ] **5 三层台基 + 三大殿**：8.13 m 三层须弥座 + 栏杆螭首；三殿形制（庑殿 / 四角攒尖 / 歇山）与实测尺度
 - [ ] **6 三大殿内部可入内**：宝座、藻井蟠龙、金柱（保和殿**减柱造**少 6 根）、匾额；门洞自动开合 + 室内碰撞层 → 不穿模
 - [ ] **7 内廷与后苑**：乾清门、后三宫（乾清宫重檐庑殿 + 「正大光明」匾）、东西六宫示意、御花园、景山借景
@@ -75,13 +86,9 @@
 
 ## 4. 下一步（≤3 条，可直接执行）
 
-1. **合批先行（阶段 4 的第一件事）**：`parts.js` 里同类构件（栏杆望柱、走兽、斗栱、廊柱）已用 `InstancedMesh`，
-   但每座建筑仍各自 `new Mesh` → 现状 **1212 calls**。做法：按材质合并 + 把「一组重复构件」整体实例化，
-   目标先降到 ≤400（临时阈值），阶段 11 再收到 ≤260。改完必须复跑 smoke 与 headless 看 `draw N` 变化。
-2. **午门凹字城台 + 五凤楼**：`layout.js` 里 `wumen` 已有记录，但 `buildings.wumen()` 目前是简模；
-   按 research.md §2 补凹字平面（东西各一翼亭）与五座方殿屋顶，别改中轴 `cx=0`。
-3. **内金水河 + 五孔桥 + 左右阙亭 + 廊庑围合**：`bridges()` / `corridorRun()` 已在 `buildings.js` 就位，
-   接进 `layout.js` 的 `AXES.innerRiver = -285` 序列即可；每加一项都在 smoke 里补一条「不重叠 + cx=0」断言。
+1. **三层须弥座 + 三大殿（阶段 5）**：`layout.TERRACE` 数值已备（8.13 m = 3×2.71），把它接进 `buildings.hall()` 的台基层——三层逐层收分 + 每层栏杆螭首，三殿形制（庑殿 / 四角攒尖 / 歇山）按实测面阔复测 `fp`。**只剩 17 个 Mesh 余量**：台基的栏杆/望柱/螭首一律走 `instanced`，别新增材质（现 21 / 上限 24）。
+2. **门洞自动开合 + 室内示意层（阶段 6 前置）**：`hall(..., {withDoors})` 已有门形制，接 `interior.js`（宝座、蟠龙藻井、金柱；保和殿**减柱造**少 6 根）+ 门券开合，验收点「相机在殿内不穿模」。
+3. **上限预警，动手前先登记**：`Mesh 243 / 260`、`材质 21 / 24`、实例护栏 `instCount ≥ 6000` 只剩 126 余量（见 devlog 踩坑 17）。新细节优先复用 `kit.mat.*` + 小体量走「非实例化 + 合批」；要加新材质先到 `assets.md` 预算表登记。
 
 > 备注：`tools/export-layout.mjs`（导出 `data/buildings.json` 供小地图用）仍未做，属可选，别误当阻塞项。
 
@@ -111,6 +118,9 @@
 | D20 | **模式切换的缓动把输入锁死**：main.js 用 `if (!rig.update(dt))` 当闸门，SwiftShader 下 dt 被夹到 0.05，1.9 s 的过渡要跑几十秒 → 摇杆/看视角全程无响应 | `rig.update(dt)` **只推进过渡、返回值不当闸门**；`isFlying()` 明确标为只读（给 HUD/日志用）。软渲染下另走 `{instant:true}` 直接落位 |
 | D21 | **俯瞰时整座城跟着镜头跑**：地面平面的「视点跟随」没排除 overview，相机一挪 `ground.position` 就跟着挪 → 画面里城没了；同时天穹半径（`far×0.55`）小于机位高度（~946 m），球壳缩成背景一块黑 | overview **不挪地面**（阶段 4 chunk 化后再恢复跟随）、天穹半径写死 2400 > 最远机位；成就判定也排除 overview（机位上千公尺高，用它的 z 判到访会误报） |
 | D22 | **`focus()` 想「对准某座殿」却什么都没发生**：正中俯视下把目标设成画面中心 = 只挪视线；且末尾又调 `orbit()` 用旧 `flat` 重算机位，把平移结果覆盖掉 | focus 改成**平移取景中心 + 相机同步平移**（保住水平距离与高度），末尾不再调 `orbit()`；`camlogic.mjs` 有断言钉住「画面中心命中午门」 |
+| D23 | **俯瞰把整座城糊成白雾**：俯瞰机位在 ~950 m 高空、水平距离到 2200 m，而雾距按画质档只有 620–1400（`RENDER.far` 才 2600）→ 镜头与全城都在雾的 far 之外，截图整片白 | 雾距交给**视角档**联动：`camera.js` 的 `OVERVIEW` 带 `fogNear 380 / fogFar 2400`，`main.js` 的 `applyFog(mode)` 进俯瞰用远雾、出俯瞰回画质档；`quality.apply()` 会重写 `fog.far`，故 FPS 自动降档后要立刻补一次 |
+| D24 | **合批后几何断言集体失效**：`mergeGroup()` 把同材质 Mesh 烘成顶点合并，`geometry.type` / `parameters` / `name` 全丢 → 在 `built.group` 上查「宝顶 / 水面材质 / 桥面厚度」得 `0 颗 / 无水面 / 0 座`，而肉眼明明看得见 | 断言分两套口径：**装配层**（`built.group`）只测 bbox、材质种类、Mesh 批次数；**形制层**在 builder 的**未合批输出**上测（直接调 `B.wumen(...)`、`B.bridges(...)`）。「肉眼有、断言无」= 口径用错，不是模型没建 |
+| D25 | **实例数护栏被合批策略漂移误伤**：桥栏改 `railInst:false` 后实例总数 6306 → 6076，离 `instCount ≥ 6000` 下限只剩 126 | 本轮留阈值继续跑；阶段 5 加台基/螭首时用实例化补回余量，并把断言改成**按构件类别查**（`columnGrid` / 走兽 / 斗栱 各自必须是 InstancedMesh），不再钉「实例总数」 |
 
 ## 6. 校验怎么跑
 
@@ -121,6 +131,7 @@ node examples/forbidden-city/tools/headless.mjs         # headless Chrome CDP �
 ```
 
 截图复核用（临时目录，不入库）：`chrome --headless=new --screenshot=... --virtual-time-budget=9000 --use-gl=swiftshader <url>`。
+**要看特定机位**（如凹字平面、桥与河）得走 CDP：页面无 `location.search` 钩子，自写探针发键（`Input.dispatchKeyEvent` 按 `3` 进俯瞰 + `]` 跳档取景）再 `Page.captureScreenshot`，图落 `%TEMP%`，探针跑完即删（本轮俯瞰截图用的就是这种口径）。
 阶段 2 之前 `tools/export-layout.mjs` 还不存在，跑到会报找不到文件——属预期。
 
 ## 7. git 提交策略（重要）
