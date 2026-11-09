@@ -44,6 +44,7 @@
 **验证记录（阶段 3）**：smoke 全部通过（新增装配段共 40+ 条）；headless CDP 探针 7/7 过，`REVISION=128`、
 `draw 1212 / 162k tris`、无异常。**注意：1212 drawCalls 已超 `BUDGET.drawCallsMid = 260`（见 §5 D16），阶段 4 起必须先合批再往里加建筑。**
 截图复核（临时探针，跑完即删）确认地面在下、天穹在上、建筑直立：见 §5 D17/D18。
+截图复核走 `tools/shot.mjs`（CDP 驱动按键摆位 + `Page.captureScreenshot`，图落 `tools/out/shots/` 不入库）。
 
 | 4a | **合批先行**：`parts.js` 新增 `mergeGroup(root, THREE)`（按材质把普通 Mesh 烘成顶点合并；InstancedMesh 保留批次语义），`world.js` 装配后统一「组摆位 → `updateMatrixWorld(true)` → `mergeGroup`」；亭 / 内外单孔桥 / 桥栏改走「非实例化 + 合批」（开关 `pavilion({instanced})`、`railing({instanced})`、`bridge({railInst})`、`columnGrid({instanced})`） | `js/parts.js`、`js/world.js`；smoke 断言 `Mesh 数 ≤ BUDGET.drawCallsMid` |
 | 4b | **午门凹字 + 五凤楼**：`layout.wumenPlan`（城台 60×12×14、两翼 `wingLen 76` 向 -Z 伸出、正面 `doors:[-12,-6,0,6,12]` 五券门、主楼重檐庑殿 9 间、前两攒尖亭 + 后四盝顶亭）；新构件 **G23 `cityPlatform`**（红墙台体 + 券洞 + 海墁 + 四圈女墙 + 每 3.2 m 一齿垛口 instanced）、**G25 `ruffTop`** 盝顶（四坡梯形 + 平顶盘 + 四脊 + 鎏金宝球）；`buildings.wumen()` 从简模改为凹字全套 | `js/layout.js`、`js/parts.js`、`js/buildings.js` |
@@ -131,7 +132,8 @@ node examples/forbidden-city/tools/headless.mjs         # headless Chrome CDP �
 ```
 
 截图复核用（临时目录，不入库）：`chrome --headless=new --screenshot=... --virtual-time-budget=9000 --use-gl=swiftshader <url>`。
-**要看特定机位**（如凹字平面、桥与河）得走 CDP：页面无 `location.search` 钩子，自写探针发键（`Input.dispatchKeyEvent` 按 `3` 进俯瞰 + `]` 跳档取景）再 `Page.captureScreenshot`，图落 `%TEMP%`，探针跑完即删（本轮俯瞰截图用的就是这种口径）。
+**要看特定机位**（凹字平面、桥与河、取景档）用 `node examples/forbidden-city/tools/shot.mjs 午门 太和殿`：CDP 起 headless Chrome，
+按 `3` 进俯瞰 + `[`/`]` 沿中轴跳档，再 `Page.captureScreenshot`；图落 `tools/out/shots/`（已 gitignore），跑前清旧图（D19）。
 阶段 2 之前 `tools/export-layout.mjs` 还不存在，跑到会报找不到文件——属预期。
 
 ## 7. git 提交策略（重要）

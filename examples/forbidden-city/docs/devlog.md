@@ -18,6 +18,8 @@
 
 | 2026-11-10 00:40 | **阶段 4（第一批）**：① 合批先行——`parts.js` 新增 `mergeGroup()` 按材质烘顶点、`world.js` 装配后统一跑一次；小体量构件（亭、内/外桥、桥栏）加 `instanced:false` / `railInst:false` 开关走「非实例化 + 合批」；② 午门凹字——`layout.wumenPlan` + 新构件 `cityPlatform`（红墙台体 + 券洞 + 海墁 + 女墙垛口）/`ruffTop`（盝顶），`buildings.wumen()` 从简模换成「城台 + 重檐庑殿五凤楼 + 两翼廊庑 + 四角亭 + 前两攒尖 + 后四盝顶」；③ 内金水河——新构件 `river`（河床 + `name='water'` 水面 + 石堤压顶）/`bridgePavilion`，`bridgePlan` 改「御路桥居中五孔 + 内桥 pair + 外桥 pair 带三间桥亭」并消掉旧版 x 重叠，`linear()` 把东西廊庑 `z0` 推到 -336 围合午门广场 + 补一对 `queLeft/queRight` 阙亭 | 用户要求「检查执行步骤，继续进行」；§4 的三项里合批是**门槛**：不先把 1212 calls 压回 260，后面每加一座建筑都在往超支里加。午门/河按 research.md §2 只做通识级（置信 medium），按「视觉比例优先 + TODO(verify)」落 | drawCalls 216（预算 260）／246（俯瞰视野），tris 51.2k、材质 21、贴图 24.69 MB；smoke 装配段全绿（新增 12 条：凹字对称 + 五券门 + 桥系对称/亭 + 围合廊 + 阙亭）；headless 7/7；俯瞰截图从白濛变成整城可读（顺手修了俯瞰雾距，见踩坑 16） |
 
+| 2026-11-10 00:52 | 把截图复核探针固化成 **`tools/shot.mjs`**：CDP 起 headless Chrome，用 `Input.dispatchKeyEvent` 按 `3`/`1` 换档、`[`/`]` 沿中轴跳档取景，再 `Page.captureScreenshot`；图落 `tools/out/shots/`（已 gitignore），跑前清旧图 | 页面既不暴露 `camera/renderer`，也没有 `location.search` 钩子 → 特定机位只能靠按键驱动；而阶段 4 起每轮都要肉眼复核形制，探针不该「跑完即删」，得变成可复用的校验工具 | 三种机位跑通：俯瞰午门 / 俯瞰太和殿 / 漫步起点；drawCalls 漫步 **154**、俯瞰 **221**（视锥剔除的差值，与模式无关） |
+
 ## 踩坑与解法
 
 **1. r128 没有 `SRGBColorSpace` / `outputColorSpace`（那是 r15x）**
