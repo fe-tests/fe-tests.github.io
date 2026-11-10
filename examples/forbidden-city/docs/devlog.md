@@ -15,10 +15,9 @@
 | 2026-11-08 18:25 | **贴图打样**：`tools/preview-textures.mjs` 生成带标签总览图（平铺的按 2×2 重复以暴露接缝）；据此修 T04 浮雕对比、T05 金砖太暗、T16 水面法线幅度过大 | 材质是"看着对不对"的东西，纯断言查不出审美与尺度问题 | 打样图两轮复核通过；`tools/out/` 已加 `.gitignore` 不入库 |
 | 2026-11-08 21:15 | **阶段 3**：layout.js 数据表（14 条中轴建筑 + 廊庑/景山，全部按实测值）+ parts.js G01–G21 构件（台基/栏杆螭首/instanced 柱网/斗栱/庑殿·歇山·四角攒尖三种屋顶/脊兽/鸱吻/菱花扇门/城楼/廊庑/亭/桥/城墙/角楼）+ uildings.js 按 form 派发的组合器 + world.js 接入 | 用户要求「中轴三大殿可以进入内部查看」——先把形制与尺度做对，阶段 6 才有可入内的真结构；构件不 import three 才能整条链路在 Node 里跑通 | smoke 装配段全绿（Mesh 1283 / 实例 6306 / tris 25.6k / 材质 20）；headless draw 1212 / 162k tris；截图复核地面在下、建筑直立 |
 | 2026-11-08 22:15 | **三档视角**：新增 `js/camera.js`（纯逻辑 CameraRig + CAM_MODES/OVERVIEW/overviewPose/axisCenter），漫步 / 飞行（46 m/s）/ 俯瞰（绕取景中心轨道旋转 + 滚轮缩放 + ←→ 沿中轴跳档）；HUD 左下角档位按钮 + `V`/`1`/`2`/`3` 键位；input.js 加 `consumeZoom()` / `vertical()` | 用户反馈「只能漫步太慢」，要能一键看全局；相机拆成纯逻辑模块才能不开浏览器就验算机位 | smoke + headless 全绿；`camlogic.mjs` 11 条机位断言全过；截图 v-overview / v-focus / v-walk |
-
 | 2026-11-10 00:40 | **阶段 4（第一批）**：① 合批先行——`parts.js` 新增 `mergeGroup()` 按材质烘顶点、`world.js` 装配后统一跑一次；小体量构件（亭、内/外桥、桥栏）加 `instanced:false` / `railInst:false` 开关走「非实例化 + 合批」；② 午门凹字——`layout.wumenPlan` + 新构件 `cityPlatform`（红墙台体 + 券洞 + 海墁 + 女墙垛口）/`ruffTop`（盝顶），`buildings.wumen()` 从简模换成「城台 + 重檐庑殿五凤楼 + 两翼廊庑 + 四角亭 + 前两攒尖 + 后四盝顶」；③ 内金水河——新构件 `river`（河床 + `name='water'` 水面 + 石堤压顶）/`bridgePavilion`，`bridgePlan` 改「御路桥居中五孔 + 内桥 pair + 外桥 pair 带三间桥亭」并消掉旧版 x 重叠，`linear()` 把东西廊庑 `z0` 推到 -336 围合午门广场 + 补一对 `queLeft/queRight` 阙亭 | 用户要求「检查执行步骤，继续进行」；§4 的三项里合批是**门槛**：不先把 1212 calls 压回 260，后面每加一座建筑都在往超支里加。午门/河按 research.md §2 只做通识级（置信 medium），按「视觉比例优先 + TODO(verify)」落 | drawCalls 216（预算 260）／246（俯瞰视野），tris 51.2k、材质 21、贴图 24.69 MB；smoke 装配段全绿（新增 12 条：凹字对称 + 五券门 + 桥系对称/亭 + 围合廊 + 阙亭）；headless 7/7；俯瞰截图从白濛变成整城可读（顺手修了俯瞰雾距，见踩坑 16） |
-
-| 2026-11-10 00:52 | 把截图复核探针固化成 **`tools/shot.mjs`**：CDP 起 headless Chrome，用 `Input.dispatchKeyEvent` 按 `3`/`1` 换档、`[`/`]` 沿中轴跳档取景，再 `Page.captureScreenshot`；图落 `tools/out/shots/`（已 gitignore），跑前清旧图 | 页面既不暴露 `camera/renderer`，也没有 `location.search` 钩子 → 特定机位只能靠按键驱动；而阶段 4 起每轮都要肉眼复核形制，探针不该「跑完即删」，得变成可复用的校验工具 | 三种机位跑通：俯瞰午门 / 俯瞰太和殿 / 漫步起点；drawCalls 漫步 **154**、俯瞰 **221**（视锥剔除的差值，与模式无关） |
+| 2026-11-10 00:49:16 | **截图复核固化 `tools/shot.mjs`**：CDP 连 :39979 调试口 → 页面按键摆位（`1`/`3` 档位、`[`/`]` 中轴跳档、拖拽转视角）→ 定点截图到 `tools/out/shots/`；用法 `node examples/forbidden-city/tools/shot.mjs 午门 太和殿` | 4c 复核全靠手摆机位截图，视角漂移不可复现；「构图对不对」需要**固定摆位 + 定点视角**才能对比 | 产出 v-overview/v-focus 系列截图；当时的校验口径缺口（相机断言未入库）在阶段 5 补上（D26） |
+| 2026-11-11 03:24 | **阶段 5（三大殿坐落台基 + 首屏机位 + 相机断言入库）**：① `layout` 三殿 `onTerrace: true`，`buildAll()` 统一 `baseY = TERRACE.totalH`，`entries[]` 带 `y`；顶层台基 z1 北挪 102/90/82 盖住保和殿北檐；② `config.CAM_START` 单一来源（z −455 / yaw π / pitch +0.06），轴线约定（cz 增大 = 北）写死注释，`main.js` 只消费；③ 临时探针 camlogic 的 11 条断言移植进 smoke §4e 扩成 20 条；④ `camera.js` 修两处入口跳变（`flatMin 340→300`、`orbitFromPose` 与 `orbit()` 共用地板）；⑤ `shot.mjs` 首图 = 按键前的真·首屏 `walk-entry`，跳档改绝对档位表，拖拽改 pointer 事件 | 用户要「分析目前故宫已经完成的进度」，照报告建议的下一步执行：阶段 4 的遗留验收（殿坐在台基上）+ 首屏可看（凹字框住午门）+ 校验口径补洞（相机断言从未入库） | smoke 全绿（装配统计 Mesh 243 / 实例 6180 / 材质 21；新增 台基坐落 + CAM_START + §4e 20 条）；headless 7/7（`draw 212 / 183k tris`）；截图 `walk-entry` 凹字两翼框住午门城台与正楼屋顶、浅俯角图确认三殿在三层白台顶面；提交 `c4511ad`（7 文件）。坑见踩坑 18–24（D26–D32） |
 
 ## 踩坑与解法
 
@@ -120,6 +119,49 @@
 - 根因：断言写的是「实例总数」这种**会随策略漂移的量**，而真正要钉的是「大构件必须实例化」。
 - 解法：留阈值继续跑（本轮不改）；阶段 5 加台基/螭首时**优先用实例化**补回余量，若策略再变则把断言改成按构件类别查（`columnGrid` / 走兽 / 斗栱 各自必须是 InstancedMesh）。
 - 影响面：阈值贴近实测值时要在注释里写清「为什么留这个数」，否则下次合批优化会一头撞进假失败里。
+  （阶段 5 实测实例 6180：护栏下限 6000 达标，距 smoke 自写上界的 6200 只剩 20——台账见 assets.md §7）
+
+**18. 漫步首屏是「一条红墙带」：起播机位写死在 main.js 且 yaw 轴约定写反**
+- 现象：首屏空荡无建筑，画面只有横贯的红墙+垛口一条带；smoke 几何谓词还全绿。
+- 根因：`main.js` 的 `z: -520` 在午门南 180 m（> `fogNear 120`）= 雾里空铺地；且本仓库轴线 cz 增大 = 北，旧机位的 yaw 指代按「−π = 北」写，实际朝南——看的是广场南墙，午门在镜头背后。
+- 解法：起播机位收进 `config.CAM_START` 单一来源（`x 0 / z −455 / yaw π / pitch +0.06 / y EYED_H`），轴线推导写进注释；smoke 钉谓词「前向 z = +1.00（朝北看午门）、距午门 115 m ≤ fogNear」。
+- 影响面：首屏构图**以图像判定**（见 24）；smoke 只钉「不被雾吃、不被挡、在朝向上」。
+
+**19. 机位在午门「凹」字院里，38.3 m 正楼被两翼 10 m 墙整体挡死**
+- 现象：z −430 / yaw π 首屏截图 = 只有两翼廊亭，正楼不存在；Node 射线/视锥探针全绿「正楼在镜头前」。
+- 根因：凹字两翼南端 z ≈ −416，z −430 = 两翼以北 14 m 在院里；凹字进深 76 m，檐下仰角 ≈ 47° > 62° FOV 上沿 31°，正楼必出框；探针的遮挡判据当时不可信（见 20）。
+- 解法：机位退到两翼南端以南（z −455）：两翼自然框住画面两侧，正楼从墙顶之上露檐+正脊，城台南面 108 m < fogNear 不蒙雾。
+- 影响面：几何量（凹字端线 z −416、城台面 z −347）进 smoke 断言；机位注释写明各数值的推导，防止「再近 20 m 好看一点」的瞎调。
+
+**20. Node 探针里合并体全在恒等矩阵，遮挡/视锥判定整层作废**
+- 现象：午门合并体的 boundingSphere 中心 z ≈ −34，实例化中心 z −340 混排；NDC 网格 24 条射线 + 全场景 raycast 0 命中，而逐 mesh 循环又「命中」了 458 m 外的合并体。
+- 根因：`buildings.add()` 先 `g.updateMatrixWorld(true)` 再 `mergeGroup` 再 `root.add(g)`——合并后的子物体 `matrixWorld` 是恒等值，射线按世界坐标打过去自然全空（午门合并体被当成在原点，D31）。
+- 解法：探针在 `buildAll` 后手动 `built.group.updateMatrixWorld(true)` + `cam.updateMatrixWorld(true)` 再射线/视锥。页面不受影响（渲染器每帧刷新矩阵），**只有 Node 探针需要补这一刀**。
+- 影响面：探针判据自洽性先自查（合并体与实例化中心必须同坐标系，一眼假 = 判定作废）；构图最终以图像定。
+
+**21. r128 `Box3.setFromObject` 不吃 `instanceMatrix`：把实例化构件全算在原点**
+- 现象：太和殿世界 bbox 下界 −0.27，一根 16.8 m 柱被报成「沉进地里」；「合批后几何断言失效」（踩坑 15）的续集。
+- 根因：r128 的 `Box3.setFromObject` / `computeBoundingSphere` 只读 geometry bbox × matrixWorld，实例矩阵不参与（D29）。
+- 解法：装配层高度断言用剔除 InstancedMesh 的合并体 box（`isMesh && !isInstancedMesh`）；实例化构件的高度交给 builder 未合批输出 / 探针 / 图像。
+- 影响面：任何在 `built.group` 上的包围盒断言都要先问「里面有没有实例化」；合并体的上缘超通高 2.32 m（正吻）在断言里留容差，别当 bug 修。
+
+**22. 按 `3` 进俯瞰 y 瞬跳 44 m**
+- 现象：首屏（flat ≈ 326 m）按 `3` 进俯瞰，y 946 → 990；往回 zoom 时 1127 → 911 再跳一次。
+- 根因：`orbitFromPose` 与 `orbit()` 各写各的 clamp 地板——入口侧魔法数 `radius*0.34` = 340 把 325.7 夹住不动，轨道侧 `OVERVIEW.flatMin` 用 tan 公式直接抬走（D30）。
+- 解法：两处共用 `OVERVIEW.flatMin` 单一来源，并把 300 定为地板（< 入口 flat 325.7，入口 pose 成为 orbit 可表达的自然态）；smoke §4e 钉「进俯瞰不跳变」。
+- 影响面：任何「入口 pose」与「模式初始态」必须同口径：入口 pose 应当是目标模式可自然表达的位姿，禁止魔数 clamp。
+
+**23. 文档引用了仓库里不存在的校验脚本（camlogic.mjs 的「11 条全过」）**
+- 现象：PROGRESS/devlog 把相机校验记成「`camlogic.mjs` 11 条纯逻辑断言全过」，git 全历史 grep 不到该文件；smoke 里一条相机断言都没有。
+- 根因：gitignored 临时探针跑完即删，验证记录却把它的输出当正式口径记了（自我复读，D19/D26）。
+- 解法：断言照搬进 smoke §4e（20 条，`camera.js` 纯逻辑 Node 直接 import）；文档口径改为「只有已入库脚本的通过才算数」。
+- 影响面：写验证记录时引用可指向的路径（入库脚本 / commit），临时探针只当诊断工具。
+
+**24. 复核工具自己咬自己的坑：图像缓存 + 探针 kit 口径 + PowerShell 管道**
+- 现象：重截同路径 PNG 后 `read_image` 读到**旧图**（299,395 B 的 stale 副本，磁盘已是 334,633 B）；探针把模块 namespace 当 `kit` 传 → `Cannot read properties of undefined (reading 'marble')`；探针带 `2>&1` 管道跑完报 `[exit code: 1]`。
+- 根因：图像工具归一缓存跟随同路径；`parts.js` 的 mat 在 `kit.mat` 上（必须 `buildTextureKit(THREE, {provider, maxAnisotropy})` 出正式 kit）；PowerShell 把 stderr + 管道提前终止算 NativeCommandError。
+- 解法：复核新图一律**复制成新文件名**再读；探针统一 `buildTextureKit` 造 kit；探针不带 `2>&1` 跑，只留 stdout。
+- 影响面：凡「覆盖同名文件后立刻复核」的路径全部适用缓存坑（截图 / 贴图打样同理）。
 
 ## 性能与兼容性记录
 
@@ -128,8 +170,9 @@
 - **帧率基线**：headless SwiftShader（无 GPU 软渲染）1280×720、空场景 → **32 fps**。这是纯 CPU 光栅化的下限参考，不代表真机；有 GPU 的桌面/手机需另测（阶段 9 / 11）。
 - **三档视角开销**（补丁）：漫步 792 calls / 153k tris，俯瞰 1212 calls / 162k tris —— 差值来自视锥剔除而非模式本身；俯瞰 fov 74、离地 ~946 m 会看到整座城，所以批次更高。移动端默认档在 overview 下需复测（阶段 9）。
 - **合批后的开销**（阶段 4 第一批）：`mergeGroup()` 落地后同一场景 **漫步 216 calls / 181k tris，俯瞰 246 calls / 185k tris**（1212 → 216，`BUDGET.drawCallsMid = 260` 达标）。代价是**顶点数换了批次**：smoke 装配统计 Mesh 243 / 实例 6076 / tris 51.2k（页面含地面与视锥内全量，所以 HUD 读数比 smoke 统计高），后续加建筑先看 calls 再看 tris。
+- **阶段 5 实测开销**（首屏机位 + 台基坐落）：`shot.mjs` 读数 **首屏 walk-entry 212 calls / 183k tris、俯瞰 221 / 179k、浅俯角 162 / 172k、walk-start 152 / 170k**（首屏 212 = 视锥内含午门凹字全量，比浅俯角只含取景中心附近高 50 calls）；smoke 装配统计实例 6076 → **6180**（台基顶面栏杆/螭首补回实例化，护栏 ≥6000 达标，距自写上界 6200 只剩 20）。
 - **俯瞰的雾**：俯瞰档 `fogNear 380 / fogFar 2400`（画质档 620–1400 只给地面档用），`main.js` 的 `applyFog(mode)` 负责联动。
-- **相机模块体积**：`js/camera.js` 约 8 KB / 240 行，纯逻辑无 DOM 依赖 → 可在 Node 侧直接验算机位（`tools/out/camlogic.mjs` 口径，正式断言待并入 smoke）。
+- **相机模块体积**：`js/camera.js` 约 8 KB / 240 行，纯逻辑无 DOM 依赖 → 在 Node 侧直接验算机位；11 条机位断言已移植进 **smoke §4e（20 条正式断言，入库）**，临时探针 `camlogic.mjs` 口径作废（D26）。
 - **测量方法**：`tools/headless.mjs`（CDP 读 `renderer.info`）+ HUD 常驻读数（`H` 键切换）。
 - **测试过的环境**：Chrome headless（new）+ SwiftShader，Windows；ES module 经 `node server.js` HTTP 访问正常。真机 iOS Safari / Android Chrome 待阶段 9。
 
@@ -145,4 +188,14 @@
 
 ```bash
 git log --date=format:'%Y-%m-%d %H:%M:%S' --format='%ad %h %s' -- examples/forbidden-city/
+```
+
+```text
+2026-11-11 03:21:34 c4511ad feat(forbidden-city): 三大殿坐落三层台基顶面
+2026-11-10 00:49:16 c1b8813 test(forbidden-city): 截图复核固化成 tools/shot.mjs（CDP 按键摆位 + 跳档取景）
+2026-11-10 00:46:47 9c2656c feat(forbidden-city): 合批压回 drawCalls 并补午门凹字与内金水河
+2026-11-08 22:23:04 ab5dcc4 feat(forbidden-city): 三档视角切换（漫步/飞行/俯瞰）+ 取景中心跳档
+2026-11-08 21:18:40 1c1c68e feat: 故宫游览阶段 3 —— 中轴数据表 + 21 个斗拱木构部件 + 装配校验
+2026-11-08 18:31:04 cbaecfb feat: 故宫游览阶段 2 —— 18 个程序化材质工厂与三层贴图校验
+2026-11-08 18:09:28 f366594 feat: 新增 3D 故宫游览（阶段 0-1）并注册首页
 ```
