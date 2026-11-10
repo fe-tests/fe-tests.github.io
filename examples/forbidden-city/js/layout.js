@@ -17,11 +17,13 @@ export const TERRACE = {
   totalH: 8.13,
   layers: 3,
   layerH: 2.71,
-  // 自北向南的三层范围（半幅宽 / 南北向边界，单位 m）；上层内收形成「叠涩」感。
+  // 自南向北的三层范围（半幅宽 / 南北向边界，单位 m）；上层内收形成「叠涩」感。
+  // ⚠️ 顶层北界必须盖住保和殿北檐（cz 60 + 进深 33/2 = 76.5），否则殿身会悬出顶面外圈到中层踏步上。
+  //    顶层进深 200 m ≈ 三殿总展开（太和殿前檐 −113.6 → 保和殿北檐 76.5 = 190 m）+ 周回栏板。
   tiers: [
-    { halfW: 156, z0: -134, z1: 92 },   // 最下层：包整个外朝院
-    { halfW: 138, z0: -126, z1: 78 },   // 中层
-    { halfW: 120, z0: -118, z1: 62 },   // 最上层：三殿所在
+    { halfW: 156, z0: -134, z1: 102 },   // 最下层：包整个外朝院
+    { halfW: 138, z0: -126, z1: 90 },    // 中层
+    { halfW: 120, z0: -118, z1: 82 },    // 最上层：三殿所在（殿身 baseY = totalH 8.13）
   ],
 };
 
@@ -85,7 +87,7 @@ export function buildings() {
       id: 'taihe', cn: '太和殿', cx: 0, cz: AXES.taihe, form: '庑殿', tier: 2,
       bays: 11, depthBays: 5, bayW: 63.96 / 11,   // 面阔 63.96 m（康熙三十四年重建后）
       depthM: 37.20,                               // 进深 37.20 m
-      hWall: 14, hTotal: 35.05,                    // 通高 35.05 m（含台基上的殿身与重檐屋顶）
+      hWall: 14, hTotal: 35.05, onTerrace: true,   // 通高 35.05 m；坐落三层台基顶面（y = TERRACE.totalH）
       columns: { count: 72, golden: 6 },           // 金柱 6 根居中环列；72 柱布局有争议，只做外观+室内代表层
       interior: {                    // 阶段 6 落地的室内要素（此处只登记，供碰撞/热点复用）
         floorY: TERRACE.totalH, throne: 'crown', plaque: '建极绥猷', zaoJin: true, columns: 'golden',
@@ -97,7 +99,7 @@ export function buildings() {
       id: 'zhonghe', cn: '中和殿', cx: 0, cz: AXES.zhonghe, form: '攒尖', tier: 1,
       bays: 3, depthBays: 3, bayW: 27 / 3,   // 方形面阔/进深约 27 m（取中文口径，见 research.md §3 分歧说明）
       depthM: 27,
-      hWall: 9, hTotal: 27, roofTop: true,    // 单檐四角攒尖 + 鎏金宝顶
+      hWall: 9, hTotal: 27, roofTop: true, onTerrace: true,   // 单檐四角攒尖 + 鎏金宝顶；坐落在台基顶面
       doors: { south: 12, east: 4, west: 4, north: 4 },   // 每面门数（扇）
       interior: { floorY: TERRACE.totalH, throne: 'platform', plaque: '允执厥中', zaoJin: false, columns: 'perimeter' },
       hotspots: ['大典前皇帝暂驻之处，匾额「允执厥中」'],
@@ -106,7 +108,7 @@ export function buildings() {
       id: 'baohe', cn: '保和殿', cx: 0, cz: AXES.baohe, form: '歇山', tier: 2,
       bays: 9, depthBays: 4, bayW: 60 / 9,    // 面阔约 60 m（九间）
       depthM: 33,                              // 进深约 33 m（中后部减柱造，殿试设案处空间更敞）
-      hWall: 13, hTotal: 29,
+      hWall: 13, hTotal: 29, onTerrace: true,
       columns: { count: 66, reduced: 6 },     // 减柱造：后檐金柱 6 根减去，室内空间更敞
       interior: { floorY: TERRACE.totalH, throne: 'crown', plaque: '皇建有极', zaoJin: true, columns: 'reduced' },
       doors: [-9, -3, 3, 9],

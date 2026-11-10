@@ -19,8 +19,11 @@ export const CAM_MODES = [
 
 /** overview 的取景参数（radius = 镜头到**地面圆心**的水平距离，不是斜距；拖拽/滚轮会改它）。
  *  fogNear/fogFar：俯瞰时镜头在 950 m 高空、看得最远约 1500 m，画质档的雾距（620–1400）
- *  会把整座紫禁城糊成一片白雾（截图复核发现），故俯瞰档单开一份远雾。 */
-export const OVERVIEW = { radius: 1000, flatMin: 340, flatMax: 2200, pitchMin: -1.5, pitchMax: -0.62, fov: 74, groundY: 0, fogNear: 380, fogFar: 2400 };
+ *  会把整座紫禁城糊成一片白雾（截图复核发现），故俯瞰档单开一份远雾。
+ *  ⚠️ flatMin 必须**小于**默认机位的水平距离 = radius·cos(pitch) ≈ 326 m：
+ *  旧值 340 > 326，进俯瞰后第一下滚轮/拖拽就被 clamp 抬到 340（y 946 → 990 的跳变，
+ *  画面上等于「镜头自己往上跑」），故下限压到 300。入口机位要落在区间内，见 smoke 4e。 */
+export const OVERVIEW = { radius: 1000, flatMin: 300, flatMax: 2200, pitchMin: -1.5, pitchMax: -0.62, fov: 74, groundY: 0, fogNear: 380, fogFar: 2400 };
 
 /** overview 默认机位：整城中轴上空俯视（方位角由拖拽轨道控制）。圆心在地面，故 y = r·|sin(pitch)|。 */
 export function overviewPose() {
@@ -35,12 +38,16 @@ export function overviewPose() {
   };
 }
 
-/** pose → 轨道参数（圆心在地面 y=0）。flat = 镜头到取景中心的**水平距离**，高度 = flat·|tan(pitch)|。 */
+/** pose → 轨道参数（圆心在地面 y=0）。flat = 镜头到取景中心的**水平距离**，高度 = flat·|tan(pitch)|。
+ *  ⚠️ 下限必须用 `OVERVIEW.flatMin`，与 orbit()/zoom() 的 clamp 同一个口径：
+ *  之前写死 `radius * 0.34`（= 340）而入口机位的 flat = radius·cos(1.24) ≈ 329.7 比它小，
+ *  于是「进俯瞰 → 第一次拖拽/滚轮」时 flat 被顶到 340，镜头凭空往上跑十几米（y 946→990）。
+ *  现在两处 clamp 一致 → pose 过一遍 orbit() 往返不动（smoke 4e 钉住这条不变量）。 */
 function orbitFromPose(pose, center) {
   const c = center || axisCenter();
   const dx = pose.x - c.x, dz = pose.z - c.z;
   const pitch = clamp(pose.pitch, OVERVIEW.pitchMin, OVERVIEW.pitchMax);
-  const flat = Math.max(OVERVIEW.radius * 0.34, Math.hypot(dx, dz));
+  const flat = Math.max(OVERVIEW.flatMin, Math.hypot(dx, dz));
   return { theta: Math.atan2(dx, dz), flat: flat, pitch: pitch };
 }
 

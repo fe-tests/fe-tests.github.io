@@ -91,10 +91,25 @@ async function shot(name) {
   fs.writeFileSync(file, Buffer.from(s.data, 'base64'));
   console.log('✓ ' + file + '  ' + await hud());
 }
+/** 拖拽 = 俯瞰 orbit（input.js 吃 mousedown/mousemove/…）：dx 转方位角，dy 调俯角。 */
+async function drag(dx, dy) {
+  const start = { x: 640, y: 330 }, steps = 12;
+  const ev = (type, x, y, buttons) => send('Input.dispatchMouseEvent', { type, x, y, buttons, button: 'left', clickCount: type === 'mouseReleased' ? 1 : 0, deltaX: 0, deltaY: 0 });
+  await ev('mousePressed', start.x, start.y, 1);
+  for (let i = 1; i <= steps; i++) {
+    await ev('mouseMoved', start.x + Math.round(dx * i / steps), start.y + Math.round(dy * i / steps), 1);
+    await sleep(40);
+  }
+  await ev('mouseReleased', start.x + dx, start.y + dy, 0);
+}
 
 await send('Runtime.enable');
 await sleep(7000);                       // 首帧 + 材质工厂生成
 console.log('就绪 ' + await hud());
+
+// 首屏：默认档 = 漫步，机位 = config.CAM_START（午门以南 ~90 m 朝北）→ 午门城台应在画面里。
+// 截图必须在任何按键之前拍，才算「进页面第一帧看到的东西」。
+await shot('walk-entry');
 
 await key('3', 'Digit3');                // 进俯瞰（雾距随档位联动，见 D23）
 await sleep(800);
@@ -105,6 +120,19 @@ for (const name of views) {
   for (let i = 0; i < Math.abs(steps); i++) { await key(steps > 0 ? '[' : ']', steps > 0 ? 'BracketLeft' : 'BracketRight'); await sleep(420); }
   await sleep(2400);                     // 让缓动/剔除稳定
   await shot('overview-' + name);
+}
+
+// 浅俯角复核：俯瞰默认俯角 -1.24（≈71°）只看得到屋顶。往下拖 600 px → 俯角夹到 pitchMax -0.62
+// （≈35°），这时候**必须**看见殿身的红墙/柱网/台基立面——只看得到屋顶 = 形制没建模（缺陷）。
+for (const name of views) {
+  const idx = FOCUS_STEPS.indexOf(name);
+  if (idx < 0 || !['太和殿', '午门'].includes(name)) continue;
+  const steps = FOCUS_DEFAULT - idx;
+  for (let i = 0; i < Math.abs(steps); i++) { await key(steps > 0 ? '[' : ']', steps > 0 ? 'BracketLeft' : 'BracketRight'); await sleep(420); }
+  await sleep(1600);
+  await drag(0, 600);
+  await sleep(1200);
+  await shot('overview-浅俯角-' + name);
 }
 
 await key('1', 'Digit1');                // 回漫步（起点在午门以南）

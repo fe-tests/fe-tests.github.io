@@ -28,7 +28,7 @@ const st = await import('../js/state.js');
 
 let missing = [];
 const need = [
-  ['config.js', cfg, ['AXIS_X', 'BAY', 'EYED_H', 'WALK_SPEED', 'CITY', 'AXES', 'QUALITY', 'QUALITY_ORDER', 'BUDGET', 'SAVE_KEY', 'SAVE_VERSION']],
+  ['config.js', cfg, ['AXIS_X', 'BAY', 'EYED_H', 'WALK_SPEED', 'CITY', 'AXES', 'RENDER', 'CAM_START', 'QUALITY', 'QUALITY_ORDER', 'BUDGET', 'SAVE_KEY', 'SAVE_VERSION']],
   ['state.js', st, ['MODES', 'ACHIEVEMENTS', 'ACHIEVEMENT_IDS', 'ACHIEVE_BY_ID', 'zoneOfZ', 'AXIS_MILESTONES', 'newState', 'migrateSave', 'recordZone', 'recordInterior', 'achievementCount', 'loadProgress', 'saveProgress', 'resetProgress']],
 ];
 for (const [name, mod, keys] of need) for (const k of keys) if (mod[k] === undefined) missing.push(`${name}.${k}`);
@@ -44,6 +44,25 @@ ok('画质档三档齐全且 dprMax 递增、阴影只在非低档开',
   cfg.QUALITY_ORDER.length === 3 && cfg.QUALITY_ORDER.every((k) => cfg.QUALITY[k])
   && cfg.QUALITY.low.dprMax < cfg.QUALITY.mid.dprMax && cfg.QUALITY.mid.dprMax <= cfg.QUALITY.high.dprMax
   && cfg.QUALITY.low.shadow === false && cfg.QUALITY.mid.shadow === true);
+
+// 漫步首屏机位。截图复核踩过的坑：机位在南 180 m（fogNear 之外 → 首屏全是雾）；
+// yaw 方向搞反 —— 前向 z = −cos yaw·cos pitch，午门 cz=−340、中轴 cz 增大方向为北，
+// 所以「看午门城楼」必须前向 z > 0（yaw=π）。yaw=0 看见的是广场南城墙，午门在镜头背后。
+ok('CAM_START：起点在午门以南、fogNear 之内、朝北看城楼（首屏必有建筑）',
+  cfg.CAM_START.z < cfg.AXES.wumen && (cfg.AXES.wumen - cfg.CAM_START.z) <= cfg.RENDER.fogNear
+  && (cfg.AXES.wumen - cfg.CAM_START.z) > 30        // 离城楼太近只见墙不见楼
+  && -Math.cos(cfg.CAM_START.yaw) * Math.cos(cfg.CAM_START.pitch) > 0   // 前向 z > 0 = 朝北 = 午门方向
+  && cfg.CAM_START.y === cfg.EYED_H && cfg.CAM_START.x === 0,
+  'z ' + cfg.CAM_START.z + '｜距午门 ' + (cfg.AXES.wumen - cfg.CAM_START.z) + ' m｜fogNear ' + cfg.RENDER.fogNear
+  + '｜前向 z ' + (-Math.cos(cfg.CAM_START.yaw) * Math.cos(cfg.CAM_START.pitch)).toFixed(2));
+
+// 凹字退避：午门 cz=−340、两翼长 76 ⇒ 两翼端 z ≈ −416；城台进深 14 ⇒ 南面 z ≈ −347。
+// 机位必须在两翼端以南，否则镜头卡在凹字院子里，正楼被 10 m 两翼墙整条挡掉（截图复核踩过）；
+// 楼体距城台南面须在 fogNear 之内，否则正楼蒙雾。
+ok('CAM_START：机位在午门凹字两翼以南、城台南面在 fogNear 之内（正楼不被两翼挡、不蒙雾）',
+  cfg.CAM_START.z < -416
+  && Math.abs(cfg.CAM_START.z + 347) <= cfg.RENDER.fogNear,
+  'z ' + cfg.CAM_START.z + '｜凹字端 ≈ −416｜城台南面 ≈ −347｜楼距 ' + Math.abs(cfg.CAM_START.z + 347) + ' m');
 
 /* ============ 2) 中轴 z 布局：单调递增 + 三大殿位置 ============ */
 const ax = cfg.AXES;
@@ -100,6 +119,8 @@ ok('三大殿成就与建筑 id 同名（recordInterior 依赖这一点）',
   // zoneOfZ 边界：午门以南 / 御花园 / 神武门以北
   ok('zoneOfZ：午门以南 = outside，神武门以北 = northOutside',
     st.zoneOfZ(ax.wumen - 60) === 'outside' && st.zoneOfZ(ax.shenwumen + 60) === 'northOutside');
+  ok('zoneOfZ：漫步起点仍在「午门广场」带里（首屏 HUD 区域标签正确）',
+    st.zoneOfZ(cfg.CAM_START.z) === 'outside');
   ok('zoneOfZ：三大殿落在 outerCourt，后三宫落在 innerCourt',
     [ax.taihe, ax.zhonghe, ax.baohe].every((z) => st.zoneOfZ(z) === 'outerCourt')
     && [ax.qianqing, ax.jiaotai, ax.kunning].every((z) => st.zoneOfZ(z) === 'innerCourt'));
@@ -166,6 +187,13 @@ ok('三大殿成就与建筑 id 同名（recordInterior 依赖这一点）',
   const noInt = L.HALL_IDS.filter((id) => !L.byId(id).interior);
   ok('layout：三大殿都有 interior 记录（阶段 6 入口）', noInt.length === 0, noInt.join(','));
   ok('layout：三大殿室内地板 = 台基顶面 8.13 m', L.HALL_IDS.every((id) => Math.abs(L.byId(id).interior.floorY - L.TERRACE.totalH) < 1e-6));
+  ok('layout：三大殿都标 onTerrace（装配抬到台基顶面），后三宫在地面 y=0',
+    L.HALL_IDS.every((id) => L.byId(id).onTerrace === true)
+    && ['qianqing', 'jiaotai', 'kunning'].every((id) => !L.byId(id).onTerrace));
+  ok('layout：顶层台基南北边界盖住三殿檐口（殿身不悬到中层踏步上）', (() => {
+    const top = L.TERRACE.tiers[L.TERRACE.tiers.length - 1];
+    return L.HALL_IDS.every((id) => { const f = L.footprint(L.byId(id)); return f.cz + f.halfD <= top.z1 && f.cz - f.halfD >= top.z0; });
+  })(), '顶层 z ' + L.TERRACE.tiers[2].z0 + '..' + L.TERRACE.tiers[2].z1);
   ok('layout：减柱造登记在保和殿（−6 金柱）', L.byId('baohe').columns.reduced === 6);
 
   // 占位矩形不得互相重叠（同轴相邻建筑之间要留缝）
@@ -427,6 +455,39 @@ ok('模块图：textures.js 可 import 且 18 个工厂齐备',
         built.entries.every((e) => e.fp && [e.fp.cx, e.fp.cz, e.fp.halfW, e.fp.halfD].every(Number.isFinite)));
       console.log(`  · 装配统计：Mesh ${meshes}（InstancedMesh ${inst}，实例 ${instCount}）｜三角面 ${(tris / 1000).toFixed(1)}k｜材质 ${matSeen.size}`);
 
+      // 阶段 5「坐落」：三大殿必须在三层台基**顶面**（8.13 m）上。截图复核曾发现殿身与台基共面、
+      // 只露屋顶（墙/柱网全部埋进台基里），根因是装配时 y 写死 0，没接 layout 的高程。
+      const LY = await import('../js/layout.js');
+      const raised = LY.HALL_IDS.filter((id) => {
+        const e = built.entries.find((x) => x.id === id);
+        return !!e && Math.abs(e.y - LY.TERRACE.totalH) < 1e-6;
+      });
+      ok('buildAll：三大殿坐落在台基顶面（entry.y = 8.13）', raised.length === LY.HALL_IDS.length, raised.join(','));
+      const bh = built.entries.find((e) => e.id === 'taihe');
+      const LYrec = LY.byId('taihe'), TOP = LY.TERRACE.totalH;
+      // 只看**合并体**（isMesh 且非 InstancedMesh）的顶点：r128 的 Box3.setFromObject 不吃
+      // InstancedMesh 的 instanceMatrix（将几何中心当盒心）→ 整体盒的 min.y 会低掉半根金柱，
+      // 那不是殿身埋进台基，而是 r128 口径的盒体伪影（见 D16 批处理注记）。
+      const mergedBox = (root) => {
+        const out = new THREE.Box3(), one = new THREE.Box3();
+        root.traverse((o) => { if (o.isMesh && !o.isInstancedMesh && o.geometry) out.union(one.setFromObject(o)); });
+        return out;
+      };
+      const mb = bh ? mergedBox(bh.group) : null;
+      ok('buildAll：太和殿殿身从台基顶面起（合并体 min.y = 8.13，殿底不埋进台基、也不悬空）',
+        !!mb && !mb.isEmpty() && Math.abs(mb.min.y - TOP) < 0.35,
+        mb ? 'min.y ' + mb.min.y.toFixed(2) + '｜台基顶 ' + TOP : '缺 taihe entry');
+      ok('buildAll：太和殿通高在实测 35.05 的 +3 m 内（屋脊正吻外延，形制校准列入已知问题）',
+        !!mb && mb.max.y <= TOP + LYrec.hTotal + 3 && mb.max.y >= TOP + LYrec.hTotal - 1,
+        mb ? 'top ' + mb.max.y.toFixed(2) + '｜应 ≈ ' + (TOP + LYrec.hTotal).toFixed(2) : '');
+      const tb = bh ? new THREE.Box3().setFromObject(bh.group) : null;
+      ok('buildAll：太和殿整体盒不高出地面（r128 盒体口径下的最低点 ≥ 地面，不双层）',
+        !!tb && tb.min.y > -0.5 && tb.max.y < TOP + LYrec.hTotal + 4,
+        tb ? 'y ' + tb.min.y.toFixed(2) + '..' + tb.max.y.toFixed(2) : '');
+      ok('buildAll：其余建筑仍在 y=0 地面（只抬三殿，中轴门/配殿不被带动）',
+        built.entries.filter((e) => !e.rec.onTerrace && e.rec.form !== '廊' && e.rec.form !== '山')
+          .every((e) => Math.abs(e.y) < 1e-9));
+
       // D16 drawCalls 批处理：buildAll 已对每个 builder 组跑 mergeGroup →
       //   Mesh 数（≈drawCalls）必须压进 mid 预算；InstancedMesh 批次语义保留。
       ok('D16：装配后 Mesh 数 ≤ BUDGET.drawCallsMid', meshes <= cfg.BUDGET.drawCallsMid, `Mesh ${meshes} / 预算 ${cfg.BUDGET.drawCallsMid}`);
@@ -492,6 +553,126 @@ ok('模块图：textures.js 可 import 且 18 个工厂齐备',
 ok('性能预算表数值合理（drawCalls ≤ 420、tris ≥ 100k、贴图 ≤ 128MB）',
   cfg.BUDGET.drawCallsMid > 0 && cfg.BUDGET.drawCallsMid <= cfg.BUDGET.drawCallsHigh
   && cfg.BUDGET.triangles >= 100000 && cfg.BUDGET.textureMB > 0 && cfg.BUDGET.textureMB <= 256);
+
+/* ============ 4e) 三档视角 CameraRig：纯逻辑断言（阶段 3 的正式回归口径）============
+ * 口径来自早期探针 tools/out/camlogic.mjs（gitignore 的临时件）——正式断言并入这里，
+ * 三档视角从此有提交级回归保护（PROGRESS.md 里「11 条断言全过」那句原本是探针口径，无入库件）。
+ * camera.js 不 import three、不碰 DOM → 直接在 Node 里 import 就能跑。
+ */
+{
+  const C = await import('../js/camera.js');
+  const fakeCam = () => ({ fov: 62, position: { set() {} }, rotation: { order: '', x: 0, y: 0, z: 0 }, updateProjectionMatrix() {} });
+  const walkPose = () => ({ x: 0, y: cfg.EYED_H, z: cfg.CAM_START.z, yaw: cfg.CAM_START.yaw, pitch: cfg.CAM_START.pitch });
+
+  ok('cam：三档视角齐备（walk/fly/overview，带中文档位名）',
+    C.CAM_MODES.length === 3 && C.CAM_MODES.map((m) => m.id).join(',') === 'walk,fly,overview'
+    && C.CAM_MODES.every((m) => !!m.cn), C.CAM_MODES.map((m) => m.cn).join('/'));
+
+  const ac = C.axisCenter();
+  ok('cam：俯瞰圆心 = 中轴中点（午门 ↔ 神武门）',
+    ac.x === 0 && Math.abs(ac.z - (cfg.AXES.wumen + cfg.AXES.shenwumen) / 2) < 1e-9, 'z ' + ac.z);
+
+  const ov = C.overviewPose();
+  ok('cam：俯瞰机位在 ~950 m 高空、俯角在区间内、fov 取 OVERVIEW.fov',
+    ov.y > 900 && ov.y < 1000 && ov.pitch >= C.OVERVIEW.pitchMin && ov.pitch <= C.OVERVIEW.pitchMax
+    && ov.fov === C.OVERVIEW.fov && ov.yaw === 0,
+    'y ' + ov.y.toFixed(0) + '｜pitch ' + ov.pitch.toFixed(2) + '｜fov ' + ov.fov);
+  const camToGate = Math.hypot(ov.y, ov.z - cfg.AXES.shenwumen);
+  ok('cam：俯瞰远雾包住全城（fogFar ≥ 机位到神武门的距离，D23）', C.OVERVIEW.fogFar >= camToGate,
+    'fogFar ' + C.OVERVIEW.fogFar + '｜' + camToGate.toFixed(0));
+  const ovFlat = Math.hypot(ov.x - ac.x, ov.z - ac.z);
+  ok('cam：俯瞰入口机位落在 zoom 区间内（第一下滚轮/拖拽不跳机位）',
+    ovFlat > C.OVERVIEW.flatMin && ovFlat < C.OVERVIEW.flatMax,
+    'flat ' + ovFlat.toFixed(0) + ' ∈ ' + C.OVERVIEW.flatMin + '..' + C.OVERVIEW.flatMax);
+
+  const rig = new C.CameraRig({ camera: fakeCam(), pose: walkPose() });
+  ok('cam：默认档 = 漫步，机位在眼高 1.65，档位名给 HUD 用',
+    rig.mode === 'walk' && Math.abs(rig.pose.y - cfg.EYED_H) < 1e-9 && rig.modeName() === '漫步');
+
+  rig.setMode('overview', { instant: true });
+  ok('cam：进俯瞰（瞬切）落到俯瞰机位、fov 跟着换、不留半截过渡',
+    rig.mode === 'overview' && !rig.isFlying() && Math.abs(rig.pose.y - ov.y) < 1e-9 && rig.pose.fov === C.OVERVIEW.fov);
+  ok('cam：进俯瞰时取景中心复位到中轴中点', Math.abs(rig.center().z - ac.z) < 1e-9 && rig.center().x === 0);
+
+  // 阶段 4 的「按地标取景」：focus 只挪圆心，**不许**把镜头绕着转一圈（D21）
+  const flat0 = Math.hypot(rig.pose.x - rig.center().x, rig.pose.z - rig.center().z), y0 = rig.pose.y;
+  rig.focus({ x: 0, z: cfg.AXES.wumen });
+  const flat1 = Math.hypot(rig.pose.x - rig.center().x, rig.pose.z - rig.center().z);
+  ok('cam：focus 平移取景中心（午门）保住水平距离与高度（取景范围不变）',
+    Math.abs(flat1 - flat0) < 1e-6 && Math.abs(rig.pose.y - y0) < 1e-9 && Math.abs(rig.center().z - cfg.AXES.wumen) < 1e-9,
+    'flat ' + flat0.toFixed(0) + '→' + flat1.toFixed(0) + '｜中心 z ' + rig.center().z);
+  const angWumen = (() => {
+    const p = rig.pose, cp = Math.cos(p.pitch);
+    const f = { x: -Math.sin(p.yaw) * cp, y: Math.sin(p.pitch), z: -Math.cos(p.yaw) * cp };   // three 前向（YXZ）
+    const d = { x: 0 - p.x, y: 0 - p.y, z: cfg.AXES.wumen - p.z };
+    const len = Math.hypot(d.x, d.y, d.z);
+    return Math.acos(Math.min(1, (f.x * d.x + f.y * d.y + f.z * d.z) / len)) * 180 / Math.PI;
+  })();
+  ok('cam：取景中心命中午门时画面正中就是午门（视线夹角 < 1°）', angWumen < 1, '夹角 ' + angWumen.toFixed(2) + '°');
+
+  const cZ = rig.center().z, cX = rig.center().x, yB = rig.pose.y;
+  rig.zoom(1.2);
+  const yUp = rig.pose.y;
+  rig.zoom(-1.2);
+  ok('cam：zoom 拉远抬高机位、拉近压低机位，取景中心一动不动',
+    yUp > yB && rig.pose.y < yB && rig.center().z === cZ && rig.center().x === cX,
+    'y ' + yB.toFixed(0) + '→' + yUp.toFixed(0) + '→' + rig.pose.y.toFixed(0));
+  for (let i = 0; i < 40; i++) rig.zoom(-1.2);
+  const flatMinSeen = Math.hypot(rig.pose.x - rig.center().x, rig.pose.z - rig.center().z);
+  for (let i = 0; i < 40; i++) rig.zoom(1.2);
+  const flatMaxSeen = Math.hypot(rig.pose.x - rig.center().x, rig.pose.z - rig.center().z);
+  ok('cam：zoom 夹在 flatMin..flatMax（不穿到圆心、不脱离场景）',
+    flatMinSeen >= C.OVERVIEW.flatMin - 1e-6 && flatMaxSeen <= C.OVERVIEW.flatMax + 1e-6,
+    '拉近侧 ' + flatMinSeen.toFixed(0) + '｜拉远侧 ' + flatMaxSeen.toFixed(0));
+
+  const r2 = new C.CameraRig({ camera: fakeCam(), pose: walkPose() });
+  r2.setMode('overview', { instant: true });
+  const cA = r2.center(), flatA = Math.hypot(r2.pose.x - cA.x, r2.pose.z - cA.z);
+  r2.orbit(1200, 900);   // 大幅拖拽：绕圆心转 + 拖出俯角上限
+  ok('cam：orbit 只绕取景中心转（中心不动、水平距离不变），俯角夹在上限',
+    Math.abs(r2.center().z - cA.z) < 1e-9 && Math.abs(r2.center().x - cA.x) < 1e-9
+    && Math.abs(Math.hypot(r2.pose.x - cA.x, r2.pose.z - cA.z) - flatA) < 1e-6
+    && Math.abs(r2.pose.pitch - C.OVERVIEW.pitchMax) < 1e-9,
+    'flat ' + flatA.toFixed(0) + '｜pitch ' + r2.pose.pitch.toFixed(2));
+  ok('cam：orbit 在非俯瞰档返回 null（漫步/飞行里拖拽 = 转视角，不是绕圆心）',
+    (() => {
+      const r = new C.CameraRig({ camera: fakeCam(), pose: walkPose() });
+      r.setMode('fly', { instant: true });
+      return r.orbit(10, 10) === null && r.orbit(10, 10) === null;
+    })());
+
+  const r3 = new C.CameraRig({ camera: fakeCam(), pose: walkPose() });
+  const seq = [r3.toggle({ instant: true }), r3.toggle({ instant: true }), r3.toggle({ instant: true })];
+  ok('cam：toggle 三档循环（漫步→飞行→俯瞰→漫步）', seq.join(',') === 'fly,overview,walk', seq.join('→'));
+  ok('cam：toggle 回漫步落到眼高 1.65（不悬在半空）',
+    r3.mode === 'walk' && Math.abs(r3.pose.y - cfg.EYED_H) < 1e-9 && !r3.isFlying());
+  ok('cam：非法档位 id 保持原档（按键乱按不炸）',
+    (() => {
+      const r = new C.CameraRig({ camera: fakeCam(), pose: walkPose() });
+      r.setMode('fly', { instant: true });
+      return r.setMode('nope', { instant: true }) === 'fly' && r.mode === 'fly';
+    })());
+
+  ok('cam：flyTo 缓动过渡（update 推进 → 收敛到终点后清过渡，不锁输入，D20）', (() => {
+    const r = new C.CameraRig({ camera: fakeCam(), pose: { x: 0, y: cfg.EYED_H, z: 0, yaw: 0, pitch: 0 } });
+    r.flyTo({ x: 0, y: cfg.EYED_H, z: 100, yaw: 0, pitch: 0 }, 1.0);
+    let steps = 0, mid = -1;
+    while (r.update(0.1) && steps++ < 40) { if (steps === 5) mid = r.pose.z; }
+    return mid > 0 && mid < 100 && Math.abs(r.pose.z - 100) < 1e-9 && !r.isFlying();
+  })());
+
+  ok('cam：apply() 写 pose 进相机（YXZ 顺序 + fov 写回），行走位移与 yaw 同口径', (() => {
+    const cam2 = fakeCam();
+    const r = new C.CameraRig({ camera: cam2, pose: { x: 1, y: 2, z: 3, yaw: 0.5, pitch: -0.2 } });
+    r.apply();
+    const h = C.CameraRig.horizontal(r.pose, { x: 0, y: 1 }, 10);   // 只前进 → 朝 -Z 偏
+    return r.camera.rotation.order === 'YXZ' && Math.abs(r.camera.rotation.y - 0.5) < 1e-9
+      && Math.abs(r.camera.rotation.x + 0.2) < 1e-9 && Math.abs(r.camera.fov - 62) < 1e-9
+      && h.z < 0 && Math.abs(Math.hypot(h.x, h.z) - 10) < 1e-6;
+  })());
+  ok('cam：飞行 46 m/s（中轴全程 ~25 s 走完）',
+    Math.abs(rig.flySpeed - 46) < 1e-9 && Math.abs((cfg.AXES.shenwumen - cfg.AXES.wumen) / rig.flySpeed - 16.4) < 1.5);
+}
 
 /* ============ 5) 源码口径钉测：全站离线 + 色彩口径 + 无 DOM 顶层 ============ */
 const allJs = ['config', 'state', 'quality', 'world', 'ui', 'input', 'main'].map((n) => ['js/' + n + '.js', read('js/' + n + '.js')]);

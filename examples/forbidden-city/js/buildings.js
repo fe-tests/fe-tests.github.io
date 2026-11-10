@@ -235,8 +235,11 @@ export function buildAll(THREE, kit, { quality = 'mid', only = null } = {}) {
 
   const add = (rec, g, fpOverride) => {
     if (!g) return;
+    // 坐落高程：三大殿（rec.onTerrace）坐在三层台基**顶面** 8.13 m 上，其余建筑在地面 y=0。
+    // 合并体烘的是 root 局部口径（见 parts.js mergeGroup 注释），root 只平移自己的位移 → 不会二次偏移。
+    const baseY = rec.onTerrace ? TERRACE.totalH : 0;
     // 廊与山的 builder 内部已按 cx/cz 定位，不再整体平移；其余按记录平移
-    if (rec.form !== '廊' && rec.form !== '山') g.position.set(rec.cx, 0, rec.cz);
+    if (rec.form !== '廊' && rec.form !== '山') g.position.set(rec.cx, baseY, rec.cz);
     // D16 drawCalls 批处理：装配完成 → 刷新矩阵 → 按材质合并（InstancedMesh 批次保留）。
     // 合并体烘 root 局部口径，root 的位移/摆位语义不变（见 parts.js mergeGroup 注释与探针）。
     g.updateMatrixWorld(true);
@@ -245,7 +248,7 @@ export function buildAll(THREE, kit, { quality = 'mid', only = null } = {}) {
     const cz = rec.z0 != null ? (rec.z0 + rec.z1) / 2 : rec.cz;
     entries.push({
       id: rec.id, cn: rec.cn || rec.id, group: g, fp: fpOverride || footprint(rec),
-      cz, rec,
+      cz, y: baseY, rec,      // y = 坐落高程（阶段 8 碰撞/小地图、阶段 6 室内地板都取这个口径）
     });
   };
 

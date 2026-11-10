@@ -10,7 +10,7 @@ import { Input } from './input.js';
 import { buildWorld } from './world.js';
 import { CameraRig, OVERVIEW } from './camera.js';
 import { newState, recordZone, zoneOfZ, saveProgress, loadProgress } from './state.js';
-import { RENDER, WALK_SPEED, RUN_SPEED, EYED_H, AXES } from './config.js';
+import { RENDER, WALK_SPEED, RUN_SPEED, CAM_START, AXES } from './config.js';
 
 const VENDOR_THREE = '../../assets/vendor/three/r128/three.min.js';
 const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
@@ -102,7 +102,7 @@ function boot() {
   const input = new Input({ canvas: renderer.domElement, isTouch: isTouch });
 
   // 相机姿态（阶段 8 交给 player.js + collision.js，这里先给可跑的临时行走）
-  const cam = { x: 0, z: -520, yaw: Math.PI, pitch: -0.10, y: EYED_H };
+  const cam = Object.assign({}, CAM_START);   // 起点/朝向全在 config.CAM_START：午门以南朝北看城楼
   // 机位权威量交给 CameraRig（阶段 4 提前落地）：walk / fly / overview 三档 + 平滑飞越
   const rig = new CameraRig({ camera: world.camera, pose: { x: cam.x, y: cam.y, z: cam.z, yaw: cam.yaw, pitch: cam.pitch } });
   applyCamera();
