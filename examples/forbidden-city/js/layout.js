@@ -100,7 +100,7 @@ export function buildings() {
       bays: 3, depthBays: 3, bayW: 27 / 3,   // 方形面阔/进深约 27 m（取中文口径，见 research.md §3 分歧说明）
       depthM: 27,
       hWall: 9, hTotal: 27, roofTop: true, onTerrace: true,   // 单檐四角攒尖 + 鎏金宝顶；坐落在台基顶面
-      doors: { south: 12, east: 4, west: 4, north: 4 },   // 每面门数（扇）
+      doors: [-9, 0, 9],       // 三处门洞中线（27 m 方殿）；旧 {south:12} 按 12 间散布 → 门扇越出面阔 ±44 m（bug 修复）
       interior: { floorY: TERRACE.totalH, throne: 'platform', plaque: '允执厥中', zaoJin: false, columns: 'perimeter' },
       hotspots: ['大典前皇帝暂驻之处，匾额「允执厥中」'],
     },

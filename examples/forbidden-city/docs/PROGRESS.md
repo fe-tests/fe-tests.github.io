@@ -8,7 +8,7 @@
 
 ## 1. 当前阶段
 
-**阶段 4 全部完成（第二批：三大殿坐落三层台基顶面 + 午门首屏机位 + 相机断言并入 smoke，提交 `c4511ad`）→ 下一步做阶段 6（三大殿内部可入内 + 门洞开合，台基坐落已带 `entries.y` 给阶段 8 用）。**
+**阶段 6 全部完成（三大殿室内可入内 + 门扇自动开合 + 入内成就，随本条提交落地）→ 下一步做阶段 8（`collision.js` AABB + 台阶吸附 + `player.js`，替换 main.js 临时行走；`entries[]` 的 `fp/y/cz` 已备）。**
 
 - slug：`forbidden-city` · 入口：[index.html](../index.html) · 注册项：`registry.json` 最后一条（`status: alpha`）
 - 依赖：**Three.js r128**（已入库，未新增 vendor 文件）→ `../../assets/vendor/three/r128/three.min.js`
@@ -53,6 +53,7 @@
 
 | 5a | **三大殿坐落三层台基顶面**：`layout` 三殿记录加 `onTerrace: true`，`buildings.buildAll()` 统一 `baseY = rec.onTerrace ? TERRACE.totalH : 0`（`hall()` 不自建台基，避免双份），`entries[]` 带 `y`（阶段 8 碰撞/台阶吸附直接消费）；顶层台基 z1 北界挪到 102 盖住保和殿北檐 76.5（三层 156/138/120 宽不变） | `js/layout.js`、`js/buildings.js`；smoke 4d 段在**合并体 box**（剔除 InstancedMesh）上断言太和殿 `min.y ≈ 8.13`、通高 +3 容差（见 D29） |
 | 5b | **首屏机位与相机断言入库**：`config.CAM_START` 单一来源（`x 0 / z −455 / yaw π / pitch +0.06 / y EYED_H`），`main.js` 只消费不摆位；轴线约定写死注释（cz 增大 = 北 ⇒ yaw π = 朝北看午门）；gitignored 探针 `camlogic.mjs` 的 11 条断言移植进 smoke §4e 扩成 **20 条正式断言**；`camera.js` 修两处入口机位跳变（`OVERVIEW.flatMin 340→300`、`orbitFromPose` 地板与 `orbit()` 同口径，见 D30）；`tools/shot.mjs` 首图 = 未按键的真·首屏 `walk-entry` | `js/config.js`、`js/main.js`、`js/camera.js`、`tools/smoke.mjs`、`tools/shot.mjs` |
+| 6 | **三大殿内部可入内**：新 `js/interior.js`（纯逻辑，顶层不 require THREE/DOM）——`hallInterior()` 拼室内层（金砖墁地 / 须弥座 + 踏道 / 宝座 · 围屏 / 藻井蟠龙顶片 + 宝珠 / 匾额 / 鎏金铜缸，材质全部复用 `kit.mat.*`，藻井顶片用 `MeshBasicMaterial` 直挂 `cloudDragon` 贴图不受光照）；`buildings.hall()` 按 `b.interior && HALL_IDS` 插室内层，`buildAll()` 给三殿传 `interior` + 共享 `capMat`；**门扇自动开合**：`parts.latticeDoor` 加 `movable` 参数（`mergeGroup.walk()` 顶部门保护卫 `userData.movable` 不烘批、留 10 扇可动门扇），`interior.makeDoorState()` 记录枢轴 + `applyDoor()` 纯 JS 4×4 右乘驱动转角；触发点 = 殿门中点 `(0, cz − halfD + 1.2)`，中心距 `DOOR_OPEN_DIST 9.5`；`enterHalls()` = `fp` 水平足迹 + `y` 视平高度带 → `recordInterior` 解锁「入内太和殿」+「三殿全入内」；顺带修 `layout.zhonghe` `doors:[-9,0,9]`（旧 `{south:12}` 在 27 m 方面上标出 ±44.5 m 的超界值） | `js/interior.js`（新）；`js/{parts,buildings,layout,main,config}.js`；smoke 阶段 6 段（10 条断言） |
 
 
 **验证记录（阶段 4 第一批）**：smoke 全部通过；装配统计 **Mesh 243（InstancedMesh 79，实例 6076）｜三角面 51.2k｜材质 21**；
@@ -85,13 +86,19 @@
 当年由 gitignored 临时探针 `camlogic.mjs` 跑的 11 条机位断言（进俯瞰高度、focus 平移保住水平距离与高度、画面中心命中午门、zoom 升降、orbit 不改取景中心、回漫步落回眼高、toggle 三档循环）**已于阶段 5 移植进 smoke §4e，扩成 20 条正式断言并入库**——临时探针跑完即删，不进校验口径（D26）；
 截图 `v-overview.png`（整城俯视）／`v-focus.png`（跳档到中和殿）／`v-walk.png`（回地面）。
 
+**验证记录（阶段 6）**：smoke 全部通过；装配统计 **Mesh 270（InstancedMesh 79，实例 6180）｜三角面 55.1k｜材质 23｜贴图 24.69 MB（18 张）**；
+**drawCalls 首屏 239 / 俯瞰 273 ≤ 预算 280**（可动门扇逐扇留批 + 每殿室内新材质桶合计 +27，`BUDGET.drawCallsMid` 260→280，见 D33）。
+新增断言要点：`doorStates` 三殿门扇枢轴（太和 4 / 中和 2 / 保和 4，共 10 扇）`base` 有限值 + `gate.z < 殿 cz`；金砖合并体（`material === kit.mat.goldBrick`）太和殿里**当且仅当 1 桶**；
+`updateDoors` 近门 30 帧 → `t = 1` 全开、远门 60 帧 → `t = 0` 全关且枢轴矩阵真的变；`enterHalls` 站太和殿中心 → 解锁 `taihe` + `threeHalls` 合成成就、幂等二刷 = 0、飞越（y +40）= 0。
+图像门（`tools/shot.mjs 太和殿`）：`phase6-太和殿门开`（门前 9.2 m：四扇格扇平开后见灰调殿门洞 + 「太和殿」分区 toast，HUD 137 calls）与 `phase6-入内太和殿`（金砖墁地 + 鎏金柱础 + 须弥座白台顶面入画，HUD 144 calls）——宝座髹金 / 围屏彩画 / 匾额在 SwiftShader 下呈「未打光暗带」伪影（已知渲染伪影，**不以截图判形制**：殿内各件世界包围盒由 smoke 断言 + Node 材质桶探针点名：金砖地 8.13..9.77 / 须弥座 marble 8.13..9.27 / 藻井顶片 20.86 / 前后匾同在 basic 桶）。机位走 `?shot=1` 钩子瞬移落位（见 D34）。
+
 ## 3. 未完成（按阶段，含验收要点）
 
 - [x] **2 素材工厂**：`textures.js` 实现 T01–T18，`smoke.mjs` 断言预算表 ✅ 阶段 2
 - [x] **3 构件库**：`parts.js` G01–G22 + `buildings.js` 组合器 + `layout.js` 数据表自检（中轴 `cx=0`、间数×BAY≈实测面阔）✅ 阶段 3
 - [x] **4 外朝中轴**：午门凹字城台与五凤楼、内金水河与五孔桥、左右阙亭、廊庑围合、太和门 → `drawCalls ≤ 260` ✅ 阶段 4 第一批（实测 216，见 §2 表 4a–4d）
 - [x] **5 三层台基 + 三大殿**：8.13 m 三层须弥座 + 栏杆螭首；三殿形制（庑殿 / 四角攒尖 / 歇山）与实测尺度 ✅ 阶段 5（三殿坐落台基顶面，`onTerrace` 驱动；浅俯角截图复核 + smoke 合并体 box 断言，见 §2 表 5a/5b）
-- [ ] **6 三大殿内部可入内**：宝座、藻井蟠龙、金柱（保和殿**减柱造**少 6 根）、匾额；门洞自动开合 + 室内碰撞层 → 不穿模
+- [x] **6 三大殿内部可入内**：宝座、藻井蟠龙、金柱（保和殿**减柱造**少 6 根）、匾额；门扇自动开合 ✅ 阶段 6（10 扇可动门扇 + 「入内」成就链；「室内碰撞层 → 不穿模」留给阶段 8 的 `collision.js`，飞行穿模是有意设计）
 - [ ] **7 内廷与后苑**：乾清门、后三宫（乾清宫重檐庑殿 + 「正大光明」匾）、东西六宫示意、御花园、景山借景
 - [ ] **8 碰撞与相机**：`collision.js` AABB + 门洞 + 台阶吸附；`player.js`；`camera.js` 三模式（跟随 / orbit / 电影）
       —— 注：**「全局俯瞰」已提前落地**（见 §2 补丁），此处只剩 `player.js` 与热点 `rig.focus()` 联动。
@@ -102,9 +109,9 @@
 
 ## 4. 下一步（≤3 条，可直接执行）
 
-1. **三大殿内部可入内（阶段 6）**：`interior.js` 已有（午门门洞室内 + 门券自动开合 `DOOR_OPEN_DIST 9.5`），把它扩到三殿：宝座、蟠龙藻井、金柱（保和殿**减柱造**少 6 根）、匾额；`layout` 各殿 `interior.floorY = TERRACE.totalH` 已备。验收点「相机在殿内不穿模」，smoke 在 builder 未合批输出上断言柱数/宝座/藻井存在。
-2. **碰撞与台阶（阶段 8 前置）**：`collision.js` AABB + 门洞 + `STEP_SNAP_MAX 0.45` 台阶吸附 + `player.js`。几何从 `entries[]` 派生：`fp`（半宽/半深）、`y`（台基顶面 8.13，三大殿的「地面高度」）、`cz`（分区）都是现成的，别在 collision.js 里再写一份尺寸。
-3. **上限预警，动手前先查账**（`assets.md` §7 台账，阶段 5 后实测）：`Mesh 243 / 260`（**17 余量**）、`材质 21 / 24`、实例 `6180 / 6200`（**20 余量**）、drawCalls 首屏 212 / 260。室内细节（宝座/藻井/金柱）优先「非实例化 + 合批」+ 复用 `kit.mat.*`；要加新材质先到 `assets.md` §7 登记再动手。
+1. **碰撞与台阶（阶段 8）**：`collision.js` AABB + 门洞 + `STEP_SNAP_MAX 0.45` 台阶吸附 + `player.js`（替换 `main.js` 的临时行走段）。几何从 `entries[]` 派生：`fp` / `y`（= 8.13）/ `cz` 都是现成的；阶段 6 的 `doorStates` 就是门洞开合集，碰撞穿门时**直接复用** `updateDoors`，别再写一份。
+2. **导览玩法（阶段 10）**：热点讲解卡（D03）、成就展示面板（`unlock()` 表已 22 条 + 入内 3 条）、WebAudio 音效 A01–A06、进度存 localStorage（`saveAcc` 桩今天接真存档，注意键名以 `state.js` 的 `forbidden-city.v1` 为准）。
+3. **上限预警，动手前先查账**（`assets.md` §7 台账，阶段 6 后实测）：`Mesh 270 / 280`（**10 余量**）、`材质 23 / 24`、实例 `6180 / 6200`（**20 余量**）、drawCalls 首屏 239 / 280。新构件优先复用 `kit.mat.*`（鎏金铜缸 / 金柱都并入 `gold` 桶就是先例）；要加新材质先到 `assets.md` §7 登记再动手。
 
 > 备注：`tools/export-layout.mjs`（导出 `data/buildings.json` 供小地图用）仍未做，属可选，别误当阻塞项。
 
@@ -144,6 +151,10 @@
 | D30 | **俯瞰入口机位跳变**：首屏按 `3` 进俯瞰 y 946→990 瞬跳 44 m；往回 zoom 时 1127→911 又跳：`orbitFromPose` 与 `orbit()` 各写各的 clamp 地板（一个魔法数 `radius*0.34` = 340，一个 `OVERVIEW.flatMin` 300），入口 pose 的 flat ≈ 325.7 被前者夹住不动、被后者抬走 | `orbitFromPose` 地板与 `orbit()` 共用 `OVERVIEW.flatMin`，并把 `flatMin` 从 340 降到 300（< 入口 flat 325.7，入口 pose 成为「orbit 可表达的自然态」）；smoke §4e 钉「进俯瞰不跳变」断言 |
 | D31 | **Node 探针里合并体全在恒等矩阵**：`buildings.add()` 是先 `g.updateMatrixWorld(true)` 再 `mergeGroup(g)` 再 `root.add(g)`，合并后的子物体 `matrixWorld` 是恒等值——探针直接测射线 / 视锥时，午门合并体被当成在世界原点（boundingSphere 中心 z ≈ −34 是**根局部坐标**，与实例化的 z −340 混排，一眼假） | 探针脚本在 `buildAll` 之后必须手动 `built.group.updateMatrixWorld(true)` + `cam.updateMatrixWorld(true)` 再射线/视锥；判据：合并体中心与实例化中心在同一坐标系里（午门实例化 z −340 ⇒ 合并体也该 ≈ −340）。页面不受影响（渲染器每帧调 `scene.updateMatrixWorld`），**只有 Node 侧探针需要手动补这一刀** |
 | D32 | **顶层台基盖不住保和殿北檐**：顶层 z1 原 62，保和殿北檐 76.5，殿身从台基北侧悬出 14 m，肉眼看「殿掉出台基」 | 三层 z1 北挪到 102 / 90 / 82（收分与居中不变），smoke 断言保和殿 `fp` 北界 ≤ 顶层 z1 |
+| D33 | **室内层一上来 drawCalls 顶穿预算**：三殿室内 = 每殿 1 个新材质桶（金砖地）+ 10 扇可动门扇逐扇留批，Mesh 243 → 270 顶爆 `drawCallsMid 260` | 先穷举复用（踏道并 `marble`、金柱冠并 `gold`、铜缸并 `gold`，材质 24→23），再把 `drawCallsMid` 260→280（+10 余量），smoke 预算表只测 `drawCalls ≤ 420` 不受影响；门扇批次是动画的**必要代价**，别再图快把它们烘进合并体 |
+| D34 | **headless 帧量子化：按键盘数位移 = 不可复现**：SwiftShader ~0.5–1 fps，`main.js` dt 夹 0.05 → 飞行每帧只走 46×0.05 ≈ 2.3 m；CDP 每记一键 ≈1.9 s ≈1.05 帧，帧边界落在按键窗口内外随机 → 146 次 W 实测只走了 ≈223 m（不是算术的 335 m），两次截图**字节级一模一样**的空白平原 | 机位不该用「按住 W 数帧」逼近：给页面加 **`?shot=1` 显式钩子** → `window.__fcity = {rig, ui, state}`（正常游玩零暴露），`shot.mjs` 用 CDP `Runtime.evaluate` **瞬移落位**——z / y 是确定值，门触发圈、成就 `y` 带一次对正；模式切换的 0.35 s 缓动在软渲染要 ≈7 s 才停，瞬移必须排在缓动之后 |
+| D35 | **可动枢轴要活过 mergeGroup**：门扇叶子烘进合并体就死在顶点里，转不动；`mergeGroup` 的第 4 步还会把拆剩的子物体 `root.add` 回去（自动合并的 `world.js` 也躲不开） | `walk()` 顶部卫兵 `node.userData.movable → push {node, chain}` 并 `return`（子树整支不烘批）；第 4 步 `applyMatrix4(chain)` 烘好世界基阵 + `matrixAutoUpdate = false` + 存 `base = matrix.clone()`（**必须 clone**，直接存引用会让 `applyDoor` 每帧累积转角）；`applyDoor()` 每帧纯 JS 4×4 右乘 + `matrixWorldNeedsUpdate = true`（r128 在 `matrixAutoUpdate=false` 下照吃这条） |
+| D36 | **殿门朝向轴**：本仓库 cz 增大 = 北，殿的「正面」在 **−z** 侧（午门方向）；`hall()` 门脸 / 匾额 / 室内藻井都按 −z 写，`interior` 匾额挂北墙 `rotation.y = Math.PI` 朝南 | `gate()` / `gateTower()` 的 +d/2 翻转**有意跳过**（午门主楼走 `withDoors:false` 自动翻正）：券洞朝向是已知小项，README 已知限制里记一行，别去「顺手修」它 |
 
 ## 6. 校验怎么跑
 
@@ -157,6 +168,7 @@ node examples/forbidden-city/tools/headless.mjs         # headless Chrome CDP �
 **要看特定机位**（凹字平面、桥与河、取景档）用 `node examples/forbidden-city/tools/shot.mjs 午门 太和殿`：CDP 起 headless Chrome，
 **首图 `walk-entry` 在任何按键之前截 = 真·首屏（`CAM_START` 机位，首屏构图只能靠这种图判）**，再按 `3` 进俯瞰 + `[`/`]` 沿中轴跳档（绝对档位表 午门→神武门），
 拖拽（pointer 事件，CDP `Input.dispatchMouseEvent` 合成）产生浅俯角 `overview-浅俯角-*`；图落 `tools/out/shots/`（已 gitignore），跑前清旧图（D19）。
+阶段 6 机位（门前 9.2 m / 殿内走带）用页面钩子 `?shot=1` → `window.__fcity = {rig, ui, state}`（正常游玩零暴露），`shot.mjs` 用 CDP `Runtime.evaluate` 瞬移 `rig.pose` 到门触发圈 / 入内带——**软渲染 1 fps 下按住 W 数帧 = 不可复现**（D34）；模式切换 0.35 s 缓动 ≈7 s 才停，瞬移须排缓动之后。
 **首屏判定以图像为准**，Node 射线/视锥探针只当诊断（D27/D31）。
 阶段 2 之前 `tools/export-layout.mjs` 还不存在，跑到会报找不到文件——属预期。
 

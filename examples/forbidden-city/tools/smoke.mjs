@@ -543,6 +543,41 @@ ok('模块图：textures.js 可 import 且 18 个工厂齐备',
         bpL.main.x === 0 && bpL.main.holes === 5 && bpL.main.width === 48
         && built.entries.find((e) => e.id === 'innerRiver').fp.cx === 0);
 
+      // 阶段 6：三大殿室内 + 门扇开合（见 interior.js）
+      const I = await import('../js/interior.js');
+      ok('阶段 6：室内构件清单齐备（floor/platform/throne/screen/zaoJin/plaque/urns）',
+        I.INTERIOR_ELEMENTS.length === 7);
+      ok('阶段 6：doorStates 覆盖三大殿（仅中门可动门，无后三宫）', built.doorStates.length === 3, built.doorStates.length + ' 组');
+      const movCount = { taihe: 0, zhonghe: 0, baohe: 0 };
+      for (const id of ['taihe', 'zhonghe', 'baohe']) {
+        built.entries.find((e) => e.id === id).group.traverse((o) => { if (o.userData && o.userData.movable) movCount[id]++; });
+      }
+      ok('阶段 6：可动门扇数（太和 4 / 中和 2 / 保和 4，中门开间）', movCount.taihe === 4 && movCount.zhonghe === 2 && movCount.baohe === 4, JSON.stringify(movCount));
+      ok('阶段 6：枢轴 base 烘成有限矩阵；门口点在各殿中心以南（正面朝 -Z）',
+        built.doorStates.every((ds, i) => ds.gate.x === 0 && ds.gate.z < L.byId(L.HALL_IDS[i]).cz
+          && ds.pivots.length > 0 && ds.pivots.every((p) => p.userData.movable.base && p.userData.movable.base.elements.every(Number.isFinite))));
+      const th6 = built.entries.find((e) => e.id === 'taihe');
+      let gbMerged = 0;
+      th6.group.traverse((o) => { if (o.isMesh && !o.isInstancedMesh && o.name === 'merged' && o.material === kit.mat.goldBrick) gbMerged++; });
+      ok('阶段 6：金砖地坪烘焙进合并体（殿内 0 新增 draw：goldBrick 桶 ×1）', gbMerged === 1, gbMerged + ' 个合并体');
+      ok('阶段 6：中和殿门洞 = 三处中线（旧 {south:12} 越出面阔 bug 已修）',
+        Array.isArray(L.byId('zhonghe').doors) && L.byId('zhonghe').doors.length === 3, JSON.stringify(L.byId('zhonghe').doors));
+      const ds0 = built.doorStates[0];
+      const near = { x: 0, z: ds0.gate.z, y: 0 }, far = { x: 80, z: ds0.gate.z, y: 0 };
+      for (let f = 0; f < 30; f++) I.updateDoors([ds0], near, .2);
+      const tOpen = ds0.t, m1 = ds0.pivots[0].matrix.elements.slice();
+      for (let f = 0; f < 60; f++) I.updateDoors([ds0], far, .2);
+      ok('阶段 6：updateDoors 近门开门 t→1、远门关合 t→0，枢轴矩阵跟着转',
+        tOpen === 1 && ds0.t === 0 && m1[0] !== ds0.pivots[0].userData.movable.base.elements[0], `开=${tOpen} 关=${ds0.t}`);
+      const { newState } = await import('../js/state.js');
+      const stp6 = newState();
+      const inPose = { x: 0, z: th6.fp.cz, y: th6.y + 1.6 };
+      const gotIn = I.enterHalls(stp6, built.entries, inPose);
+      ok('阶段 6：走进太和殿 → 解锁「入内太和殿」成就', gotIn.length === 1 && gotIn[0].id === 'taihe', gotIn.map((a) => a.id).join(','));
+      ok('阶段 6：入内幂等（重复进入不刷）+ 高空飞越不计（y 窗口，D21 口径）',
+        I.enterHalls(stp6, built.entries, inPose).length === 0
+        && I.enterHalls(stp6, built.entries, { x: 0, z: th6.fp.cz, y: th6.y + 40 }).length === 0);
+
       // 预算预警（阶段 11 才要求达标，这里只做量级检查）
       ok('buildAll：三角面在量级内（< 3M；阶段 11 收敛到 ≤900k）', tris < 3e6, (tris / 1000).toFixed(0) + 'k');
       ok('buildAll：材质实例数受控（≤24，见 assets.md §7）', matSeen.size <= 24, matSeen.size + ' 个材质');

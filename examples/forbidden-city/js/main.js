@@ -10,6 +10,7 @@ import { Input } from './input.js';
 import { buildWorld } from './world.js';
 import { CameraRig, OVERVIEW } from './camera.js';
 import { newState, recordZone, zoneOfZ, saveProgress, loadProgress } from './state.js';
+import { updateDoors, enterHalls } from './interior.js';
 import { RENDER, WALK_SPEED, RUN_SPEED, CAM_START, AXES } from './config.js';
 
 const VENDOR_THREE = '../../assets/vendor/three/r128/three.min.js';
@@ -193,6 +194,11 @@ function boot() {
       for (let i = 0; i < unlocked.length; i++) ui.toast('解锁成就 ' + unlocked[i].icon + ' ' + unlocked[i].name, 3200);
     }
 
+    // 阶段 6：走近三大殿中门 → 门扇开合；走进殿内 → 解锁室内成就（口径同上：只认地面视平高度）
+    updateDoors(world.built.doorStates, rig.pose, dt);
+    const gotIn = enterHalls(state, world.entries, rig.pose);
+    for (let i = 0; i < gotIn.length; i++) ui.toast('解锁成就 ' + gotIn[i].icon + ' ' + gotIn[i].name, 3200);
+
     if (quality.update(dt)) { ui.toast('画质自动调整为「' + quality.params.name + '」', 2200); applyFog(rig.mode); }  // 自动降档会重写 fog.far，俯瞰档要立刻拿回远雾
 
     applyCamera();
@@ -282,6 +288,11 @@ function boot() {
   try {
     if (isTouch && screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(function () {});
   } catch (e) {}
+
+  // 视觉复核工具的落位通道：URL 显式带 `?shot=1` 才暴露 window.__fcity（正常游玩路径零暴露）。
+  // headless 软渲染 ~1 fps + dt 夹 0.05 s：靠「按住 W 数按键帧」走几百米必然漂移（D34），
+  // tools/shot.mjs 用它把视点瞬移到位再截图，机位是确定值。
+  if (/[?&]shot=1(&|$)/.test(window.location.search)) window.__fcity = { rig: rig, ui: ui, state: state };
 }
 
 function zoneName(zone) {

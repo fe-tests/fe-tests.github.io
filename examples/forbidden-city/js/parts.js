@@ -35,8 +35,10 @@ export function mergeGroup(root, THREE) {
   //    （探针里 root 有位移 + 嵌套的断言钉住这一点）。
   //    InstancedMesh 不烘焙（批次语义不变），挂回时对祖先链差值取逆补偿。
   const items = [];
+  const movs = [];   // 可开合门扇枢轴（userData.movable）：不烘焙，挂回时保留枢轴链（阶段 6，interior.js）
   function walk(node, chainMat) {
     // chainMat = 「node 的全部祖先（不含 root）矩阵链」；node 自身 matrix 在收集时右乘进去。
+    if (node.userData && node.userData.movable) { movs.push({ node: node, chain: chainMat }); return; }
     if (node.isInstancedMesh) node.__fcParentChain = chainMat;   // 挂回时剥离祖先链用（见第 4 步）
     const mat = node.matrix ? chainMat.clone().multiply(node.matrix) : chainMat;
     if (node.isMesh && !node.isInstancedMesh && node.geometry && node.material && !Array.isArray(node.material)) {
@@ -160,6 +162,14 @@ export function mergeGroup(root, THREE) {
     o.matrixAutoUpdate = false;   // 局部矩阵已烘好：渲染循环 updateMatrixWorld 只沿 matrixWorld 传播，不再 compose 覆盖
     delete o.__fcParentChain;
     root.add(o);
+  }
+  // 可开合门扇枢轴：与 InstancedMesh 同款挂回（S' = chain × oldLocal，世界零漂移），
+  // 之后由 interior.updateDoors() 以「base × RotY(开角)」直接写 matrix 驱动开合，不参与烘焙。
+  for (const o of movs) {
+    o.node.applyMatrix4(o.chain);
+    o.node.matrixAutoUpdate = false;      // 动画直接改 matrix，不再 compose
+    o.node.userData.movable.base = o.node.matrix.clone();
+    root.add(o.node);
   }
   for (const m of merged) { m.matrixAutoUpdate = false; root.add(m); }
   return root;
@@ -521,8 +531,10 @@ export function chiwen(THREE, kit, { x, y, z, h = 2.6, mirror = 1 }) {
 }
 
 /* ============================ G14–G22 门窗、廊、亭、桥、城墙、角楼 ============================ */
-/** G14 隔扇/门：按间数排门扇（含门钉），doors 给出开门的中线 x。 */
-export function latticeDoor(THREE, kit, { bays, bayW, hWall, depth = .35, doors = [], open = 0 }) {
+/** G14 隔扇/门：按间数排门扇（含门钉），doors 给出开门的中线 x。
+ *  movable 里的 dx 用「枢轴门扇」代替静态开门：枢轴挂 userData.movable，
+ *  mergeGroup 保留枢轴链（阶段 6 开合动画由 interior.updateDoors 驱动）。 */
+export function latticeDoor(THREE, kit, { bays, bayW, hWall, depth = .35, doors = [], open = 0, movable = [] }) {
   const g = new THREE.Group();
   const w = bays * bayW;
   const wall = box(THREE, w, hWall, depth, kit.mat.redWall);
@@ -538,7 +550,14 @@ export function latticeDoor(THREE, kit, { bays, bayW, hWall, depth = .35, doors 
       pivot.position.set(dx + sgn * leafW, 0, depth / 2);
       const leaf = box(THREE, leafW, leafH, .16, kit.mat.doorLeaf);
       leaf.position.set(-sgn * leafW / 2, leafH / 2, 0);
-      pivot.add(leaf); pivot.rotation.y = -sgn * open; g.add(pivot);
+      pivot.add(leaf);
+      if (movable.indexOf(dx) >= 0) {
+        // 可开合：静态闭扇不做（开合由动画接管），枢轴打标记交给 mergeGroup 保留
+        pivot.userData.movable = { sgn: sgn, t: 0, base: null };
+      } else {
+        pivot.rotation.y = -sgn * open;
+      }
+      g.add(pivot);
     }
   }
   return g;

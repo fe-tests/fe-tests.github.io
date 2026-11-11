@@ -18,6 +18,7 @@
 | 2026-11-10 00:40 | **阶段 4（第一批）**：① 合批先行——`parts.js` 新增 `mergeGroup()` 按材质烘顶点、`world.js` 装配后统一跑一次；小体量构件（亭、内/外桥、桥栏）加 `instanced:false` / `railInst:false` 开关走「非实例化 + 合批」；② 午门凹字——`layout.wumenPlan` + 新构件 `cityPlatform`（红墙台体 + 券洞 + 海墁 + 女墙垛口）/`ruffTop`（盝顶），`buildings.wumen()` 从简模换成「城台 + 重檐庑殿五凤楼 + 两翼廊庑 + 四角亭 + 前两攒尖 + 后四盝顶」；③ 内金水河——新构件 `river`（河床 + `name='water'` 水面 + 石堤压顶）/`bridgePavilion`，`bridgePlan` 改「御路桥居中五孔 + 内桥 pair + 外桥 pair 带三间桥亭」并消掉旧版 x 重叠，`linear()` 把东西廊庑 `z0` 推到 -336 围合午门广场 + 补一对 `queLeft/queRight` 阙亭 | 用户要求「检查执行步骤，继续进行」；§4 的三项里合批是**门槛**：不先把 1212 calls 压回 260，后面每加一座建筑都在往超支里加。午门/河按 research.md §2 只做通识级（置信 medium），按「视觉比例优先 + TODO(verify)」落 | drawCalls 216（预算 260）／246（俯瞰视野），tris 51.2k、材质 21、贴图 24.69 MB；smoke 装配段全绿（新增 12 条：凹字对称 + 五券门 + 桥系对称/亭 + 围合廊 + 阙亭）；headless 7/7；俯瞰截图从白濛变成整城可读（顺手修了俯瞰雾距，见踩坑 16） |
 | 2026-11-10 00:49:16 | **截图复核固化 `tools/shot.mjs`**：CDP 连 :39979 调试口 → 页面按键摆位（`1`/`3` 档位、`[`/`]` 中轴跳档、拖拽转视角）→ 定点截图到 `tools/out/shots/`；用法 `node examples/forbidden-city/tools/shot.mjs 午门 太和殿` | 4c 复核全靠手摆机位截图，视角漂移不可复现；「构图对不对」需要**固定摆位 + 定点视角**才能对比 | 产出 v-overview/v-focus 系列截图；当时的校验口径缺口（相机断言未入库）在阶段 5 补上（D26） |
 | 2026-11-11 03:24 | **阶段 5（三大殿坐落台基 + 首屏机位 + 相机断言入库）**：① `layout` 三殿 `onTerrace: true`，`buildAll()` 统一 `baseY = TERRACE.totalH`，`entries[]` 带 `y`；顶层台基 z1 北挪 102/90/82 盖住保和殿北檐；② `config.CAM_START` 单一来源（z −455 / yaw π / pitch +0.06），轴线约定（cz 增大 = 北）写死注释，`main.js` 只消费；③ 临时探针 camlogic 的 11 条断言移植进 smoke §4e 扩成 20 条；④ `camera.js` 修两处入口跳变（`flatMin 340→300`、`orbitFromPose` 与 `orbit()` 共用地板）；⑤ `shot.mjs` 首图 = 按键前的真·首屏 `walk-entry`，跳档改绝对档位表，拖拽改 pointer 事件 | 用户要「分析目前故宫已经完成的进度」，照报告建议的下一步执行：阶段 4 的遗留验收（殿坐在台基上）+ 首屏可看（凹字框住午门）+ 校验口径补洞（相机断言从未入库） | smoke 全绿（装配统计 Mesh 243 / 实例 6180 / 材质 21；新增 台基坐落 + CAM_START + §4e 20 条）；headless 7/7（`draw 212 / 183k tris`）；截图 `walk-entry` 凹字两翼框住午门城台与正楼屋顶、浅俯角图确认三殿在三层白台顶面；提交 `c4511ad`（7 文件）。坑见踩坑 18–24（D26–D32） |
+| 2026-11-11 08:25 | **阶段 6（三大殿室内 + 门扇自动开合）**：① 新 `js/interior.js`（纯逻辑）——`hallInterior()` 室内示意层（金砖墁地 / 三层须弥座 + 踏道 / 宝座·围屏 / 藻井蟠龙顶片 + 宝珠 / 匾额 / 鎏金铜缸，材质全复用 `kit.mat.*`）在 `mergeGroup` **前**加组烘进合并体；`makeDoorState/applyDoor/updateDoors` 门扇开合（触发圈 9.5 m）、`enterHalls()` 走带判定 → `recordInterior` 成就；② `parts.latticeDoor` 加 `movable` 参数 + `walk()` 顶部卫兵不烘批（10 扇可动门扇）；③ `buildings`：`b.interior` 插室内层 + 共享 `capMat` + 匾额前后一块材质两实例位；`layout.zhonghe` `doors:[-9,0,9]` 修超界值；④ `main.js` 接 `updateDoors/enterHalls` + **`?shot=1` 钩子**（`window.__fcity`，正常游玩零暴露）；`shot.mjs` 相机器瞬移落位截 `phase6-太和殿门开/入内太和殿`；⑤ 预算 rebalance：`drawCallsMid` 260→280（D33） | 用户「继续照旧执行」：§3 勾选「三大殿可入内」= 阶段 6 验收项；先解 drawCalls 顶穿（复用穷举后仍 281 > 260）再谈室内。室内形制按 research.md 通识级（减柱造 / 髹金宝座 / 正德后改坤宁宫坤炉示意，`TODO(verify)`） | smoke 全绿（装配统计 **Mesh 270 / 实例 6180 / 材质 23 / tris 55.1k**；新增 10 条：doorStates 3 殿枢轴 / 金砖桶当且仅当 1 / updateDoors 开 1 关 0 / enterHalls 解锁+幂等+飞越）；headless 7/7；截图两张走 `?shot=1` 瞬移（此前 3 版字节级一致空图 = 帧量子化）。坑见踩坑 25（D33–D36） |
 
 ## 踩坑与解法
 
@@ -163,6 +164,13 @@
 - 解法：复核新图一律**复制成新文件名**再读；探针统一 `buildTextureKit` 造 kit；探针不带 `2>&1` 跑，只留 stdout。
 - 影响面：凡「覆盖同名文件后立刻复核」的路径全部适用缓存坑（截图 / 贴图打样同理）。
 
+**25. 室内三连坑：drawCalls 顶穿预算 / headless 帧量子化 / 上下文摘要里的「幻影 bug」**
+- 现象一：室内层 + 门扇一装配 Mesh 243 → 281，顶爆 `drawCallsMid 260`。
+- 现象二：`phase6` 截图 3 版**字节级一致**的空白平原——SwiftShader ≈0.5–1 fps、`dt` 夹 0.05 → 飞行每帧只走 ≈2.3 m，CDP 按住 1180 ms ≈1.05 帧，帧边界随机；模式切换 0.35 s 缓动在软渲染要 ≈7 s 真实秒才停，瞬移被缓动覆写。
+- 现象三：会话摘要报「室内地板双偏移 oy bug（地板在世界 16.32）」——**幻影 bug**：磁盘重读 `interior.js` 没有任何组偏移（`oy` 只作藻井圈高度 `hWall*.92`），`buildAll` `baseY 8.13` 下地板顶 8.19 正确，**未做任何代码改动**。
+- 解法：① 材质复用穷举（踏道并 marble / 金柱冠·铜缸并 gold / 匾前后一块材质）+ `drawCallsMid` 260→280（D33）；② `?shot=1` → `window.__fcity` 钩子 `Runtime.evaluate` 瞬移 `rig.pose`（触发圈 / 入内带一次对正），瞬移排在 10 s 缓动之后（D34）；③ 用 Node 材质桶世界包围盒探针当几何证据（金砖地 8.13..9.77 / marble 须弥座 8.13..9.27 / 藻井顶片 20.86 / 前后匾同 basic 桶），截图只判构图与遮挡（未打光金带 = SwiftShader 伪影）。
+- 影响面：**摘要/记忆上报的「已确诊 bug」必须磁盘重读 + 探针复核**——D19 自我复读从文件清单扩展到结论；`?shot=1` 是截图专用钩子，页面常规路径零暴露，别把它当正式调试接口扩大。
+
 ## 性能与兼容性记录
 
 - **入口体积**（阶段 1）：`index.html` 7.9 KB + `css/main.css` 1.9 KB + `js/*` 合计约 38 KB（config 4.6 / state 7.8 / quality 4.8 / world 3.4 / ui 4.0 / input 6.2 / main 8.0）；运行时依赖只有 three.min.js **603 KB**（已入库，非本页新增）。
@@ -171,6 +179,7 @@
 - **三档视角开销**（补丁）：漫步 792 calls / 153k tris，俯瞰 1212 calls / 162k tris —— 差值来自视锥剔除而非模式本身；俯瞰 fov 74、离地 ~946 m 会看到整座城，所以批次更高。移动端默认档在 overview 下需复测（阶段 9）。
 - **合批后的开销**（阶段 4 第一批）：`mergeGroup()` 落地后同一场景 **漫步 216 calls / 181k tris，俯瞰 246 calls / 185k tris**（1212 → 216，`BUDGET.drawCallsMid = 260` 达标）。代价是**顶点数换了批次**：smoke 装配统计 Mesh 243 / 实例 6076 / tris 51.2k（页面含地面与视锥内全量，所以 HUD 读数比 smoke 统计高），后续加建筑先看 calls 再看 tris。
 - **阶段 5 实测开销**（首屏机位 + 台基坐落）：`shot.mjs` 读数 **首屏 walk-entry 212 calls / 183k tris、俯瞰 221 / 179k、浅俯角 162 / 172k、walk-start 152 / 170k**（首屏 212 = 视锥内含午门凹字全量，比浅俯角只含取景中心附近高 50 calls）；smoke 装配统计实例 6076 → **6180**（台基顶面栏杆/螭首补回实例化，护栏 ≥6000 达标，距自写上界 6200 只剩 20）。
+- **阶段 6 实测开销**（室内 + 门扇）：smoke 装配统计 **Mesh 270（InstancedMesh 79，实例 6180）｜tris 55.1k｜材质 23｜贴图 24.69 MB**；HUD 读数 **首屏 239 / 俯瞰 273 / 门开 137 / 入内 144**（预算 280，余 10）。+27 批次 = 三殿室内 17 个材质桶 + 10 扇可动门扇逐扇留批（动画代价，D35）；室内构件顶点全烘进合并体，0 新增静态 Mesh。
 - **俯瞰的雾**：俯瞰档 `fogNear 380 / fogFar 2400`（画质档 620–1400 只给地面档用），`main.js` 的 `applyFog(mode)` 负责联动。
 - **相机模块体积**：`js/camera.js` 约 8 KB / 240 行，纯逻辑无 DOM 依赖 → 在 Node 侧直接验算机位；11 条机位断言已移植进 **smoke §4e（20 条正式断言，入库）**，临时探针 `camlogic.mjs` 口径作废（D26）。
 - **测量方法**：`tools/headless.mjs`（CDP 读 `renderer.info`）+ HUD 常驻读数（`H` 键切换）。

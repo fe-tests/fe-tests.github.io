@@ -5,8 +5,9 @@
  */
 'use strict';
 
-import { buildings, linear, footprint, TERRACE } from './layout.js';
+import { buildings, linear, footprint, TERRACE, HALL_IDS } from './layout.js';
 import { CITY } from './config.js';
+import { hallInterior, makeDoorState } from './interior.js';
 import {
   terrace, chiShou, columnGrid, beamFrame, hipRoof, gableHipRoof, squareZuanjian,
   eaveLayer, beastRow, chiwen, latticeDoor, gateTower, corridor, pavilion, bridge,
@@ -27,16 +28,19 @@ export function doorList(b) {
 
 /** 通用大殿：台基之上的殿身 + 柱网 + 梁架 + 屋顶（可重檐）。返回 Group。
  *  kit 的取值约定见 assets.md §2：贴图走 kit.tex.<name>，材质走 kit.mat.<name>。 */
-export function hall(THREE, kit, b, { quality = 'mid', withDoors = true } = {}) {
+export function hall(THREE, kit, b, { quality = 'mid', withDoors = true, capMat = null } = {}) {
   const g = new THREE.Group();
   const bayW = b.bayW, w = b.bays * bayW, d = b.depthM != null ? b.depthM : b.depthBays * bayW;
   const hWall = b.hWall, wallT = .5;
 
-  // 殿身墙体（含门窗层）：正面开门，其余三面实墙
+  // 殿身墙体（含门窗层）：正面朝 **−Z（南，来路一侧，中轴惯例午门→神武门北=+Z）**，其余三面实墙。
+  // 中门可开合（阶段 6，三大殿可入内）：中明间门洞（|dx| < 0.62·bayW）用枢轴门扇，开合动画见 interior。
+  const frontDx = withDoors ? doorList(b) : [];
+  const movDx = (b.interior && HALL_IDS.indexOf(b.id) >= 0) ? frontDx.filter((dx) => Math.abs(dx) < bayW * .62) : [];
+  const front = latticeDoor(THREE, kit, { bays: b.bays, bayW, hWall, depth: wallT, doors: frontDx, movable: movDx });
+  front.position.z = -d / 2; g.add(front);
   const back = latticeDoor(THREE, kit, { bays: b.bays, bayW, hWall, depth: wallT });
-  back.position.z = -d / 2; g.add(back);
-  const front = latticeDoor(THREE, kit, { bays: b.bays, bayW, hWall, depth: wallT, doors: withDoors ? doorList(b) : [] });
-  front.position.z = d / 2; g.add(front);
+  back.position.z = d / 2; g.add(back);
   for (const sgn of [1, -1]) {
     const side = latticeDoor(THREE, kit, { bays: b.depthBays, bayW: bayW * .95, hWall, depth: wallT });
     side.rotation.y = Math.PI / 2; side.position.x = sgn * w / 2; g.add(side);
@@ -82,11 +86,17 @@ export function hall(THREE, kit, b, { quality = 'mid', withDoors = true } = {}) 
     }));
   }
 
-  // 匾额（T13）：正面明间檐下
+  // 匾额（T13）：正面（−Z，南·来路）明间檐下。plaqueFor 每次调用都造新材质 → 实例提出复用（前檐＋殿内共用一块）
+  let plaqueMat = null;
   if (b.interior && b.interior.plaque) {
-    const p = new THREE.Mesh(new THREE.PlaneGeometry(bayW * 1.7, bayW * .62), kit.plaqueFor(b.interior.plaque));
-    p.position.set(0, hWall * .82, d / 2 + wallT + .05); g.add(p);
+    plaqueMat = kit.plaqueFor(b.interior.plaque);
+    const p = new THREE.Mesh(new THREE.PlaneGeometry(bayW * 1.7, bayW * .62), plaqueMat);
+    p.position.set(0, hWall * .82, -d / 2 - wallT - .05);
+    p.rotation.y = Math.PI;                       // 法线 +Z → −Z：匾额朝南（来路一侧）
+    g.add(p);
   }
+  // G26 室内层（阶段 6：三大殿可入内）：mergeGroup 前加组，顶点烘进合并体（0 新增 Mesh；材质全复用 kit.mat.*）
+  if (b.interior) g.add(hallInterior(THREE, kit, b, { plaqueMat, wallT, capMat }));
   return g;
 }
 
@@ -222,6 +232,9 @@ export function buildOne(THREE, kit, rec, opts = {}) {
 export function buildAll(THREE, kit, { quality = 'mid', only = null } = {}) {
   const root = new THREE.Group();
   const entries = [];
+  const doorStates = [];
+  // 藻井蟠龙自发光材质（T12）：殿内在阳光阴影里，标准材质发暗看不到龙纹；各殿共用这一实例（assets.md §7 登记 21→22）
+  const capMat = new THREE.MeshBasicMaterial({ map: kit.tex.cloudDragon, color: 0xffffff, toneMapped: false });
 
   // 三层台基（外朝，只此一处）+ G03 螭首
   const terr = terrace(THREE, kit, TERRACE.tiers, TERRACE.layerH);
@@ -246,13 +259,17 @@ export function buildAll(THREE, kit, { quality = 'mid', only = null } = {}) {
     mergeGroup(g, THREE);
     root.add(g);
     const cz = rec.z0 != null ? (rec.z0 + rec.z1) / 2 : rec.cz;
-    entries.push({
+    const ent = {
       id: rec.id, cn: rec.cn || rec.id, group: g, fp: fpOverride || footprint(rec),
       cz, y: baseY, rec,      // y = 坐落高程（阶段 8 碰撞/小地图、阶段 6 室内地板都取这个口径）
-    });
+    };
+    entries.push(ent);
+    // 阶段 6：可开合门扇（mergeGroup 保留的 movable 枢轴）→ 门态状态机，main 每帧 updateDoors()
+    const ds = makeDoorState(ent);
+    if (ds) doorStates.push(ds);
   };
 
-  for (const b of buildings()) { if (!only || only.includes(b.id)) add(b, buildOne(THREE, kit, b, { quality })); }
+  for (const b of buildings()) { if (!only || only.includes(b.id)) add(b, buildOne(THREE, kit, b, { quality, capMat })); }
   for (const c of linear()) {
     if (only && !only.includes(c.id)) continue;
     const fp = c.form === '廊'
@@ -273,7 +290,7 @@ export function buildAll(THREE, kit, { quality = 'mid', only = null } = {}) {
     mergeGroup(ct, THREE);
     root.add(ct);
   }
-  return { group: root, entries };
+  return { group: root, entries, doorStates };
 }
 
 /** 组合器表（smoke.mjs 核对）。 */

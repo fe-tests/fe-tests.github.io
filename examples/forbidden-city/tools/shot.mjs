@@ -3,8 +3,8 @@
 //   node server.js                       # 先起服务（端口 39977）
 //   node examples/forbidden-city/tools/shot.mjs                # 默认：俯瞰「午门」+ 俯瞰「太和殿」+ 漫步起点
 //   node examples/forbidden-city/tools/shot.mjs 午门 太和殿     # 只截指定取景档
-// 说明：页面没暴露 camera/renderer，也没 location.search 钩子，所以机位靠**按键驱动**
-//   （3 = 俯瞰、1 = 漫步，俯瞰下 `[` / `]` 沿中轴跳档取景，见 main.js 的 FOCUS_STEPS）。
+// 说明：机位主要靠**按键驱动**（3 = 俯瞰、1 = 漫步，俯瞰下 `[` / `]` 沿中轴跳档取景，见 main.js 的 FOCUS_STEPS）；
+//   阶段 6 的飞行入殿走 `?shot=1` 的 window.__fcity 钩子**瞬移落位**（软渲染 ~1 fps，数按键必漂移，见 D34）。
 //   图落 tools/out/shots/（已在 .gitignore），每次跑前清旧图以免误判「修复无效」（D19）。
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -13,7 +13,7 @@ import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 const PORT = Number(process.env.FC_SHOT_PORT || 39979);
-const URL_TARGET = process.env.FC_SHOT_URL || 'http://localhost:39977/examples/forbidden-city/';
+const URL_TARGET = process.env.FC_SHOT_URL || 'http://localhost:39977/examples/forbidden-city/?shot=1';
 const OUTDIR = path.join(path.dirname(fileURLToPath(import.meta.url)), 'out', 'shots');
 const CHROME = process.env.FC_CHROME
   || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
@@ -138,6 +138,20 @@ for (const name of views) {
 await key('1', 'Digit1');                // 回漫步（起点在午门以南）
 await sleep(2600);
 await shot('walk-start');
+
+// ── 阶段 6：飞行入殿（门开 + 入内 + 成就 toast 的图像门，碰撞要等阶段 8，飞行穿模是有意的）──
+// 机位走 `?shot=1` → window.__fcity 钩子**瞬移落位**：软渲染 ~1 fps 下「按住 W 数按键帧」必漂移（D34）。
+const ev = (expression) => send('Runtime.evaluate', { expression });
+await key('2', 'Digit2');                 // 飞行档（pose.y 不会被 walk 的地面钳制拉回 1.65）
+await sleep(10000);                       // ⚠️ 模式切换自带 0.35 s 缓动 = dt 帧驱动：@1 fps 约 7 s 才结束，
+                                          // 过渡期间 rig.update 每帧写 pose，瞬移必须等它落位（D34）
+await ev('__fcity.rig.pose.z = -124; __fcity.rig.pose.y = 10.3;');
+// ↑ z = -124：太和殿门点（z -114.8）正前方 9.2 m（< 9.5 触发圈）；y = 10.3 比台基顶面高 2 m 平视门脸
+await sleep(38000);                       // 门扇 lerp ≈30 帧（@1 fps）开到位
+await shot('phase6-太和殿门开');
+await ev('__fcity.rig.pose.z = -100; __fcity.rig.pose.y = 10.2;');   // 瞬移进殿：fp 内 + 视平高度带 → 解锁「入内太和殿」
+await sleep(2400);                        // 成就 toast 窗口 3.2 s，截图趁热
+await shot('phase6-入内太和殿');
 
 chrome.kill();
 process.exit(0);
