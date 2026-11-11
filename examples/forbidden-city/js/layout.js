@@ -1,7 +1,7 @@
 /* 3D 故宫游览 · js/layout.js —— 建筑数据表（单一数据源）
  * 所有几何、碰撞、小地图、热点都从这里推导；任何模块不得再写死建筑尺度。
  * 数值出处见 ../docs/research.md（§1 总平面 / §2 外朝序列 / §3 三大殿 / §4 内廷）。
- *   · form: '庑殿'(四阿顶) | '歇山'(九脊顶) | '攒尖' | '门' | '廊' | '亭' | '桥' | '墙' | '台'
+ *   · form: '庑殿'(四阿顶) | '歇山'(九脊顶) | '攒尖' | '门' | '廊' | '亭' | '桥' | '墙' | '台' | '宫列'(六宫小殿，阶段 7)
  *   · tier: 屋顶层数（1 单檐 / 2 重檐）
  *   · bays/depthBays：面阔/进深开间数；bayW = 实测面阔 ÷ 间数（覆盖通用 BAY）
  *   · hWall 殿身墙高、hTotal 通高（含台基与屋顶），两者都在 research.md 有出处时写实测
@@ -161,6 +161,15 @@ export function linear() {
     { id: 'donghuamen', cx: CITY.lenE / 2, cz: -40, form: '门', bays: 3, depthBays: 2, bayW: 3.2, hWall: 9, hTotal: 16 },
     { id: 'xihuamen', cx: -CITY.lenE / 2, cz: -40, form: '门', bays: 3, depthBays: 2, bayW: 3.2, hWall: 9, hTotal: 16 },
     { id: 'jingshan', cx: 0, cz: AXES.shenwumen + 120, form: '山', hTotal: 44, trees: 120 }, // 景山俯瞰视点（近似高度）
+    /* --- 阶段 7：内廷与后苑（示意层，D3 口径；材质全复用，见 assets.md §7）--- */
+    // 东西六宫各三进小宫院，临东/西长街（乾清门广场两侧，与后三宫同区间）
+    { id: 'dongliugong', cn: '东六宫', cx: 62, z0: 175, z1: 320, form: '宫列', palaces: 3, bayW: 6.6, hWall: 5.5, hTotal: 10.5 },
+    { id: 'westliugong', cn: '西六宫', cx: -62, z0: 175, z1: 320, form: '宫列', palaces: 3, bayW: 6.6, hWall: 5.5, hTotal: 10.5 },
+    // 御花园中御道：钦安殿（单檐庑殿，园之主体）+ 堆秀山顶御景亭（yBase = 园内土山高 9 m，山在 gardenTrees 组内）
+    { id: 'qinanDian', cn: '钦安殿', cx: 0, cz: AXES.yuhuayuan, form: '庑殿', bays: 5, depthBays: 3, bayW: 2.6, hWall: 8.5, hTotal: 16, roofStatuettes: 3, doors: [] },
+    { id: 'duixiuPav', cn: '御景亭', cx: 0, cz: 342, yBase: 9, form: '亭', width: 5, hWall: 4.6, roofForm: '盝顶' },
+    // 景山借景：万春亭压顶（五亭之中脊；余四亭 = 阶段 11 观感层示意再补，见 §4）
+    { id: 'wanchunDian', cn: '景山万春亭', cx: 0, cz: AXES.shenwumen + 120, yBase: 38, form: '亭', width: 8, hWall: 6, roofForm: '攒尖', tiers: 2 },
   ];
 }
 

@@ -35,6 +35,7 @@ node examples/forbidden-city/tools/smoke.mjs  # 纯逻辑校验（装配 + 预�
   - **飞行**：6 自由度（`46 m/s`，`Space` 升 / `Ctrl` 降）。
   - **俯瞰**：绕「取景中心」轨道旋转 + 滚轮缩放，`←/→` 沿中轴跳档（午门→神武门 9 档，含三大殿）。
 - 其它键位：`H` 隐藏 HUD、`G` 地面网格、`B` 鸟瞰切换、`?` 键位面板。三大殿**殿门自动开合**：走进门洞 9.5 m 圈内格扇平开（`updateDoors`），走进殿内解锁「入内太和殿」等成就（`enterHalls`）。
+- **内廷与后苑**（阶段 7，示意层）：过乾清门进后三宫（乾清宫「正大光明」匾、坤宁宫东暖阁灶位），长街两侧东西六宫；御花园中御道穿钦安殿、堆秀山御景亭，景山顶压万春亭俯瞰借景。
 - 移动端：左半屏拖动 = 虚拟摇杆，右半屏拖动 = 视角，双指捏合 = 视野 FOV；按钮 = 奔跑。
 - HUD：指南针 + 当前分区名 + fps + drawCalls 哨兵 + 坐标。中轴 14 组建筑全部按实测尺度（数据表 `js/layout.js` 单一数据源），讲解热点与成就在阶段 10 接入。
 
@@ -45,10 +46,10 @@ node examples/forbidden-city/tools/smoke.mjs  # 纯逻辑校验（装配 + 预�
 | `index.html` | 骨架、loading 面板、启动流程（import map 无、纯 ES module） |
 | `js/main.js` | 入口：装配模块、启动循环、`applyFog`/FPS 降档、`CAM_START` 消费 |
 | `js/config.js` | 全局常量：预算、画质三档、`CAM_START` 首屏机位（单一来源）、城/轴尺寸 |
-| `js/layout.js` | **单一数据源**：14 条中轴建筑记录 + `TERRACE`/`AXES`/`wumenPlan`/`bridgePlan`（纯数据） |
+| `js/layout.js` | **单一数据源**：14 条中轴建筑记录 + `linear()`（廊庑 / 六宫宫列 / 后苑三笔 / 景山）+ `TERRACE`/`AXES`/`wumenPlan`/`bridgePlan`（纯数据） |
 | `js/textures.js` | 贴图工厂 T01–T18（Canvas2D 程序化，`buildTextureKit`） |
 | `js/parts.js` | 构件工厂 G01–G25 + `mergeGroup` 合批 + `instanced` 开关（不 import three） |
-| `js/buildings.js` | 组合器：按 `form` 派发 hall/gate/tower/corridor/pavilion，`buildAll` 出 `entries[]`（含 `fp/cz/y`） |
+| `js/buildings.js` | 组合器：按 `form` 派发 hall/gate/tower/corridor/pavilion/palaceRow，`buildAll` 出 `entries[]`（含 `fp/cz/y`，`onTerrace`/`yBase` 坐落高程） |
 | `js/interior.js` | 殿内示意层（金砖地/须弥座/宝座/围屏/藻井/匾额/铜缸）+ 门扇自动开合 + 「入内」成就判定（阶段 6，纯逻辑不 import three） |
 | `js/world.js` / `js/quality.js` / `js/ui.js` | 装配根组与光照雾 / 画质三档与 FPS 哨兵 / HUD 面板（DOM 层） |
 | `js/camera.js` | `CameraRig` 三档 + 俯瞰轨道/focus/zoom（纯逻辑，Node 可测） |
@@ -70,9 +71,9 @@ node examples/forbidden-city/tools/smoke.mjs  # 纯逻辑校验（装配 + 预�
 - 形制为**通识级近似**：斗拱铺作、彩画、蟠龙藻井、角楼十字脊按外观近似（`TODO(verify)`，出处 research.md 置信 medium 项）；台基须弥座束盆/栏板纹饰/螭首吐水未建模。午门城台**券洞朝向**是已知小项（`gate()` 的 +d/2 翻转有意跳过，D36），勿「顺手修」。
 - 俯瞰下地面贴图跟相机（D21）：俯瞰是「全局取景」不是第一人称拉远，**刻意保留**。
 - `js/parts.js` 的 `baseAlign()` 是 no-op stub（技术债：调用方自摆 `y = h/2` 已正确，**勿当 bug 修**，D28）；太和殿正吻高出通高 2.32 m（断言留容差未修）。
-- 内廷四进与御花园细化、碰撞台阶吸附、移动端 30 fps 实测、热点/成就/音效/存档、LOD 属阶段 6–12 未完成。
+- 六宫为**示意压缩**：真实 12 座独立院落（院门 + 正殿 + 配殿 + 廊），现只按每侧三进临街正殿装配（`palaceRow()`，fp 窄巷制）；御花园十亭、景山四配亭未建。碰撞台阶吸附、移动端 30 fps 实测、热点/成就/音效/存档、LOD 属阶段 8–12 未完成。
 - 截图复核（SwiftShader 软件渲染）存在「屋顶面不亮」伪影：**不以截图判形制**，只判构图与遮挡。
-- 进度与接续协议、决策记录（D1–D36）见 [docs/PROGRESS.md](docs/PROGRESS.md)；坑的完整叙述见 [docs/devlog.md](docs/devlog.md) 踩坑 1–25。
+- 进度与接续协议、决策记录（D1–D37）见 [docs/PROGRESS.md](docs/PROGRESS.md)；坑的完整叙述见 [docs/devlog.md](docs/devlog.md) 踩坑 1–25。
 
 ## 开发文档
 

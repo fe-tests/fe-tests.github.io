@@ -212,6 +212,16 @@ ok('三大殿成就与建筑 id 同名（recordInterior 依赖这一点）',
     const cs = L.linear(); const e = cs.find((c) => c.id === 'eastCorridor'), w = cs.find((c) => c.id === 'westCorridor');
     return !!e && !!w && e.cx === -w.cx && e.z0 === w.z0 && !!cs.find((c) => c.id === 'jingshan');
   })());
+  // 阶段 7 数据：东西六宫对称 + 后苑三笔（钦安殿居中 / 御景亭、万春亭坐山体顶）
+  ok('layout：东西六宫左右两列对称，各三进（阶段 7 示意）', (() => {
+    const cs = L.linear(); const e = cs.find((c) => c.id === 'dongliugong'), w = cs.find((c) => c.id === 'westliugong');
+    return !!e && !!w && e.cx === -w.cx && e.z0 === w.z0 && e.z1 === w.z1 && e.palaces === 3 && w.palaces === 3;
+  })());
+  ok('layout：后苑三笔（钦安殿 cx=0；御景亭 yBase 9 坐堆秀山；万春亭 yBase 38 坐景山）', (() => {
+    const cs = L.linear();
+    const q = cs.find((c) => c.id === 'qinanDian'), d = cs.find((c) => c.id === 'duixiuPav'), wt = cs.find((c) => c.id === 'wanchunDian');
+    return !!q && q.cx === 0 && !!d && d.yBase === 9 && d.cz < q.cz && !!wt && wt.yBase === 38 && wt.cz > 415;
+  })());
   ok('layout：byId 未知 id 返回 null（不得抛错）', L.byId('__nope__') === null);
 
   // 阶段 5 数据：午门凹字 + 内金水桥（尺度全在数据表里，构件不得写死）
@@ -237,10 +247,10 @@ ok('三大殿成就与建筑 id 同名（recordInterior 依赖这一点）',
   ok('layout：午门广场围合（东西庑廊到午门 + 阙亭一对）', (() => {
     const cs = L.linear();
     const e = cs.find((c) => c.id === 'eastCorridor'), w = cs.find((c) => c.id === 'westCorridor');
-    const q = cs.filter((c) => c.form === '亭');
+    const q = cs.filter((c) => /^que/.test(c.id));   // 专指午门阙亭一对；后苑亭（御景/万春）各有阶段 7 断言
     return e.z0 <= L.byId('wumen').cz + 8 && e.z0 === w.z0 && q.length === 2 && q[0].cx === -q[1].cx && q[0].cz === q[1].cz;
   })());
-  const linRects = L.linear().filter((c) => c.form === '亭').map((c) => ({ id: c.id, cx: c.cx, cz: c.cz, halfW: 6, halfD: 6 }));
+  const linRects = L.linear().filter((c) => /^que/.test(c.id)).map((c) => ({ id: c.id, cx: c.cx, cz: c.cz, halfW: 6, halfD: 6 }));
   const linHits = [];
   for (const a of linRects) for (const b of rects) {
     if (Math.abs(a.cx - b.cx) < a.halfW + b.halfW && Math.abs(a.cz - b.cz) < 6 + b.hD) linHits.push(a.id + '↔' + b.id);
@@ -484,8 +494,8 @@ ok('模块图：textures.js 可 import 且 18 个工厂齐备',
       ok('buildAll：太和殿整体盒不高出地面（r128 盒体口径下的最低点 ≥ 地面，不双层）',
         !!tb && tb.min.y > -0.5 && tb.max.y < TOP + LYrec.hTotal + 4,
         tb ? 'y ' + tb.min.y.toFixed(2) + '..' + tb.max.y.toFixed(2) : '');
-      ok('buildAll：其余建筑仍在 y=0 地面（只抬三殿，中轴门/配殿不被带动）',
-        built.entries.filter((e) => !e.rec.onTerrace && e.rec.form !== '廊' && e.rec.form !== '山')
+      ok('buildAll：其余建筑仍在 y=0 地面（只抬三殿；山亭类 yBase 与廊/山外置定位除外）',
+        built.entries.filter((e) => !e.rec.onTerrace && e.rec.form !== '廊' && e.rec.form !== '山' && e.rec.yBase == null)
           .every((e) => Math.abs(e.y) < 1e-9));
 
       // D16 drawCalls 批处理：buildAll 已对每个 builder 组跑 mergeGroup →
@@ -577,6 +587,27 @@ ok('模块图：textures.js 可 import 且 18 个工厂齐备',
       ok('阶段 6：入内幂等（重复进入不刷）+ 高空飞越不计（y 窗口，D21 口径）',
         I.enterHalls(stp6, built.entries, inPose).length === 0
         && I.enterHalls(stp6, built.entries, { x: 0, z: th6.fp.cz, y: th6.y + 40 }).length === 0);
+      // 阶段 7：内廷与后苑装配
+      ok('阶段 7：六宫两列 + 后苑三笔装配（entries 齐）',
+        ['dongliugong', 'westliugong', 'qinanDian', 'duixiuPav', 'wanchunDian']
+          .every((id) => !!built.entries.find((e) => e.id === id)));
+      ok('阶段 7：宫列 fp 窄巷制（halfW≤12）且不压中轴殿宇（与乾清宫占位留白 >20 m）', (() => {
+        const e = built.entries.find((x) => x.id === 'dongliugong');
+        const q = built.entries.find((x) => x.id === 'qianqing');
+        return e.fp.halfW <= 12 && Math.abs(e.fp.cx - q.fp.cx) - (e.fp.halfW + q.fp.halfW) > 20;
+      })());
+      ok('阶段 7：万春亭 / 御景亭坐山体顶（entry.y = 38 / 9）', (() => {
+        const w = built.entries.find((e) => e.id === 'wanchunDian'), d = built.entries.find((e) => e.id === 'duixiuPav');
+        return w.y === 38 && d.y === 9;
+      })());
+      const kn7 = built.entries.find((e) => e.id === 'kunning');
+      let gb7 = 0;
+      kn7.group.traverse((o) => { if (o.isMesh && !o.isInstancedMesh && o.name === 'merged' && o.material === kit.mat.goldBrick) gb7++; });
+      ok('阶段 7：后三宫室内层已成形（坤宁宫金砖地合并体 ×1，含暖阁灶位口径）', gb7 === 1, gb7 + ' 个合并体');
+      ok('阶段 7：钦安殿在御花园中御道（fp.cx = 0，z 与御花园同区间）', (() => {
+        const q = built.entries.find((e) => e.id === 'qinanDian');
+        return q.fp.cx === 0 && Math.abs(q.cz - 350) < 1;
+      })());
 
       // 预算预警（阶段 11 才要求达标，这里只做量级检查）
       ok('buildAll：三角面在量级内（< 3M；阶段 11 收敛到 ≤900k）', tris < 3e6, (tris / 1000).toFixed(0) + 'k');

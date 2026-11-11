@@ -153,5 +153,15 @@ await ev('__fcity.rig.pose.z = -100; __fcity.rig.pose.y = 10.2;');   // 瞬移�
 await sleep(2400);                        // 成就 toast 窗口 3.2 s，截图趁热
 await shot('phase6-入内太和殿');
 
+// ── 阶段 7：内廷与后苑（乾清门 + 六宫 + 御花园 + 景山借景），同样走瞬移（D34 口径）──
+await ev('__fcity.rig.pose.yaw = Math.PI; __fcity.rig.pose.pitch = -0.12; __fcity.rig.pose.x = 0; __fcity.rig.pose.z = 120; __fcity.rig.pose.y = 26;');
+// ↑ 乾清门（145）以南 25 m 平视北望：门 + 后三宫 + 东西六宫（z 175..320，±62）两翼
+await sleep(4200);
+await shot('phase7-内廷六宫与乾清门');
+await ev('__fcity.rig.pose.z = 295; __fcity.rig.pose.y = 34; __fcity.rig.pose.pitch = -0.18;');
+// ↑ 坤宁宫（295）北望：御花园树海 + 钦安殿（350）+ 御景亭（堆秀山 y9）+ 神武门（415）+ 景山万春亭（535，y 38）
+await sleep(4200);
+await shot('phase7-御花园与景山万春亭');
+
 chrome.kill();
 process.exit(0);

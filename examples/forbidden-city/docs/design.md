@@ -11,7 +11,7 @@
   1. 中轴 14 组建筑按实测尺度落位（面阔/进深/通高/台基 8.13 m 取自 research.md），三大殿坐落在三层台基**顶面**（smoke §4d 合并体 box 断言 `min.y ≈ 8.13`）；
   2. 漫步首屏即景：站在午门以南看「凹」字全貌（smoke 谓词 + `tools/shot.mjs` 截图 `walk-entry` 图像复核）；
   3. 三档视角（漫步/飞行/俯瞰）切换不跳变，相机断言 20 条（smoke §4e）；
-  4. 性能预算：中档 `drawCalls ≤ 280`、材质 ≤ 24、贴图 ≤ 128 MB，由 smoke 与 HUD 哨兵双口径盯守；
+  4. 性能预算：中档 `drawCalls ≤ 320`、材质 ≤ 24、贴图 ≤ 128 MB，由 smoke 与 HUD 哨兵双口径盯守；
   5. 移动端 30 fps（阶段 9 实测）、内廷/御花园补齐（阶段 6–7）。
 - 非目标：不加载外部 GLB/扫描贴图（零二进制策略）、不做精确古建彩画/斗栱铺作级模型（通识级近似 + `TODO(verify)`）、不做多人/玩法系统（这是**游览示例**不是游戏关卡）。
 
@@ -38,7 +38,7 @@
 - WebGL（Three.js **r128**，vendor 于 `../../assets/vendor/three/r128/three.min.js`）负责 3D 场景；HUD 是 DOM（`hud.js`），无 Canvas2D  overlay；降级：无 WebGL 时 `loading` 面板给可读提示（阶段 12 前补 2D 简版，非目标内从简）。
 - **素材全程序化**：贴图 T01–T18（`textures.js` Canvas2D → CanvasTexture）、几何 G01–G25（`parts.js`）、音效 A01–A06（阶段 10）——页面目录零二进制（登记表见 [assets.md](assets.md)）。r128 颜色口径：`renderer.outputEncoding = THREE.sRGBEncoding`（不是 r15x 的 `outputColorSpace`，smoke 正则钉死，D9）。
 - 分辨率：`devicePixelRatio` 上限 2（低端 1.5），`renderer.setSize` 随窗口；画质三档 `low/mid/high`（`QUALITY` 表：像素比/阴影/雾距），FPS 自动降档（<28 掉档）+ `applyFog` 联动。
-- 合批与预算：`mergeGroup()` 按材质烘顶点（root-LOCAL 空间，root.position 只应用一次，D16）；`userData.movable` 枢轴门扇不烘批留逐扇批次（D35）；大构件 `InstancedMesh`；预算 `BUDGET = {drawCallsMid 280, drawCallsHigh 420, triangles 900k, textureMB 128, materials 24}`，实测台账见 assets.md §7。
+- 合批与预算：`mergeGroup()` 按材质烘顶点（root-LOCAL 空间，root.position 只应用一次，D16）；`userData.movable` 枢轴门扇不烘批留逐扇批次（D35）；大构件 `InstancedMesh`；预算 `BUDGET = {drawCallsMid 320, drawCallsHigh 420, triangles 900k, textureMB 128, materials 24}`，实测台账见 assets.md §7。
 - 阴影 2048 shadow map 跟随首屏主要光源（太阳 `sun.js`），far 2600 + 雾 120/900（俯瞰 380/2400）。
 
 ## 5. 交互与输入
@@ -67,6 +67,7 @@
 
 - 形制精度：斗栱/彩画/蟠龙/角楼十字脊 = 外观近似；台基须弥座束盆、栏板纹饰、螭首吐水未建模（几何预算）。
 - 殿内（阶段 6）是**示意层**（D3 口径）：三层须弥座 + 踏道 / 髹金宝座 + 五扇围屏 / 藻井蟠龙顶片（不受光照的 basic 直挂）/ 匾额 / 鎏金铜缸 / 减柱造金柱——体量与位置按 research.md 通识级，铺作彩画级细节不做；午门城台**券洞朝向**已知小项（`gate()` +d/2 翻转有意跳过，D36，勿顺手修）。
+- 内廷与后苑（阶段 7）是**示意层**（D3 口径）：东西六宫真实为 12 座独立院落（院门 + 正殿 + 配殿 + 廊），压缩成**每侧三进临街正殿**（`palaceRow()`，fp 窄巷制）；御花园只建中御道三笔（钦安殿 / 堆秀山御景亭 / 景山万春亭），园中十亭、景山四配亭 = 观感层后补；山亭坐顶走 `rec.yBase` 通用高程，别给 builder 再写死高度。
 - 已知：俯瞰下地面贴图跟相机（D21，档位语义是「全局视图」非「第一人称拉远」，**刻意保留**）；正吻高出通高 2.32 m（断言留容差，未修）；`baseAlign` 是 no-op stub（技术债，调用方自摆 y = h/2 正确，勿「修」，D28）。
 - 未完成阶段：内廷四进+御花园细化（6–7）、碰撞台阶吸附（8，`entries.y` 已备）、移动端 fps 实测（9）、热点/成就/音效/存档（10）、LOD（11）、registry 转 stable 与全量回归（12）。
 - 低端设备：SwiftShader 软件渲染下截图有「屋顶面不亮」伪影，**不以截图判形制**；低端机画质档降档阈值未真机验证（阶段 9）。

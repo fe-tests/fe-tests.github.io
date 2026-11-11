@@ -207,11 +207,32 @@ export function hill(THREE, kit, c, quality = 'mid') {
   return g;
 }
 
+/** 宫列（阶段 7 东西六宫示意）：沿长街 n 进小宫院 = 殿身红墙 + 单檐瓦顶，无斗栱无门扇无台基。
+ *  示意层口径（D3）：真实六宫为独立院落（院门 + 正殿 + 配殿），这里压缩成一排临街正殿，
+ *  材质全部复用 kit.mat.*（redWall/roofTiles/ridgeTile），每侧合并后只 3 个批次。
+ *  组内 = 局部口径（x 居中、z 以组心为原点），buildAll 的 add() 负责整体摆位。 */
+export function palaceRow(THREE, kit, c) {
+  const g = new THREE.Group();
+  const len = c.z1 - c.z0, n = c.palaces || 3, span = len / n;
+  const w = 3 * (c.bayW || 6.6), d = Math.min(10, span * .45), hWall = c.hWall, rise = c.hTotal - hWall;
+  for (let i = 0; i < n; i++) {
+    const z = -len / 2 + span * (i + .5);
+    const rg = new THREE.Group();
+    rg.position.set(0, 0, z);
+    const body = new THREE.Mesh(new THREE.BoxGeometry(w, hWall, d), kit.mat.redWall);
+    body.position.set(0, hWall / 2, 0);
+    rg.add(body);
+    rg.add(hipRoof(THREE, kit, { width: w, depth: d, rise, overhang: 1.2, y: hWall }));
+    g.add(rg);
+  }
+  return g;
+}
+
 /* ------------------------------ 装配全场景（阶段 4/5 使用）------------------------------ */
 const BUILDERS = {
   wumen, bridges, pav,
   hall: (T, k, b, o) => hall(T, k, b, o),
-  gate, corridorRun, gardenTrees, hill,
+  gate, corridorRun, gardenTrees, hill, palaceRow,
 };
 
 /** 一条 layout 记录 → Group（找不到形制则返回 null）。 */
@@ -223,6 +244,7 @@ export function buildOne(THREE, kit, rec, opts = {}) {
   if (f === '河') return BUILDERS.bridges(THREE, kit, rec);
   if (f === '庑殿' || f === '歇山' || f === '攒尖') return BUILDERS.hall(THREE, kit, rec, opts);
   if (f === '廊') return BUILDERS.corridorRun(THREE, kit, rec);
+  if (f === '宫列') return BUILDERS.palaceRow(THREE, kit, rec);
   if (f === '园') return BUILDERS.gardenTrees(THREE, kit, rec, opts.quality);
   if (f === '山') return BUILDERS.hill(THREE, kit, rec, opts.quality);
   return null;
@@ -248,11 +270,13 @@ export function buildAll(THREE, kit, { quality = 'mid', only = null } = {}) {
 
   const add = (rec, g, fpOverride) => {
     if (!g) return;
-    // 坐落高程：三大殿（rec.onTerrace）坐在三层台基**顶面** 8.13 m 上，其余建筑在地面 y=0。
+    // 坐落高程：三大殿（rec.onTerrace）坐在三层台基**顶面** 8.13 m 上；景山万春亭 / 堆秀山御景亭
+    // 用 rec.yBase 坐山体顶（阶段 7）；其余在地面 y=0。
     // 合并体烘的是 root 局部口径（见 parts.js mergeGroup 注释），root 只平移自己的位移 → 不会二次偏移。
-    const baseY = rec.onTerrace ? TERRACE.totalH : 0;
+    const baseY = rec.onTerrace ? TERRACE.totalH : (rec.yBase || 0);
+    const czMid = rec.z0 != null ? (rec.z0 + rec.z1) / 2 : rec.cz;   // 宫列/廊用 z0/z1 区间，中点即组心
     // 廊与山的 builder 内部已按 cx/cz 定位，不再整体平移；其余按记录平移
-    if (rec.form !== '廊' && rec.form !== '山') g.position.set(rec.cx, baseY, rec.cz);
+    if (rec.form !== '廊' && rec.form !== '山') g.position.set(rec.cx, baseY, czMid);
     // D16 drawCalls 批处理：装配完成 → 刷新矩阵 → 按材质合并（InstancedMesh 批次保留）。
     // 合并体烘 root 局部口径，root 的位移/摆位语义不变（见 parts.js mergeGroup 注释与探针）。
     g.updateMatrixWorld(true);
@@ -274,7 +298,9 @@ export function buildAll(THREE, kit, { quality = 'mid', only = null } = {}) {
     if (only && !only.includes(c.id)) continue;
     const fp = c.form === '廊'
       ? { cx: c.cx, cz: (c.z0 + c.z1) / 2, halfW: 4, halfD: Math.abs(c.z1 - c.z0) / 2 }
-      : { cx: c.cx, cz: c.cz, halfW: 60, halfD: 60 };
+      : c.form === '宫列'
+        ? { cx: c.cx, cz: (c.z0 + c.z1) / 2, halfW: 12, halfD: (c.z1 - c.z0) / 2 }   // 窄巷制：碰撞层别把六宫当 120 m 大方块
+        : { cx: c.cx, cz: c.cz, halfW: 60, halfD: 60 };
     add(c, buildOne(THREE, kit, c, { quality }), fp);
   }
 
@@ -294,4 +320,4 @@ export function buildAll(THREE, kit, { quality = 'mid', only = null } = {}) {
 }
 
 /** 组合器表（smoke.mjs 核对）。 */
-export const COMBINERS = ['hall', 'gate', 'wumen', 'bridges', 'corridorRun', 'gardenTrees', 'hill', 'buildOne', 'buildAll'];
+export const COMBINERS = ['hall', 'gate', 'wumen', 'bridges', 'corridorRun', 'gardenTrees', 'hill', 'palaceRow', 'buildOne', 'buildAll'];

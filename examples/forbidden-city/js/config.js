@@ -99,7 +99,7 @@ export const ADAPT = {
 
 /* ------------------------------ 性能预算（assets.md §7，smoke.mjs 断言）------------------------------ */
 export const BUDGET = {
-  drawCallsMid: 280,   // 阶段 6 实测 270（殿内 17 个材质桶 + 10 扇可动门扇），+10 余量
+  drawCallsMid: 320,   // 阶段 7 实测 302（六宫两列 + 钦安殿殿身 + 亭群 共 +32 批次），+18 余量；420 高档不变
   drawCallsHigh: 420,
   triangles: 900000,
   textureMB: 128,
