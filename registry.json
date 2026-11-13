@@ -343,6 +343,19 @@
       "thumbnail": null,
       "createdAt": "2026-11-08 17:30:51",
       "updatedAt": "2026-11-11 21:40:00"
+    },
+    {
+      "title": "AI 球形算力场",
+      "description": "WebGL 手写渲染管线复刻「AI 模型疯狂计算中」：网络球匀速自转 + 体积粒子立体运动 + 辉光后处理。",
+      "url": "examples/ai-sphere-webgl/index.html",
+      "category": "experiment",
+      "emoji": "🔮",
+      "tags": ["webgl", "shader", "3d", "粒子", "动画", "球体", "AI", "移动端"],
+      "status": "experimental",
+      "pinned": false,
+      "thumbnail": null,
+      "createdAt": "2026-11-13 20:06:44",
+      "updatedAt": "2026-11-13 20:28:27"
     }
   ]
 }
