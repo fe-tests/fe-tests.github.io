@@ -171,8 +171,32 @@ function renderDock() {
     (pinned.length || extras.length ? '<span class="ios-dock-sep" aria-hidden="true"></span>' : "") +
     pinned.concat(extras).map(function (a) {
       return tileHTML(a, { isMobile: state.isMobile, showStatus: false });
-    }).join("");
+    }).join("") +
+    '<button class="ios-dock-toggle" id="dock-toggle" type="button">' +
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9.5l6 6 6-6"/></svg>' +
+    '<span class="ios-dock-toggle-text">收起 Dock</span></button>';
   els.dock.innerHTML = html;
+  applyDock();
+}
+
+/** Dock 收起状态 → body 类 + 按钮文案/aria（内容区预留高度由 --dock-space 跟着变） */
+function applyDock() {
+  const hidden = !!state.dockHidden;
+  document.body.classList.toggle("dock-hidden", hidden);
+  const btn = els.dock.querySelector("#dock-toggle");
+  if (!btn) return;
+  btn.setAttribute("aria-label", hidden ? "展开 Dock 常驻栏" : "收起 Dock 常驻栏");
+  btn.setAttribute("aria-expanded", hidden ? "false" : "true");
+  const text = btn.querySelector(".ios-dock-toggle-text");
+  if (text) text.textContent = hidden ? "显示 Dock" : "收起 Dock";
+}
+
+function toggleDock() {
+  const hidden = !state.dockHidden;
+  settings = saveSettings({ dock: hidden ? "hide" : "show" });
+  state.set({ dockHidden: hidden });
+  applyDock();
+  showToast(hidden ? "Dock 已收起，点细棒展开（键盘 D）" : "Dock 已展开（键盘 D）");
 }
 
 function renderViewToggle() {
@@ -353,12 +377,18 @@ function openSettingsPanel() {
       state.set({ perPage: n, limit: n > 0 ? n : Number.MAX_SAFE_INTEGER });
     },
     onSort: function (v) { state.set({ sort: v, limit: state.perPage > 0 ? state.perPage : Number.MAX_SAFE_INTEGER }); },
+    onDock: function (show) {
+      settings = saveSettings({ dock: show ? "show" : "hide" });
+      state.set({ dockHidden: !show });
+      applyDock();
+    },
     onReset: function () {
       clearSettings();
       settings = loadSettings();
       applyTheme(settings.theme);
       applyIconSize(settings.iconSize);
-      state.set({ perPage: settings.perPage, sort: settings.sort, iconSize: settings.iconSize });
+      state.set({ perPage: settings.perPage, sort: settings.sort, iconSize: settings.iconSize, dockHidden: settings.dock === "hide" });
+      applyDock();
     },
     onOpenSettings: function () { /* 预留：设置浮层打开回调 */ },
   });
@@ -460,6 +490,9 @@ function bindChrome() {
   bindTiles(els.gridCard, tileHandlers);
   bindTiles(els.gridList, tileHandlers);
   bindTiles(els.dock, tileHandlers);
+  els.dock.addEventListener("click", function (e) {
+    if (e.target.closest && e.target.closest("#dock-toggle")) toggleDock();
+  });
   bindTiles(els.sidebarApps, tileHandlers);
 
   // 键盘：网格方向键 + 快捷键
@@ -483,6 +516,11 @@ function bindChrome() {
     if (e.key === "t" || e.key === "T") {
       e.preventDefault();
       els.themeBtn.click();
+      return;
+    }
+    if (e.key === "d" || e.key === "D") {
+      e.preventDefault();
+      toggleDock();
       return;
     }
     if (state.view === "card" && ["ArrowRight", "ArrowLeft", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"].indexOf(e.key) >= 0) {
@@ -539,9 +577,12 @@ function boot(data) {
     page: 0,
     isMobile: mqMobile.matches,
     pageSize: mqMobile.matches ? 4 * MOBILE_PAGE_ROWS : 9999,
+    dockHidden: settings.dock === "hide",
   });
 
   state.subscribe(function (changed) {
+    const keys = Object.keys(changed);
+    if (keys.length === 1 && keys[0] === "dockHidden") { applyDock(); return; }
     if (changed.perPage || changed.limit) { /* 渲染由 renderAll 统一处理 */ }
     renderAll();
   });

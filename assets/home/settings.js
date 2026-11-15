@@ -23,6 +23,10 @@ const PAGE_OPTS = [
   { value: "48", label: "48" },
   { value: "0", label: "全部" },
 ];
+const DOCK_OPTS = [
+  { value: "show", label: "展开" },
+  { value: "hide", label: "收起" },
+];
 
 function segHTML(name, opts, active) {
   return '<div class="ios-segmented" data-seg="' + name + '">' +
@@ -50,6 +54,7 @@ export function openSettings(opts) {
       cell("默认视图", segHTML("view", VIEW_OPTS, st.view)) +
       cell("图标大小", segHTML("iconSize", SIZE_OPTS, s().iconSize)) +
       cell("每页图标数", segHTML("perPage", PAGE_OPTS, perPage)) +
+      cell("底部 Dock 常驻栏", segHTML("dock", DOCK_OPTS, s().dock === "hide" ? "hide" : "show")) +
       '<button class="ios-cell" type="button" data-sort-row><span class="ios-cell-label">排序</span>' +
       '<span class="ios-cell-value">' + escapeHtml(SORTS[st.sort] || st.sort) + "</span></button>" +
       "</div></div>" +
@@ -97,6 +102,10 @@ export function openSettings(opts) {
       if (name === "view") opts.onView(value);
       if (name === "iconSize") opts.onIconSize(value);
       if (name === "perPage") opts.onPerPage(value);
+      if (name === "dock") {
+        opts.onDock(value === "show");
+        showToast(value === "show" ? "Dock 已展开" : "Dock 已收起（点细棒展开）");
+      }
       return;
     }
     if (e.target.closest("[data-sort-row]")) {

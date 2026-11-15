@@ -21,15 +21,21 @@
 }
 
 /* ------------------------------ App 外壳 ------------------------------ */
+/* 移动端：不锁高度，交给文档自身滚动（iOS 主屏语义：导航条粘顶、Dock 常驻底部、
+   内容区预留 --dock-space 高度，最后一行图块与「加载更多」不会被 Dock 遮住）。
+   收起 Dock 时 body.dock-hidden 把预留高度缩到细条高度。 */
 .ios-app {
   position: relative;
+  --dock-space: calc(var(--dock-h) + 20px);
   display: flex; flex-direction: column;
-  height: 100vh; height: 100dvh;
-  overflow: hidden;
+  min-height: 100vh;
+  min-height: 100dvh;
 }
+body.dock-hidden .ios-app { --dock-space: 62px; }
 
 /* 顶部导航（常驻，滚动时内联标题淡入） */
 .ios-chrome {
+  position: sticky; top: 0; z-index: 20;
   flex: 0 0 auto;
   padding: calc(4px + env(safe-area-inset-top, 0px)) 14px 8px;
   background: var(--material);
@@ -63,19 +69,19 @@ body.scrolled .ios-chrome { box-shadow: 0 2px 12px rgba(0, 0, 0, 0.10); }
   flex: 1 1 auto;
   display: flex; flex-direction: column;
   min-height: 0;
-  padding: 10px 0 calc(8px + env(safe-area-inset-bottom, 0px));
+  padding: 10px 0 10px;
 }
 .ios-main-pad { padding: 14px 14px 20px; }
 
-/* 图标视图：横向翻页容器（iPhone 主屏） */
+/* 图标视图：横向翻页容器（iPhone 主屏）。纵向由文档滚动，页内不产生第二个滚动条。 */
 .ios-springboard {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   min-height: 0;
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: 100%;
   overflow-x: auto;
-  overflow-y: hidden;
+  overflow-y: visible;
   overscroll-behavior-x: contain;
   scroll-snap-type: x mandatory;
   scroll-behavior: smooth;
@@ -91,13 +97,11 @@ body.scrolled .ios-chrome { box-shadow: 0 2px 12px rgba(0, 0, 0, 0.10); }
   align-content: start;
   gap: 20px 6px;
   min-width: 0;
-  height: 100%;
+  height: auto;
   padding: 10px 10px 8px;
-  overflow-y: auto;
-  overscroll-behavior-y: contain;
+  overflow: visible;
   scroll-snap-align: center;
   scroll-snap-stop: always;
-  -webkit-overflow-scrolling: touch;
 }
 .ios-page-end {
   grid-column: 1 / -1;
@@ -128,49 +132,78 @@ body.scrolled .ios-chrome { box-shadow: 0 2px 12px rgba(0, 0, 0, 0.10); }
 }
 .ios-more-info { font-size: var(--fs-12); color: var(--label-secondary); }
 .ios-grouped {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   min-height: 0;
-  overflow: auto;
-  -webkit-overflow-scrolling: touch;
+  overflow: visible;
   padding: 6px 0 18px;
 }
 .ios-empty { flex: 1 1 auto; justify-content: center; }
 .ios-site-footer {
-  padding: 16px 16px 24px;
+  padding: 16px 16px calc(var(--dock-space) + 12px + env(safe-area-inset-bottom, 0px));
   font-size: var(--fs-12);
   color: var(--label-secondary);
   text-align: center;
 }
 
 /* ------------------------------ Dock ------------------------------ */
+/* 移动端：单行横向滚动（不换行，避免 Dock 变高压住内容）；收起按钮吸右边缘。 */
 .ios-dock {
   position: fixed; z-index: 30;
   left: 50%; bottom: calc(8px + env(safe-area-inset-bottom, 0px));
   transform: translateX(-50%);
-  display: flex; align-items: center; justify-content: center;
+  display: flex; align-items: center; justify-content: flex-start;
   gap: 12px;
-  max-width: 96vw;
+  flex-wrap: nowrap;
+  max-width: 94vw;
   padding: 10px 12px;
   border-radius: var(--r-xl);
   background: var(--dock-bg);
   -webkit-backdrop-filter: saturate(180%) blur(22px);
   backdrop-filter: saturate(180%) blur(22px);
   box-shadow: 0 8px 26px rgba(0, 0, 0, 0.16), inset 0 0 0 0.5px var(--material-border);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
 }
+.ios-dock::-webkit-scrollbar { display: none; }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .ios-dock { background: var(--material-thick); }
 }
-.ios-dock .ios-tile { gap: 0; padding: 2px; }
+.ios-dock .ios-tile { flex: 0 0 auto; gap: 0; padding: 2px; }
 .ios-dock .ios-tile-label { display: none; }
 .ios-dock .ios-tile-icon { width: 54px; height: 54px; font-size: 27px; }
-.ios-dock-sep { width: 1px; align-self: stretch; margin: 6px 2px; background: var(--separator); }
+.ios-dock-sep { flex: 0 0 auto; width: 1px; align-self: stretch; margin: 6px 2px; background: var(--separator); }
 
-/* 图标视图底部留白（避免被 Dock 遮住） */
-.ios-main:has(.ios-springboard) { padding-bottom: 0; }
+/* Dock 收起 / 展开：收起后只留一条细棒，内容区预留高度同步缩小（--dock-space） */
+.ios-dock-toggle {
+  position: sticky; right: 0;
+  display: flex; flex: 0 0 auto;
+  align-items: center; justify-content: center; gap: 5px;
+  width: 30px; height: 54px;
+  border: 0; border-radius: var(--r-lg);
+  background: var(--fill-2); color: var(--label-secondary);
+  font: inherit; font-size: var(--fs-11);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+}
+.ios-dock-toggle:hover { background: var(--fill); color: var(--label); }
+.ios-dock-toggle svg { width: 15px; height: 15px; transition: transform var(--dur) var(--ease); }
+.ios-dock-toggle-text { display: none; }
+body.dock-hidden .ios-dock { gap: 8px; padding: 6px 8px; }
+body.dock-hidden .ios-dock .ios-tile,
+body.dock-hidden .ios-dock .ios-dock-sep { display: none; }
+body.dock-hidden .ios-dock-toggle { width: auto; height: 30px; padding: 0 10px; }
+body.dock-hidden .ios-dock-toggle-text { display: inline; }
+body.dock-hidden .ios-dock-toggle svg { transform: rotate(180deg); }
+
+/* 底部留白统一由 .ios-main 的 --dock-space 预留（收起 Dock 时自动缩小），
+   最后一行图块 /「加载更多」/ 列表末尾都不会被 Dock 压住。 */
 .ios-springboard { padding-bottom: 4px; }
 .ios-main > .ios-grouped,
 .ios-main > .ios-more,
-.ios-main > .ios-empty { padding-bottom: calc(var(--dock-h) + 10px); }
+.ios-main > .ios-empty { padding-bottom: 0; }
 
 /* ------------------------------ Spotlight ------------------------------ */
 .ios-spotlight {
@@ -258,7 +291,7 @@ body.scrolled .ios-chrome { box-shadow: 0 2px 12px rgba(0, 0, 0, 0.10); }
   .ios-main {
     display: block;
     overflow: visible;
-    padding: 16px 0 24px;
+    padding: 16px 0 12px;
   }
   .ios-springboard {
     display: block;
@@ -283,7 +316,7 @@ body.scrolled .ios-chrome { box-shadow: 0 2px 12px rgba(0, 0, 0, 0.10); }
   .ios-list { margin: 0; }
   .ios-main > .ios-grouped,
   .ios-main > .ios-more,
-  .ios-main > .ios-empty { padding-bottom: calc(var(--dock-h) + 26px); }
+  .ios-main > .ios-empty { padding-bottom: 0; }
   .ios-spotlight { display: none !important; }
   .ios-dock { bottom: calc(14px + env(safe-area-inset-bottom, 0px)); gap: 16px; padding: 12px 16px; }
   .ios-dock .ios-tile-icon { width: 60px; height: 60px; font-size: 30px; }
@@ -338,8 +371,10 @@ body.scrolled .ios-chrome { box-shadow: 0 2px 12px rgba(0, 0, 0, 0.10); }
 .ios-sheet-host { position: fixed; inset: 0; z-index: 59; pointer-events: none; }
 .ios-sheet-host > * { pointer-events: auto; }
 
-/* Dock：内容多时换行，不横向滚动 */
-.ios-dock { flex-wrap: wrap; max-width: min(560px, 94vw); row-gap: 8px; }
+/* Dock：平板/PC 居中换行，不需要横向滚动（移动端保持单行滚动） */
+@media (min-width: 768px) {
+  .ios-dock { flex-wrap: wrap; overflow-x: visible; justify-content: center; max-width: min(560px, 94vw); row-gap: 8px; }
+}
 
 /* 侧栏插槽（≥1024px 时 JS 会把搜索/分类/控件搬到这里） */
 .ios-sidebar .ios-searchbar { display: flex; max-width: none; height: 34px; }

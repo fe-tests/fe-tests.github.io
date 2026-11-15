@@ -179,7 +179,7 @@ node tools/new-page.js my-demo --title="我的演示" --desc="一句话说明这
 
 | 视口 | 形态 |
 | --- | --- |
-| `<768px`（手机） | 主屏（Springboard）图块**左右翻页**（4 列 × 6 行 = 24 个/页，底部圆点指示），底部 **Dock**（系统应用 + 置顶页面 + 自定义收藏），下拉进 **Spotlight** 全屏搜索 |
+| `<768px`（手机） | 主屏（Springboard）图块**左右翻页**（4 列 × 6 行 = 24 个/页，底部圆点指示），**整页纵向由文档滚动**（导航条 `position: sticky` 吸顶，页内不产生第二根滚动条），底部 **Dock**（系统应用 + 置顶页面 + 自定义收藏，单行横向滚动、可收起），下拉进 **Spotlight** 全屏搜索 |
 | `768–1023px`（平板） | 自适应网格 + 「加载更多」+ Dock |
 | `≥1024px`（PC） | 左侧**侧栏**（位置 / 搜索 / 分类 / 控件）+ 右侧内容网格，导航条控件移进侧栏 |
 
@@ -191,11 +191,12 @@ node tools/new-page.js my-demo --title="我的演示" --desc="一句话说明这
 - **视图切换**：主屏图块 ↔ 分组列表（`L` 键切换）。
 - **状态徽标**：图块右上角 `稳定 / 实验 / 开发中` 圆点，置顶图块带 📌。
 - **长按 / 右键图块**：上下文菜单（打开 / 详情 / 新窗口打开 / 复制链接 / 加到 Dock）。
-- **Dock 收藏**：长按 Dock 空位添加常用页面（`localStorage`，不进注册表）。
+- **Dock 收藏**：长按图块 → 「添加到 Dock」（`localStorage`，不进注册表）；Dock 图标单行横向滚动，
+  右侧按钮（或 `D` 键 / 设置面板）可**收起成细棒**，收起后内容区底部预留高度自动缩小（`--dock-space`）。
 - **深浅色主题**：跟随系统 + 手动切换（自动 / 浅色 / 深色），存 `localStorage` 并同步 `<meta name="theme-color">`。
-- **设置面板**：主题、视图、图标大小（标准 / 大图标）、每页行数、排序、重置本机设置。
+- **设置面板**：主题、视图、图标大小（标准 / 大图标）、每页行数、底部 Dock（展开 / 收起）、排序、重置本机设置。
 - **地址栏同步**：`?cat=&q=&view=&sort=` 可分享链接；`←/→` 换页、`Home/End` 跳首末页。
-- **键盘**：`/` 搜索、`L` 视图、`T` 主题、`Esc` 关闭浮层、`←→` 翻页、`Home/End/PageUp/PageDown` 换页。
+- **键盘**：`/` 搜索、`L` 视图、`T` 主题、`D` 收起/展开 Dock、`Esc` 关闭浮层、`←→` 翻页、`Home/End/PageUp/PageDown` 换页。
 
 > 与设计的偏差（有意为之，已写进对应页面文档）：首页**底部不放 iOS tab bar**（移动端只保留 Dock，
 > 底部标签栏属于「资源管理器」页的文件语义）；主屏分页**一次渲染全部分页**（每页 ≤24 图块，
@@ -220,7 +221,7 @@ node tools/new-page.js my-demo --title="我的演示" --desc="一句话说明这
 
   首页侧由 `assets/home/apps.js` 的 `labelOf(app, isMobile)` 处理，页面侧由 `examples/file-manager/js/label.js`
   的 `appTitle(isNarrow)` 处理；两端断点必须一致（`max-width: 767px`）。
-- **本机偏好键名**：`iosHome.settings.v1`（首页设置，含 `theme`）、`iosHome.dockExtras.v1`（Dock 收藏）、
+- **本机偏好键名**：`iosHome.settings.v1`（首页设置，含 `theme` 与 `dock` 展开/收起）、`iosHome.dockExtras.v1`（Dock 收藏）、
   `fm.view.v1` / `fm.recent.v1` / `fm.favorites.v1`（资源管理器页）。带版本号后缀，改结构就升版本号（`v2`）。
   这些是**本机偏好，不进注册表**（注册表字段固定，见《注册表字段规范》）。
 
@@ -329,8 +330,19 @@ netsh advfirewall firewall add rule name="node static 39977" dir=in action=allow
   内容区塌成 min-content（1440 视口下只有 326px 宽），图标网格因此只剩两列。
   补 `margin:0` 即恢复（实测内容区 1178px、9 列）。**规律**：把元素从 flex 容器改成 grid 容器时，
   上一档媒体查询里的 `margin:0 auto` 居中必须一起清掉，否则 auto 边距会顶掉 stretch。
+- 踩坑修复（移动端无法滚动 + 底部 Dock 遮挡）：`.ios-app{height:100dvh;overflow:hidden}` 把整页锁成「内部滚动」，
+  手机上一根导航条就吃掉约 260px，纵向滚动只剩在 `.ios-page` 内层（嵌在 `overflow-x:auto` 的翻页容器里，触摸常失效），
+  体感就是「滚不动」；Dock 是 `position:fixed` 悬浮层，移动端图标多时会**换行变高**（144px > 预留的 `--dock-h` 82px），
+  最后一行图块被压住且没有收起入口。改法：移动端不锁高度（`min-height:100dvh`；导航条 `position:sticky` 吸顶；
+  `.ios-page` / `.ios-grouped` 改 `overflow:visible`，纵向统一交给文档滚动），Dock 移动端 `nowrap` + 横向滚动，
+  底部预留收成一个变量 `--dock-space`（加在最后一块 `.ios-site-footer` 的下内边距上，收起时缩到 62px），
+  并新增**收起 / 展开**入口（Dock 右端按钮 `position:sticky`、设置面板「底部 Dock 常驻栏」、键盘 `D`，
+  存 `settings.dock = "show|hide"`）。实测 375×812 与 320×568：文档可滚（`scrollHeight` 1091 > 视口 812），
+  滚到底最后一块距 Dock 顶 84px 不被遮；收起后 Dock 高 42px、刷新后仍是收起状态。
 - 校验手法：`chrome --headless=new --dump-dom` 打开一个 iframe 探针页，用 `getBoundingClientRect()` /
-  `getComputedStyle()` 打印 375×812、905×1024、1440×900 三档下关键容器的宽高与网格列数（探针页用完即删）。
+  `getComputedStyle()` 打印 375×812、320×568、768×1024、905×1024、1440×900 各档下关键容器的宽高、
+  文档可滚性、Dock 高度与图块净距（探针页用完即删；全局 `scroll-behavior:smooth` 下要显式用
+  `scrollTo({behavior:'instant'})` 才测得到瞬时 `scrollY`）。
 - 本次改版未改 `server.js` 与 `package.json`（`git diff --stat` 为空），注册表字段未新增。
 
 ## 结构迁移记录（2026-10）

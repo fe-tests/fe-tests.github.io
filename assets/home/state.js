@@ -15,6 +15,7 @@ export const SETTINGS_DEFAULTS = {
   iconSize: "standard", // standard | big
   perPage: 0,           // 0 = 用注册表 views.perPage
   sort: "pinned-desc",
+  dock: "show",         // show | hide（底部常驻 Dock；hide 时内容区预留高度同步缩小）
 };
 
 function readJSON(key) {

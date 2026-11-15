@@ -217,14 +217,15 @@ export function handleGridKey(root, ev, opts) {
   return focusTile(tiles[target]);
 }
 
-/** 移动端下拉打开 Spotlight（绑在翻页容器上，判定当前页的 scrollTop） */
+/** 移动端下拉打开 Spotlight（只在页面/文档都在顶部时触发，避免打断正常滚动） */
 export function bindPullDown(root, onPull, threshold) {
   const th = threshold || 56;
   let startY = null;
   let box = null;
   root.addEventListener("touchstart", function (e) {
     const page = e.target.closest ? e.target.closest(".ios-page") : null;
-    box = page && page.scrollTop <= 1 ? page : (page ? null : root);
+    const top = (page ? page.scrollTop <= 1 : true) && (window.scrollY || 0) <= 4;
+    box = top ? (page || root) : null;
     startY = box ? e.touches[0].clientY : null;
   }, { passive: true });
   root.addEventListener("touchmove", function (e) {
