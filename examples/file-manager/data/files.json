@@ -1,0 +1,1556 @@
+{
+ "generated": "2026-11-15 11:32:22",
+ "root": "",
+ "count": 258,
+ "truncated": false,
+ "entries": [
+  {
+   "p": "",
+   "t": "d",
+   "m": "2026-11-15 11:32:10",
+   "n": 8
+  },
+  {
+   "p": "assets",
+   "t": "d",
+   "m": "2026-11-15 11:24:29",
+   "n": 5
+  },
+  {
+   "p": "examples",
+   "t": "d",
+   "m": "2026-11-15 10:45:16",
+   "n": 28
+  },
+  {
+   "p": "tools",
+   "t": "d",
+   "m": "2026-11-15 10:44:45",
+   "n": 3
+  },
+  {
+   "p": "index.html",
+   "t": "f",
+   "m": "2026-11-15 10:19:02",
+   "s": 10105
+  },
+  {
+   "p": "package.json",
+   "t": "f",
+   "m": "2026-10-25 17:22:43",
+   "s": 372
+  },
+  {
+   "p": "README.md",
+   "t": "f",
+   "m": "2026-11-15 11:32:10",
+   "s": 27375
+  },
+  {
+   "p": "registry.json",
+   "t": "f",
+   "m": "2026-11-15 10:45:58",
+   "s": 15321
+  },
+  {
+   "p": "server.js",
+   "t": "f",
+   "m": "2026-10-31 01:31:46",
+   "s": 8658
+  },
+  {
+   "p": "assets/home",
+   "t": "d",
+   "m": "2026-11-15 10:59:02",
+   "n": 10
+  },
+  {
+   "p": "assets/vendor",
+   "t": "d",
+   "m": "2026-11-15 10:43:06",
+   "n": 2
+  },
+  {
+   "p": "assets/home.css",
+   "t": "f",
+   "m": "2026-11-15 11:24:29",
+   "s": 13575
+  },
+  {
+   "p": "assets/registry.js",
+   "t": "f",
+   "m": "2026-10-24 19:55:32",
+   "s": 3910
+  },
+  {
+   "p": "assets/styles.css",
+   "t": "f",
+   "m": "2026-11-15 10:22:15",
+   "s": 29350
+  },
+  {
+   "p": "examples/2048",
+   "t": "d",
+   "m": "2026-10-31 01:02:12",
+   "n": 3
+  },
+  {
+   "p": "examples/3d-shoot-game",
+   "t": "d",
+   "m": "2026-10-31 01:02:12",
+   "n": 3
+  },
+  {
+   "p": "examples/ai-sphere-webgl",
+   "t": "d",
+   "m": "2026-11-13 20:33:31",
+   "n": 3
+  },
+  {
+   "p": "examples/archery",
+   "t": "d",
+   "m": "2026-10-31 01:02:12",
+   "n": 3
+  },
+  {
+   "p": "examples/daoshui",
+   "t": "d",
+   "m": "2026-10-31 01:02:12",
+   "n": 3
+  },
+  {
+   "p": "examples/embedding-viz",
+   "t": "d",
+   "m": "2026-10-31 01:02:13",
+   "n": 3
+  },
+  {
+   "p": "examples/emoji-match",
+   "t": "d",
+   "m": "2026-10-31 01:02:13",
+   "n": 3
+  },
+  {
+   "p": "examples/file-manager",
+   "t": "d",
+   "m": "2026-11-15 11:13:13",
+   "n": 6
+  },
+  {
+   "p": "examples/forbidden-city",
+   "t": "d",
+   "m": "2026-11-11 21:34:44",
+   "n": 6
+  },
+  {
+   "p": "examples/hearts",
+   "t": "d",
+   "m": "2026-10-31 01:02:13",
+   "n": 3
+  },
+  {
+   "p": "examples/hello-llm",
+   "t": "d",
+   "m": "2026-10-31 01:02:13",
+   "n": 3
+  },
+  {
+   "p": "examples/liankan",
+   "t": "d",
+   "m": "2026-10-31 01:02:13",
+   "n": 3
+  },
+  {
+   "p": "examples/mahjong-3d",
+   "t": "d",
+   "m": "2026-10-31 01:02:13",
+   "n": 3
+  },
+  {
+   "p": "examples/minesweeper",
+   "t": "d",
+   "m": "2026-10-31 01:02:14",
+   "n": 3
+  },
+  {
+   "p": "examples/music-editor",
+   "t": "d",
+   "m": "2026-10-31 01:02:14",
+   "n": 3
+  },
+  {
+   "p": "examples/pelican-bike",
+   "t": "d",
+   "m": "2026-10-31 01:02:14",
+   "n": 3
+  },
+  {
+   "p": "examples/racing-game",
+   "t": "d",
+   "m": "2026-10-31 01:02:14",
+   "n": 3
+  },
+  {
+   "p": "examples/rubik-3d",
+   "t": "d",
+   "m": "2026-10-31 01:02:14",
+   "n": 3
+  },
+  {
+   "p": "examples/solar-system-3d",
+   "t": "d",
+   "m": "2026-10-31 01:02:14",
+   "n": 3
+  },
+  {
+   "p": "examples/space-warship",
+   "t": "d",
+   "m": "2026-10-31 01:02:15",
+   "n": 3
+  },
+  {
+   "p": "examples/strike-pong",
+   "t": "d",
+   "m": "2026-10-31 01:02:15",
+   "n": 3
+  },
+  {
+   "p": "examples/sudoku",
+   "t": "d",
+   "m": "2026-10-31 01:02:15",
+   "n": 3
+  },
+  {
+   "p": "examples/template",
+   "t": "d",
+   "m": "2026-10-31 01:28:14",
+   "n": 3
+  },
+  {
+   "p": "examples/tetris",
+   "t": "d",
+   "m": "2026-10-31 01:02:15",
+   "n": 3
+  },
+  {
+   "p": "examples/texas-holdem",
+   "t": "d",
+   "m": "2026-10-31 01:02:15",
+   "n": 3
+  },
+  {
+   "p": "examples/token-counter",
+   "t": "d",
+   "m": "2026-10-31 01:02:15",
+   "n": 3
+  },
+  {
+   "p": "examples/tower-defense",
+   "t": "d",
+   "m": "2026-10-31 20:26:43",
+   "n": 7
+  },
+  {
+   "p": "examples/zuma",
+   "t": "d",
+   "m": "2026-10-31 01:02:16",
+   "n": 3
+  },
+  {
+   "p": "tools/build-fs-manifest.js",
+   "t": "f",
+   "m": "2026-11-15 10:44:45",
+   "s": 6849
+  },
+  {
+   "p": "tools/migrate-to-dirs.js",
+   "t": "f",
+   "m": "2026-10-31 01:10:16",
+   "s": 20057
+  },
+  {
+   "p": "tools/new-page.js",
+   "t": "f",
+   "m": "2026-10-31 01:26:53",
+   "s": 13320
+  },
+  {
+   "p": "assets/home/apps.js",
+   "t": "f",
+   "m": "2026-11-15 10:23:20",
+   "s": 6336
+  },
+  {
+   "p": "assets/home/format.js",
+   "t": "f",
+   "m": "2026-11-15 10:20:48",
+   "s": 3750
+  },
+  {
+   "p": "assets/home/icons.js",
+   "t": "f",
+   "m": "2026-11-15 10:59:02",
+   "s": 5212
+  },
+  {
+   "p": "assets/home/listview.js",
+   "t": "f",
+   "m": "2026-11-15 10:29:05",
+   "s": 2440
+  },
+  {
+   "p": "assets/home/main.js",
+   "t": "f",
+   "m": "2026-11-15 10:41:59",
+   "s": 24288
+  },
+  {
+   "p": "assets/home/settings.js",
+   "t": "f",
+   "m": "2026-11-15 10:31:06",
+   "s": 5166
+  },
+  {
+   "p": "assets/home/sheets.js",
+   "t": "f",
+   "m": "2026-11-15 10:24:41",
+   "s": 10396
+  },
+  {
+   "p": "assets/home/spotlight.js",
+   "t": "f",
+   "m": "2026-11-15 10:30:00",
+   "s": 3289
+  },
+  {
+   "p": "assets/home/springboard.js",
+   "t": "f",
+   "m": "2026-11-15 10:42:16",
+   "s": 8901
+  },
+  {
+   "p": "assets/home/state.js",
+   "t": "f",
+   "m": "2026-11-15 10:23:41",
+   "s": 3254
+  },
+  {
+   "p": "assets/vendor/three",
+   "t": "d",
+   "m": "2026-10-31 00:48:34",
+   "n": 1
+  },
+  {
+   "p": "assets/vendor/README.md",
+   "t": "f",
+   "m": "2026-11-15 10:43:06",
+   "s": 4821
+  },
+  {
+   "p": "examples/2048/docs",
+   "t": "d",
+   "m": "2026-10-31 01:02:12",
+   "n": 2
+  },
+  {
+   "p": "examples/2048/index.html",
+   "t": "f",
+   "m": "2026-10-24 19:53:10",
+   "s": 16013
+  },
+  {
+   "p": "examples/2048/README.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:25",
+   "s": 2627
+  },
+  {
+   "p": "examples/3d-shoot-game/docs",
+   "t": "d",
+   "m": "2026-10-31 01:02:12",
+   "n": 2
+  },
+  {
+   "p": "examples/3d-shoot-game/index.html",
+   "t": "f",
+   "m": "2026-10-31 00:55:25",
+   "s": 42722
+  },
+  {
+   "p": "examples/3d-shoot-game/README.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:25",
+   "s": 2841
+  },
+  {
+   "p": "examples/ai-sphere-webgl/docs",
+   "t": "d",
+   "m": "2026-11-13 20:32:56",
+   "n": 2
+  },
+  {
+   "p": "examples/ai-sphere-webgl/index.html",
+   "t": "f",
+   "m": "2026-11-13 20:28:27",
+   "s": 45043
+  },
+  {
+   "p": "examples/ai-sphere-webgl/README.md",
+   "t": "f",
+   "m": "2026-11-13 20:33:31",
+   "s": 7238
+  },
+  {
+   "p": "examples/archery/docs",
+   "t": "d",
+   "m": "2026-10-31 01:02:12",
+   "n": 2
+  },
+  {
+   "p": "examples/archery/index.html",
+   "t": "f",
+   "m": "2026-10-24 19:14:41",
+   "s": 25368
+  },
+  {
+   "p": "examples/archery/README.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:26",
+   "s": 2670
+  },
+  {
+   "p": "examples/daoshui/docs",
+   "t": "d",
+   "m": "2026-10-31 01:02:12",
+   "n": 2
+  },
+  {
+   "p": "examples/daoshui/index.html",
+   "t": "f",
+   "m": "2026-10-24 19:14:41",
+   "s": 23235
+  },
+  {
+   "p": "examples/daoshui/README.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:26",
+   "s": 2633
+  },
+  {
+   "p": "examples/embedding-viz/docs",
+   "t": "d",
+   "m": "2026-10-31 01:02:13",
+   "n": 2
+  },
+  {
+   "p": "examples/embedding-viz/index.html",
+   "t": "f",
+   "m": "2026-10-24 19:53:10",
+   "s": 3678
+  },
+  {
+   "p": "examples/embedding-viz/README.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:26",
+   "s": 2581
+  },
+  {
+   "p": "examples/emoji-match/docs",
+   "t": "d",
+   "m": "2026-10-31 01:02:13",
+   "n": 2
+  },
+  {
+   "p": "examples/emoji-match/index.html",
+   "t": "f",
+   "m": "2026-10-24 19:53:10",
+   "s": 8484
+  },
+  {
+   "p": "examples/emoji-match/README.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:26",
+   "s": 2570
+  },
+  {
+   "p": "examples/file-manager/css",
+   "t": "d",
+   "m": "2026-11-15 11:07:41",
+   "n": 1
+  },
+  {
+   "p": "examples/file-manager/data",
+   "t": "d",
+   "m": "2026-11-15 10:47:01",
+   "n": 1
+  },
+  {
+   "p": "examples/file-manager/docs",
+   "t": "d",
+   "m": "2026-11-15 11:15:44",
+   "n": 2
+  },
+  {
+   "p": "examples/file-manager/js",
+   "t": "d",
+   "m": "2026-11-15 11:08:40",
+   "n": 7
+  },
+  {
+   "p": "examples/file-manager/index.html",
+   "t": "f",
+   "m": "2026-11-15 10:59:05",
+   "s": 6504
+  },
+  {
+   "p": "examples/file-manager/README.md",
+   "t": "f",
+   "m": "2026-11-15 11:13:13",
+   "s": 8233
+  },
+  {
+   "p": "examples/forbidden-city/css",
+   "t": "d",
+   "m": "2026-11-08 17:51:46",
+   "n": 1
+  },
+  {
+   "p": "examples/forbidden-city/docs",
+   "t": "d",
+   "m": "2026-11-11 21:35:43",
+   "n": 5
+  },
+  {
+   "p": "examples/forbidden-city/js",
+   "t": "d",
+   "m": "2026-11-14 09:47:30",
+   "n": 13
+  },
+  {
+   "p": "examples/forbidden-city/tools",
+   "t": "d",
+   "m": "2026-11-11 21:25:32",
+   "n": 6
+  },
+  {
+   "p": "examples/forbidden-city/index.html",
+   "t": "f",
+   "m": "2026-11-08 21:34:16",
+   "s": 8958
+  },
+  {
+   "p": "examples/forbidden-city/README.md",
+   "t": "f",
+   "m": "2026-11-11 21:34:44",
+   "s": 8194
+  },
+  {
+   "p": "examples/hearts/docs",
+   "t": "d",
+   "m": "2026-10-31 01:02:13",
+   "n": 2
+  },
+  {
+   "p": "examples/hearts/index.html",
+   "t": "f",
+   "m": "2026-10-24 19:14:41",
+   "s": 30427
+  },
+  {
+   "p": "examples/hearts/README.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:26",
+   "s": 2635
+  },
+  {
+   "p": "examples/hello-llm/docs",
+   "t": "d",
+   "m": "2026-10-31 01:02:13",
+   "n": 2
+  },
+  {
+   "p": "examples/hello-llm/index.html",
+   "t": "f",
+   "m": "2026-10-24 19:53:10",
+   "s": 3633
+  },
+  {
+   "p": "examples/hello-llm/README.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:26",
+   "s": 2520
+  },
+  {
+   "p": "examples/liankan/docs",
+   "t": "d",
+   "m": "2026-10-31 01:02:13",
+   "n": 2
+  },
+  {
+   "p": "examples/liankan/index.html",
+   "t": "f",
+   "m": "2026-10-24 19:14:41",
+   "s": 25867
+  },
+  {
+   "p": "examples/liankan/README.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:26",
+   "s": 2603
+  },
+  {
+   "p": "examples/mahjong-3d/docs",
+   "t": "d",
+   "m": "2026-10-31 01:02:13",
+   "n": 2
+  },
+  {
+   "p": "examples/mahjong-3d/index.html",
+   "t": "f",
+   "m": "2026-10-31 00:56:01",
+   "s": 89148
+  },
+  {
+   "p": "examples/mahjong-3d/README.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:26",
+   "s": 2933
+  },
+  {
+   "p": "examples/minesweeper/docs",
+   "t": "d",
+   "m": "2026-10-31 01:02:14",
+   "n": 2
+  },
+  {
+   "p": "examples/minesweeper/index.html",
+   "t": "f",
+   "m": "2026-10-24 19:53:10",
+   "s": 15050
+  },
+  {
+   "p": "examples/minesweeper/README.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:26",
+   "s": 2645
+  },
+  {
+   "p": "examples/music-editor/docs",
+   "t": "d",
+   "m": "2026-10-31 01:02:14",
+   "n": 2
+  },
+  {
+   "p": "examples/music-editor/index.html",
+   "t": "f",
+   "m": "2026-10-24 19:14:41",
+   "s": 19141
+  },
+  {
+   "p": "examples/music-editor/README.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:26",
+   "s": 2665
+  },
+  {
+   "p": "examples/pelican-bike/docs",
+   "t": "d",
+   "m": "2026-10-31 01:02:14",
+   "n": 2
+  },
+  {
+   "p": "examples/pelican-bike/index.html",
+   "t": "f",
+   "m": "2026-10-24 19:14:41",
+   "s": 24122
+  },
+  {
+   "p": "examples/pelican-bike/README.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:26",
+   "s": 2669
+  },
+  {
+   "p": "examples/racing-game/docs",
+   "t": "d",
+   "m": "2026-10-31 01:02:14",
+   "n": 2
+  },
+  {
+   "p": "examples/racing-game/index.html",
+   "t": "f",
+   "m": "2026-10-24 19:53:10",
+   "s": 25231
+  },
+  {
+   "p": "examples/racing-game/README.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:26",
+   "s": 2749
+  },
+  {
+   "p": "examples/rubik-3d/docs",
+   "t": "d",
+   "m": "2026-10-31 01:02:14",
+   "n": 2
+  },
+  {
+   "p": "examples/rubik-3d/index.html",
+   "t": "f",
+   "m": "2026-10-31 00:56:01",
+   "s": 82892
+  },
+  {
+   "p": "examples/rubik-3d/README.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:26",
+   "s": 3201
+  },
+  {
+   "p": "examples/solar-system-3d/docs",
+   "t": "d",
+   "m": "2026-10-31 01:02:14",
+   "n": 2
+  },
+  {
+   "p": "examples/solar-system-3d/index.html",
+   "t": "f",
+   "m": "2026-10-31 00:55:25",
+   "s": 105909
+  },
+  {
+   "p": "examples/solar-system-3d/README.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:27",
+   "s": 2883
+  },
+  {
+   "p": "examples/space-warship/docs",
+   "t": "d",
+   "m": "2026-10-31 01:02:15",
+   "n": 2
+  },
+  {
+   "p": "examples/space-warship/index.html",
+   "t": "f",
+   "m": "2026-10-24 19:14:41",
+   "s": 35869
+  },
+  {
+   "p": "examples/space-warship/README.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:27",
+   "s": 2744
+  },
+  {
+   "p": "examples/strike-pong/docs",
+   "t": "d",
+   "m": "2026-10-31 01:02:15",
+   "n": 2
+  },
+  {
+   "p": "examples/strike-pong/index.html",
+   "t": "f",
+   "m": "2026-10-24 19:14:41",
+   "s": 27282
+  },
+  {
+   "p": "examples/strike-pong/README.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:27",
+   "s": 2700
+  },
+  {
+   "p": "examples/sudoku/docs",
+   "t": "d",
+   "m": "2026-10-31 01:02:15",
+   "n": 2
+  },
+  {
+   "p": "examples/sudoku/index.html",
+   "t": "f",
+   "m": "2026-10-24 19:53:10",
+   "s": 20578
+  },
+  {
+   "p": "examples/sudoku/README.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:27",
+   "s": 2566
+  },
+  {
+   "p": "examples/template/docs",
+   "t": "d",
+   "m": "2026-10-31 01:19:30",
+   "n": 2
+  },
+  {
+   "p": "examples/template/index.html",
+   "t": "f",
+   "m": "2026-10-31 01:17:04",
+   "s": 3473
+  },
+  {
+   "p": "examples/template/README.md",
+   "t": "f",
+   "m": "2026-10-31 01:28:14",
+   "s": 3642
+  },
+  {
+   "p": "examples/tetris/docs",
+   "t": "d",
+   "m": "2026-10-31 01:02:15",
+   "n": 2
+  },
+  {
+   "p": "examples/tetris/index.html",
+   "t": "f",
+   "m": "2026-10-24 19:53:10",
+   "s": 22271
+  },
+  {
+   "p": "examples/tetris/README.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:27",
+   "s": 2713
+  },
+  {
+   "p": "examples/texas-holdem/docs",
+   "t": "d",
+   "m": "2026-10-31 01:02:15",
+   "n": 2
+  },
+  {
+   "p": "examples/texas-holdem/index.html",
+   "t": "f",
+   "m": "2026-10-24 19:14:41",
+   "s": 37486
+  },
+  {
+   "p": "examples/texas-holdem/README.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:27",
+   "s": 2684
+  },
+  {
+   "p": "examples/token-counter/docs",
+   "t": "d",
+   "m": "2026-10-31 01:02:15",
+   "n": 2
+  },
+  {
+   "p": "examples/token-counter/index.html",
+   "t": "f",
+   "m": "2026-10-24 19:53:10",
+   "s": 2328
+  },
+  {
+   "p": "examples/token-counter/README.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:27",
+   "s": 2505
+  },
+  {
+   "p": "examples/tower-defense/css",
+   "t": "d",
+   "m": "2026-10-31 14:03:55",
+   "n": 1
+  },
+  {
+   "p": "examples/tower-defense/docs",
+   "t": "d",
+   "m": "2026-10-31 21:00:14",
+   "n": 2
+  },
+  {
+   "p": "examples/tower-defense/js",
+   "t": "d",
+   "m": "2026-11-03 10:57:26",
+   "n": 13
+  },
+  {
+   "p": "examples/tower-defense/tools",
+   "t": "d",
+   "m": "2026-10-31 20:57:03",
+   "n": 2
+  },
+  {
+   "p": "examples/tower-defense/index.html",
+   "t": "f",
+   "m": "2026-10-31 19:18:24",
+   "s": 15996
+  },
+  {
+   "p": "examples/tower-defense/package.json",
+   "t": "f",
+   "m": "2026-10-31 12:05:06",
+   "s": 270
+  },
+  {
+   "p": "examples/tower-defense/README.md",
+   "t": "f",
+   "m": "2026-10-31 20:26:43",
+   "s": 10055
+  },
+  {
+   "p": "examples/zuma/docs",
+   "t": "d",
+   "m": "2026-10-31 01:02:16",
+   "n": 2
+  },
+  {
+   "p": "examples/zuma/index.html",
+   "t": "f",
+   "m": "2026-10-25 09:49:29",
+   "s": 94855
+  },
+  {
+   "p": "examples/zuma/README.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:27",
+   "s": 2872
+  },
+  {
+   "p": "assets/vendor/three/r128",
+   "t": "d",
+   "m": "2026-10-31 00:48:34",
+   "n": 1
+  },
+  {
+   "p": "examples/2048/docs/design.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:25",
+   "s": 2383
+  },
+  {
+   "p": "examples/2048/docs/devlog.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:25",
+   "s": 1749
+  },
+  {
+   "p": "examples/3d-shoot-game/docs/design.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:25",
+   "s": 2513
+  },
+  {
+   "p": "examples/3d-shoot-game/docs/devlog.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:25",
+   "s": 1754
+  },
+  {
+   "p": "examples/ai-sphere-webgl/docs/design.md",
+   "t": "f",
+   "m": "2026-11-13 20:31:06",
+   "s": 10252
+  },
+  {
+   "p": "examples/ai-sphere-webgl/docs/devlog.md",
+   "t": "f",
+   "m": "2026-11-13 20:32:56",
+   "s": 6537
+  },
+  {
+   "p": "examples/archery/docs/design.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:26",
+   "s": 2404
+  },
+  {
+   "p": "examples/archery/docs/devlog.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:26",
+   "s": 1556
+  },
+  {
+   "p": "examples/daoshui/docs/design.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:26",
+   "s": 2392
+  },
+  {
+   "p": "examples/daoshui/docs/devlog.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:26",
+   "s": 1574
+  },
+  {
+   "p": "examples/embedding-viz/docs/design.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:26",
+   "s": 2344
+  },
+  {
+   "p": "examples/embedding-viz/docs/devlog.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:26",
+   "s": 1668
+  },
+  {
+   "p": "examples/emoji-match/docs/design.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:26",
+   "s": 2379
+  },
+  {
+   "p": "examples/emoji-match/docs/devlog.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:26",
+   "s": 1708
+  },
+  {
+   "p": "examples/file-manager/css/main.css",
+   "t": "f",
+   "m": "2026-11-15 11:07:41",
+   "s": 10216
+  },
+  {
+   "p": "examples/file-manager/data/files.json",
+   "t": "f",
+   "m": "2026-11-15 11:30:56",
+   "s": 27511
+  },
+  {
+   "p": "examples/file-manager/docs/design.md",
+   "t": "f",
+   "m": "2026-11-15 11:14:36",
+   "s": 10923
+  },
+  {
+   "p": "examples/file-manager/docs/devlog.md",
+   "t": "f",
+   "m": "2026-11-15 11:15:44",
+   "s": 7821
+  },
+  {
+   "p": "examples/file-manager/js/api.js",
+   "t": "f",
+   "m": "2026-11-15 10:50:50",
+   "s": 6665
+  },
+  {
+   "p": "examples/file-manager/js/input.js",
+   "t": "f",
+   "m": "2026-11-15 10:58:53",
+   "s": 9910
+  },
+  {
+   "p": "examples/file-manager/js/label.js",
+   "t": "f",
+   "m": "2026-11-15 10:49:56",
+   "s": 5200
+  },
+  {
+   "p": "examples/file-manager/js/main.js",
+   "t": "f",
+   "m": "2026-11-15 11:08:22",
+   "s": 11232
+  },
+  {
+   "p": "examples/file-manager/js/preview.js",
+   "t": "f",
+   "m": "2026-11-15 11:08:40",
+   "s": 8885
+  },
+  {
+   "p": "examples/file-manager/js/render.js",
+   "t": "f",
+   "m": "2026-11-15 11:08:37",
+   "s": 14612
+  },
+  {
+   "p": "examples/file-manager/js/state.js",
+   "t": "f",
+   "m": "2026-11-15 10:54:17",
+   "s": 3374
+  },
+  {
+   "p": "examples/forbidden-city/css/main.css",
+   "t": "f",
+   "m": "2026-11-08 17:51:46",
+   "s": 1932
+  },
+  {
+   "p": "examples/forbidden-city/docs/assets.md",
+   "t": "f",
+   "m": "2026-11-11 21:33:56",
+   "s": 12508
+  },
+  {
+   "p": "examples/forbidden-city/docs/design.md",
+   "t": "f",
+   "m": "2026-11-11 21:33:02",
+   "s": 10224
+  },
+  {
+   "p": "examples/forbidden-city/docs/devlog.md",
+   "t": "f",
+   "m": "2026-11-11 21:35:43",
+   "s": 35401
+  },
+  {
+   "p": "examples/forbidden-city/docs/PROGRESS.md",
+   "t": "f",
+   "m": "2026-11-11 21:31:09",
+   "s": 38400
+  },
+  {
+   "p": "examples/forbidden-city/docs/research.md",
+   "t": "f",
+   "m": "2026-11-08 17:34:01",
+   "s": 15075
+  },
+  {
+   "p": "examples/forbidden-city/js/buildings.js",
+   "t": "f",
+   "m": "2026-11-11 21:21:19",
+   "s": 17037
+  },
+  {
+   "p": "examples/forbidden-city/js/camera.js",
+   "t": "f",
+   "m": "2026-11-11 01:52:03",
+   "s": 12410
+  },
+  {
+   "p": "examples/forbidden-city/js/config.js",
+   "t": "f",
+   "m": "2026-11-11 21:23:27",
+   "s": 6578
+  },
+  {
+   "p": "examples/forbidden-city/js/input.js",
+   "t": "f",
+   "m": "2026-11-08 21:33:53",
+   "s": 6975
+  },
+  {
+   "p": "examples/forbidden-city/js/interior.js",
+   "t": "f",
+   "m": "2026-11-11 08:23:20",
+   "s": 9412
+  },
+  {
+   "p": "examples/forbidden-city/js/layout.js",
+   "t": "f",
+   "m": "2026-11-11 21:20:38",
+   "s": 13524
+  },
+  {
+   "p": "examples/forbidden-city/js/main.js",
+   "t": "f",
+   "m": "2026-11-11 07:06:04",
+   "s": 14543
+  },
+  {
+   "p": "examples/forbidden-city/js/parts.js",
+   "t": "f",
+   "m": "2026-11-11 05:43:41",
+   "s": 41959
+  },
+  {
+   "p": "examples/forbidden-city/js/quality.js",
+   "t": "f",
+   "m": "2026-11-08 17:38:35",
+   "s": 4826
+  },
+  {
+   "p": "examples/forbidden-city/js/state.js",
+   "t": "f",
+   "m": "2026-11-08 17:54:11",
+   "s": 7758
+  },
+  {
+   "p": "examples/forbidden-city/js/textures.js",
+   "t": "f",
+   "m": "2026-11-08 18:54:54",
+   "s": 37477
+  },
+  {
+   "p": "examples/forbidden-city/js/ui.js",
+   "t": "f",
+   "m": "2026-11-08 21:34:41",
+   "s": 4691
+  },
+  {
+   "p": "examples/forbidden-city/js/world.js",
+   "t": "f",
+   "m": "2026-11-10 00:38:56",
+   "s": 6146
+  },
+  {
+   "p": "examples/forbidden-city/tools/vendor-check",
+   "t": "d",
+   "m": "2026-11-08 18:18:39",
+   "n": 1
+  },
+  {
+   "p": "examples/forbidden-city/tools/headless.mjs",
+   "t": "f",
+   "m": "2026-11-08 17:56:27",
+   "s": 6174
+  },
+  {
+   "p": "examples/forbidden-city/tools/package.json",
+   "t": "f",
+   "m": "2026-11-08 17:51:52",
+   "s": 271
+  },
+  {
+   "p": "examples/forbidden-city/tools/preview-textures.mjs",
+   "t": "f",
+   "m": "2026-11-08 18:24:55",
+   "s": 3368
+  },
+  {
+   "p": "examples/forbidden-city/tools/shot.mjs",
+   "t": "f",
+   "m": "2026-11-11 21:25:32",
+   "s": 8942
+  },
+  {
+   "p": "examples/forbidden-city/tools/smoke.mjs",
+   "t": "f",
+   "m": "2026-11-11 21:23:27",
+   "s": 54874
+  },
+  {
+   "p": "examples/hearts/docs/design.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:26",
+   "s": 2430
+  },
+  {
+   "p": "examples/hearts/docs/devlog.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:26",
+   "s": 1648
+  },
+  {
+   "p": "examples/hello-llm/docs/design.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:26",
+   "s": 2329
+  },
+  {
+   "p": "examples/hello-llm/docs/devlog.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:26",
+   "s": 1647
+  },
+  {
+   "p": "examples/liankan/docs/design.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:26",
+   "s": 2359
+  },
+  {
+   "p": "examples/liankan/docs/devlog.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:26",
+   "s": 1936
+  },
+  {
+   "p": "examples/mahjong-3d/docs/design.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:26",
+   "s": 2556
+  },
+  {
+   "p": "examples/mahjong-3d/docs/devlog.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:26",
+   "s": 1922
+  },
+  {
+   "p": "examples/minesweeper/docs/design.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:26",
+   "s": 2436
+  },
+  {
+   "p": "examples/minesweeper/docs/devlog.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:26",
+   "s": 1690
+  },
+  {
+   "p": "examples/music-editor/docs/design.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:26",
+   "s": 2391
+  },
+  {
+   "p": "examples/music-editor/docs/devlog.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:26",
+   "s": 1586
+  },
+  {
+   "p": "examples/pelican-bike/docs/design.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:26",
+   "s": 2410
+  },
+  {
+   "p": "examples/pelican-bike/docs/devlog.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:26",
+   "s": 1779
+  },
+  {
+   "p": "examples/racing-game/docs/design.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:26",
+   "s": 2460
+  },
+  {
+   "p": "examples/racing-game/docs/devlog.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:26",
+   "s": 1696
+  },
+  {
+   "p": "examples/rubik-3d/docs/design.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:26",
+   "s": 2798
+  },
+  {
+   "p": "examples/rubik-3d/docs/devlog.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:26",
+   "s": 1945
+  },
+  {
+   "p": "examples/solar-system-3d/docs/design.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:27",
+   "s": 2513
+  },
+  {
+   "p": "examples/solar-system-3d/docs/devlog.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:27",
+   "s": 1813
+  },
+  {
+   "p": "examples/space-warship/docs/design.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:27",
+   "s": 2441
+  },
+  {
+   "p": "examples/space-warship/docs/devlog.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:27",
+   "s": 1853
+  },
+  {
+   "p": "examples/strike-pong/docs/design.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:27",
+   "s": 2425
+  },
+  {
+   "p": "examples/strike-pong/docs/devlog.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:27",
+   "s": 1681
+  },
+  {
+   "p": "examples/sudoku/docs/design.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:27",
+   "s": 2373
+  },
+  {
+   "p": "examples/sudoku/docs/devlog.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:27",
+   "s": 1670
+  },
+  {
+   "p": "examples/template/docs/design.md",
+   "t": "f",
+   "m": "2026-10-31 01:19:07",
+   "s": 2800
+  },
+  {
+   "p": "examples/template/docs/devlog.md",
+   "t": "f",
+   "m": "2026-10-31 01:19:30",
+   "s": 1899
+  },
+  {
+   "p": "examples/tetris/docs/design.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:27",
+   "s": 2462
+  },
+  {
+   "p": "examples/tetris/docs/devlog.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:27",
+   "s": 1688
+  },
+  {
+   "p": "examples/texas-holdem/docs/design.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:27",
+   "s": 2403
+  },
+  {
+   "p": "examples/texas-holdem/docs/devlog.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:27",
+   "s": 1561
+  },
+  {
+   "p": "examples/token-counter/docs/design.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:27",
+   "s": 2319
+  },
+  {
+   "p": "examples/token-counter/docs/devlog.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:27",
+   "s": 1668
+  },
+  {
+   "p": "examples/tower-defense/css/ui.css",
+   "t": "f",
+   "m": "2026-10-31 10:51:15",
+   "s": 26790
+  },
+  {
+   "p": "examples/tower-defense/docs/design.md",
+   "t": "f",
+   "m": "2026-10-31 20:30:05",
+   "s": 24907
+  },
+  {
+   "p": "examples/tower-defense/docs/devlog.md",
+   "t": "f",
+   "m": "2026-10-31 21:00:14",
+   "s": 29040
+  },
+  {
+   "p": "examples/tower-defense/js/audio.js",
+   "t": "f",
+   "m": "2026-10-31 12:18:47",
+   "s": 7598
+  },
+  {
+   "p": "examples/tower-defense/js/config.js",
+   "t": "f",
+   "m": "2026-11-03 10:52:04",
+   "s": 7747
+  },
+  {
+   "p": "examples/tower-defense/js/enemies.js",
+   "t": "f",
+   "m": "2026-10-31 11:32:25",
+   "s": 7830
+  },
+  {
+   "p": "examples/tower-defense/js/engine.js",
+   "t": "f",
+   "m": "2026-10-31 12:15:52",
+   "s": 37193
+  },
+  {
+   "p": "examples/tower-defense/js/fx.js",
+   "t": "f",
+   "m": "2026-10-31 12:58:17",
+   "s": 8885
+  },
+  {
+   "p": "examples/tower-defense/js/game.js",
+   "t": "f",
+   "m": "2026-10-31 20:17:01",
+   "s": 25868
+  },
+  {
+   "p": "examples/tower-defense/js/input.js",
+   "t": "f",
+   "m": "2026-10-31 20:13:51",
+   "s": 12826
+  },
+  {
+   "p": "examples/tower-defense/js/levels.js",
+   "t": "f",
+   "m": "2026-10-31 12:03:21",
+   "s": 24111
+  },
+  {
+   "p": "examples/tower-defense/js/main.js",
+   "t": "f",
+   "m": "2026-10-31 20:52:28",
+   "s": 4087
+  },
+  {
+   "p": "examples/tower-defense/js/render.js",
+   "t": "f",
+   "m": "2026-10-31 18:58:44",
+   "s": 36903
+  },
+  {
+   "p": "examples/tower-defense/js/save.js",
+   "t": "f",
+   "m": "2026-10-31 13:58:41",
+   "s": 4940
+  },
+  {
+   "p": "examples/tower-defense/js/towers.js",
+   "t": "f",
+   "m": "2026-11-03 10:57:26",
+   "s": 8910
+  },
+  {
+   "p": "examples/tower-defense/js/ui.js",
+   "t": "f",
+   "m": "2026-10-31 20:57:42",
+   "s": 32968
+  },
+  {
+   "p": "examples/tower-defense/tools/headless.mjs",
+   "t": "f",
+   "m": "2026-10-31 20:57:03",
+   "s": 33999
+  },
+  {
+   "p": "examples/tower-defense/tools/smoke.mjs",
+   "t": "f",
+   "m": "2026-10-31 20:18:49",
+   "s": 21414
+  },
+  {
+   "p": "examples/zuma/docs/design.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:27",
+   "s": 2553
+  },
+  {
+   "p": "examples/zuma/docs/devlog.md",
+   "t": "f",
+   "m": "2026-10-31 01:10:27",
+   "s": 1601
+  },
+  {
+   "p": "assets/vendor/three/r128/three.min.js",
+   "t": "f",
+   "m": "2026-10-31 00:48:36",
+   "s": 603445
+  },
+  {
+   "p": "examples/forbidden-city/tools/vendor-check/probe.mjs",
+   "t": "f",
+   "m": "2026-11-08 18:18:39",
+   "s": 1075
+  }
+ ]
+}

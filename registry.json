@@ -356,6 +356,19 @@
       "thumbnail": null,
       "createdAt": "2026-11-13 20:06:44",
       "updatedAt": "2026-11-13 20:28:27"
+    },
+    {
+      "title": "资源管理器",
+      "description": "浏览站点目录树：目录导航、源码/文档/图片/音频预览（只读）",
+      "url": "examples/file-manager/index.html",
+      "category": "tool",
+      "emoji": "📁",
+      "tags": ["文件","目录","预览","iOS"],
+      "status": "stable",
+      "pinned": true,
+      "thumbnail": null,
+      "createdAt": "2026-11-15 10:45:16",
+      "updatedAt": "2026-11-15 10:45:16"
     }
   ]
 }

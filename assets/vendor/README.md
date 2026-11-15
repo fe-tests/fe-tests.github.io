@@ -52,8 +52,8 @@ assets/vendor/
 ## 禁止事项
 
 - 需要 API key / 鉴权的私有服务、统计埋点与广告脚本、把用户输入发往远端接口、自动播放的媒体。
-- 把 vendor 库改造成「全站自动加载」（不在 `index.html` 或 `assets/app.js` 里注入依赖）：每个页面按需自己 `<script>`，缺库只影响这一页。
-- 站点自有 JS/CSS（`assets/*.js`）`import` 页面目录内的文件；页面目录彼此自包含，`assets/` 是唯一的共享例外。
+- 把 vendor 库改造成「全站自动加载」（不在 `index.html` 或 `assets/home/*.js` 里注入依赖）：每个页面按需自己 `<script>`，缺库只影响这一页。
+- 站点自有 JS/CSS（`assets/` 下的共享脚本与样式，含 `assets/home/*.js`）`import` 页面目录内的文件；页面目录彼此自包含，`assets/` 是唯一的共享例外。
 
 ## 升级与删除
 

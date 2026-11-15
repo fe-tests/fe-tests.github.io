@@ -12,13 +12,24 @@
 
 ```
 .
-├── index.html              # 门户首页（导航 / 检索 / 卡片-列表切换）
+├── index.html              # 门户首页（iOS 风格：主屏图块分页 / 侧栏 / Dock / Spotlight / 设置）
 ├── registry.json           # ★ 页面注册表（首页唯一数据源）
 ├── server.js               # 零依赖静态服务器（Node 内置模块）
 ├── assets/
-│   ├── styles.css          # 全站样式（深色主题，首页用）
+│   ├── styles.css          # 全站 iOS 设计系统（深浅色令牌 + 组件类，首页与各页面共用）
+│   ├── home.css            # 首页专属布局（主屏分页 / Dock / 侧栏 / Spotlight）
 │   ├── registry.js         # 注册表加载器（fetch + 默认值补全 + url 去重）
-│   ├── app.js              # 首页渲染逻辑（筛选 / 搜索 / 排序）
+│   ├── home/               # 首页模块（ES module；资源管理器页也复用其中 3 个）
+│   │   ├── main.js         # 装配：渲染、路由、快捷键、启动
+│   │   ├── apps.js         # 注册表条目 → 图块/行；系统应用（资源管理器 / 设置）
+│   │   ├── state.js        # 设置与 Dock 收藏持久化 + 迷你状态机
+│   │   ├── springboard.js  # 主屏分页、图块、翻页、长按、键盘导航、下拉进 Spotlight
+│   │   ├── listview.js     # 列表视图（按分类分组）
+│   │   ├── spotlight.js    # 全屏搜索覆盖层
+│   │   ├── settings.js     # 设置面板（主题 / 视图 / 图标大小 / 每页行数 / 排序）
+│   │   ├── sheets.js       # 通用浮层：抽屉 / 卡片弹窗 / 操作表 / 上下文菜单 / 提示条
+│   │   ├── icons.js        # 内联 SVG 图标集
+│   │   └── format.js       # 格式化与工具函数（日期、体积、剪贴板、去抖）
 │   └── vendor/             # ★ 第三方依赖本地化入库（含登记表 README.md）
 │       ├── README.md       # 依赖登记表 + 下载校验流程 + 引用规范
 │       └── three/r128/three.min.js
@@ -27,6 +38,10 @@
 │   │   ├── index.html
 │   │   ├── README.md
 │   │   └── docs/{design.md, devlog.md}
+│   ├── file-manager/       # ★ 资源管理器（移动端叫「文件管理」）：站点目录树只读浏览
+│   │   ├── index.html  README.md  docs/{design.md, devlog.md}
+│   │   ├── css/main.css  js/{main,label,api,state,render,preview,input}.js
+│   │   └── data/files.json   # 目录清单快照（tools/build-fs-manifest.js 生成）
 │   └── <slug>/             # 每个页面一个目录，目录名 = slug
 │       ├── index.html      # 入口（固定名）
 │       ├── README.md       # 页面说明：玩法、实现概览、依赖、已知问题
@@ -36,6 +51,7 @@
 │       └── js/ css/ data/  # 可选：拆分出的模块 / 样式 / 数据
 ├── tools/
 │   ├── new-page.js         # ★ 新页面脚手架（生成目录 + 追加注册条目）
+│   ├── build-fs-manifest.js # ★ 目录清单生成器（资源管理器页的数据快照，见《文件清单生成》）
 │   └── migrate-to-dirs.js  # 一次性迁移脚本（2026-10 单页 → 目录化，仅留档）
 └── README.md               # 本文档（开发标准）
 ```
@@ -156,13 +172,75 @@ node tools/new-page.js my-demo --title="我的演示" --desc="一句话说明这
 
 `createdAt` / `updatedAt` 可省略（加载器按 `index.html` 文件时间补）；要显式写就用文件时间字面值。
 
-## 首页功能
+## 首页功能（iOS 风格）
 
-- **卡片 / 列表 双视图**：右上角 `▦ / ☰` 切换。
-- **分类筛选**：顶部标签按 `categories` 过滤。
-- **搜索**：按标题 / 描述 / 标签模糊匹配（150ms 防抖）。
-- **排序**：置顶优先 / 最近更新 / 创建时间 / 标题。
-- **状态徽标**：每张卡片右上角显示 `稳定 / 实验 / 开发中`。
+首页是一套 iOS 系统风格外壳（`index.html` + `assets/styles.css` + `assets/home.css` + `assets/home/*.js`），
+**PC 版与移动版共用同一份代码**，按视口切换形态：
+
+| 视口 | 形态 |
+| --- | --- |
+| `<768px`（手机） | 主屏（Springboard）图块**左右翻页**（4 列 × 6 行 = 24 个/页，底部圆点指示），底部 **Dock**（系统应用 + 置顶页面 + 自定义收藏），下拉进 **Spotlight** 全屏搜索 |
+| `768–1023px`（平板） | 自适应网格 + 「加载更多」+ Dock |
+| `≥1024px`（PC） | 左侧**侧栏**（位置 / 搜索 / 分类 / 控件）+ 右侧内容网格，导航条控件移进侧栏 |
+
+功能清单：
+
+- **搜索**：标题 / 描述 / 标签模糊匹配（150ms 防抖）；移动端 Spotlight 覆盖层（`/` 或下拉触发），PC 侧栏搜索框。
+- **分类筛选**：分类 chips（手机横向滚动 / PC 侧栏多行）。
+- **排序**：置顶优先 / 最近更新 / 创建时间 / 标题 A→Z（操作表选择）。
+- **视图切换**：主屏图块 ↔ 分组列表（`L` 键切换）。
+- **状态徽标**：图块右上角 `稳定 / 实验 / 开发中` 圆点，置顶图块带 📌。
+- **长按 / 右键图块**：上下文菜单（打开 / 详情 / 新窗口打开 / 复制链接 / 加到 Dock）。
+- **Dock 收藏**：长按 Dock 空位添加常用页面（`localStorage`，不进注册表）。
+- **深浅色主题**：跟随系统 + 手动切换（自动 / 浅色 / 深色），存 `localStorage` 并同步 `<meta name="theme-color">`。
+- **设置面板**：主题、视图、图标大小（标准 / 大图标）、每页行数、排序、重置本机设置。
+- **地址栏同步**：`?cat=&q=&view=&sort=` 可分享链接；`←/→` 换页、`Home/End` 跳首末页。
+- **键盘**：`/` 搜索、`L` 视图、`T` 主题、`Esc` 关闭浮层、`←→` 翻页、`Home/End/PageUp/PageDown` 换页。
+
+> 与设计的偏差（有意为之，已写进对应页面文档）：首页**底部不放 iOS tab bar**（移动端只保留 Dock，
+> 底部标签栏属于「资源管理器」页的文件语义）；主屏分页**一次渲染全部分页**（每页 ≤24 图块，
+> 上限约 240 个页面 + 「显示更多」图块），未做「只渲染当前页」的虚拟滚动。
+
+## iOS 风格与命名规范
+
+- **令牌与组件只在 `assets/styles.css` 定义**：颜色一律走 `--label / --fill / --tint / --bg-grouped / --separator`
+  等令牌 + `light-dark()`，`html[data-theme="auto|light|dark"]` 控制深浅色；页面 CSS **不写死颜色字面值**。
+- **组件类以 `ios-` 为前缀**（`.ios-row`、`.ios-tile`、`.ios-searchbar`、`.ios-segmented`、`.ios-actionsheet`、
+  `.ios-ctxmenu`、`.ios-toast`、`.ios-notice`、`.ios-drawer`、`.ios-card-modal` …）。
+  页面专属布局写在页面自己的 `css/main.css`，选择器加页面前缀（如 `.fm-*`），**不新增站点组件类**。
+- **共享浮层与图标**：抽屉/弹窗/操作表/上下文菜单/提示条用 `assets/home/sheets.js`，图标用 `assets/home/icons.js`，
+  格式化用 `assets/home/format.js`（`assets/` 是站点唯一共享目录；页面目录之间不互引）。
+- **断点约定**：`<768` 手机、`768–1023` 平板、`≥1024` PC；触控目标 ≥44px；用 `100dvh` 与 `env(safe-area-inset-*)`；
+  动效需支持 `prefers-reduced-motion`，颜色需支持 `forced-colors`。
+- **命名（iOS 系统风格）**：同一功能在 PC 与移动端叫法不同，代码按视口给名，注册表 `title` 用 PC 名：
+
+  | 功能 | `≥768px` 显示名 | `<768px` 显示名 | 注册表 `title` |
+  | --- | --- | --- | --- |
+  | 站点目录浏览 | **资源管理器** | **文件管理** | 资源管理器 |
+
+  首页侧由 `assets/home/apps.js` 的 `labelOf(app, isMobile)` 处理，页面侧由 `examples/file-manager/js/label.js`
+  的 `appTitle(isNarrow)` 处理；两端断点必须一致（`max-width: 767px`）。
+- **本机偏好键名**：`iosHome.settings.v1`（首页设置，含 `theme`）、`iosHome.dockExtras.v1`（Dock 收藏）、
+  `fm.view.v1` / `fm.recent.v1` / `fm.favorites.v1`（资源管理器页）。带版本号后缀，改结构就升版本号（`v2`）。
+  这些是**本机偏好，不进注册表**（注册表字段固定，见《注册表字段规范》）。
+
+## 文件清单生成（资源管理器页的数据）
+
+资源管理器页不在服务器上加目录列表接口，读的是仓库快照 `examples/file-manager/data/files.json`：
+
+```bash
+node tools/build-fs-manifest.js              # 扫描站点目录 → 写 examples/file-manager/data/files.json
+node tools/build-fs-manifest.js --dry-run    # 只看条数与体积，不落盘
+node tools/build-fs-manifest.js --max=2000    # 临时收紧条目上限（默认 4000）
+node tools/build-fs-manifest.js --root=子目录 --out=自定义路径
+```
+
+- 只读扫描，输出扁平条目：`{generated, root, count, truncated, entries:[{p,t,s|n}]}`；
+  `p` 为**站点根相对路径**，`t` 是 `f`/`d`，文件带字节数 `s`、目录带直接子项数 `n`，时间是**本地时区**字符串。
+- 自动跳过：点文件、`.git node_modules .llama-trash out dist .next .svn .idea .vscode`、`Thumbs.db`、`npm-debug.log`、符号链接。
+- 上限：深度 ≤8、单目录 ≤1000、总条目 ≤4000、总量 ≤400 KB，超限写 `truncated:true`，页面会提示。
+- **增删文件后请重跑并一起提交** `data/files.json`；页面打开时对 >7 天的清单给提示条（提示重建命令）。
+- 清单缺失时页面用 `registry.json` 的页面 URL 造回退树并提示，不白屏。
 
 ## 第三方依赖本地化规范
 
@@ -225,6 +303,35 @@ netsh advfirewall firewall add rule name="node static 39977" dir=in action=allow
 - **`file://` 直开**：首页与所有注册页面都需 HTTP。单文件页面目录可 `file://` 直接打开 `index.html`，拆分过的页面（ES module）在 `file://` 下打不开。
 - **旧链接无跳转**：单文件时代（`examples/<slug>.html`）的 URL 不做 `meta refresh` 兼容，站内唯一入口是首页注册表，历史外链不保证可达。
 - **缓存**：`assets/vendor/**` 缓存 5 分钟，替换 vendor 文件时请换版本目录名（不要原地覆盖同名文件），否则最坏 5 分钟后生效。
+- **目录清单是快照**：资源管理器页读 `examples/file-manager/data/files.json`，**不会自动跟随文件变化**，
+  本地新增/删除文件后需重跑 `node tools/build-fs-manifest.js` 并提交（页面对 >7 天的清单给提示条）。
+- **MIME 表未覆盖的格式**：`server.js` 的 `MIME` 表只登记了 html/js/css/json/txt/md/svg/图片/mp3/wav/ogg/woff/woff2/ttf/wasm 等，
+  **`mp4`、`webm`、`mov`、`pdf`、`zip` 等会以 `application/octet-stream` 发送**：浏览器多半直接下载，
+  视频/PDF 的内联预览不可靠（资源管理器页已在预览面板提示改用「新窗口打开 / 下载」）。改 MIME 表要同时改 `server.js`，
+  属于「约定不改」的范围（本次 iOS 改版未动 `server.js`）。
+- **资源管理器只读**：没有重命名/删除/上传/新建，服务器也只接受 `GET/HEAD`；剪贴板 API 在局域网 `http://192.168.x.x`
+  下不可用（安全上下文限制），页面降级到 `execCommand`，失败时提示手动复制。
+- **越界访问的真实行为**：URL 的 `..` 会先被 URL 解析器归一到站点根（`/..%2f..%2fserver.js` 实际取到站点根内的 `server.js`），
+  真正越出站点根的请求返回 403；`server.js` 不提供目录列表。
+
+## 首页 iOS 改版记录（2026-11）
+
+- 首页由「深色门户」改版为 **iOS 系统风格**，PC / 平板 / 手机三形态共用一份代码
+  （`index.html` + `assets/styles.css` + `assets/home.css` + `assets/home/*.js`）：主屏图块、移动端翻页 + Dock + Spotlight、PC 侧栏。
+- `assets/styles.css` 重写为 **iOS 设计系统**（令牌 + 组件类，深浅色三态 `auto|light|dark`），
+  原单文件首页逻辑 `assets/app.js` 拆成 `assets/home/` 下 10 个 ES 模块。
+- 新增页面 **资源管理器**（`examples/file-manager/`，移动端显示名「文件管理」），
+  只读浏览站点目录树，数据由 `tools/build-fs-manifest.js` 生成的 `data/files.json` 提供。
+- 与设计的有意偏差（已写进页面文档）：首页**底部不放 iOS tab bar**（移动端只保留 Dock，底部标签栏属于资源管理器页）；
+  主屏分页**一次渲染全部分页**，未做虚拟滚动（页面数在软上限内）。
+- 踩坑修复（PC 图标只有两列）：`assets/home.css` 的 `@media (min-width:1024px)` 里只写了 `.ios-content{width:auto}`，
+  没清掉 `@media (min-width:768px)` 带进来的 `margin:0 auto`；grid 项被自动外边距接管后不再 `stretch`，
+  内容区塌成 min-content（1440 视口下只有 326px 宽），图标网格因此只剩两列。
+  补 `margin:0` 即恢复（实测内容区 1178px、9 列）。**规律**：把元素从 flex 容器改成 grid 容器时，
+  上一档媒体查询里的 `margin:0 auto` 居中必须一起清掉，否则 auto 边距会顶掉 stretch。
+- 校验手法：`chrome --headless=new --dump-dom` 打开一个 iframe 探针页，用 `getBoundingClientRect()` /
+  `getComputedStyle()` 打印 375×812、905×1024、1440×900 三档下关键容器的宽高与网格列数（探针页用完即删）。
+- 本次改版未改 `server.js` 与 `package.json`（`git diff --stat` 为空），注册表字段未新增。
 
 ## 结构迁移记录（2026-10）
 

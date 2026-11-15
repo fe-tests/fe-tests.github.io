@@ -1,65 +1,176 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="auto">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#f2f2f7" id="theme-color-meta">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="AI 实验室">
 <title>AI 编程模型实验室</title>
 <link rel="stylesheet" href="assets/styles.css">
+<link rel="stylesheet" href="assets/home.css">
+<script>
+/* 主题初始化（内联，避免刷新闪烁）：读 localStorage 的 theme，写 html[data-theme] */
+(function () {
+  try {
+    var s = JSON.parse(localStorage.getItem("iosHome.settings.v1") || "{}");
+    var t = (s.theme === "light" || s.theme === "dark") ? s.theme : "auto";
+    document.documentElement.dataset.theme = t;
+  } catch (e) { document.documentElement.dataset.theme = "auto"; }
+})();
+</script>
 </head>
 <body>
-<header class="site-header">
-  <div class="wrap header-inner">
-    <div class="brand">
-      <span class="brand-emoji">🧪</span>
-      <div>
-        <h1 class="brand-title" id="site-title">AI 编程模型实验室</h1>
-        <p class="brand-subtitle" id="site-subtitle">小参数 AI 编程模型的网页效果展示</p>
+<div class="ios-wallpaper" aria-hidden="true"></div>
+
+<div class="ios-app" id="ios-app">
+  <!-- PC 侧栏：系统 App + 搜索 + 分类 + 视图控件（窄屏时由 JS 把控件搬回导航条） -->
+  <aside class="ios-sidebar" id="sidebar" aria-label="站点导航">
+    <div class="ios-sidebar-brand">
+      <span class="ios-tile-icon" style="--g1:var(--g-model-1);--g2:var(--g-model-2)" aria-hidden="true">🧪</span>
+      <span>
+        <span class="ios-sidebar-brand-title" id="sidebar-brand-title">AI 编程模型实验室</span>
+        <p class="ios-sidebar-brand-sub" id="sidebar-brand-sub">小参数 AI 编程模型的网页效果展示</p>
+      </span>
+    </div>
+
+    <div class="ios-section">
+      <div class="ios-section-header">应用</div>
+      <div class="ios-list ios-sidebar-list ios-list-flush" id="sidebar-apps"></div>
+    </div>
+
+    <div class="ios-section">
+      <div class="ios-section-header">搜索</div>
+      <div id="searchbar-slot"></div>
+    </div>
+
+    <div class="ios-section">
+      <div class="ios-section-header">分类</div>
+      <div class="ios-chips" id="category-slot" aria-label="分类筛选"></div>
+    </div>
+
+    <div class="ios-section">
+      <div class="ios-section-header">视图与排序</div>
+      <div id="controls-slot"></div>
+    </div>
+
+    <p class="ios-about">键盘：<kbd>/</kbd> 搜索 · <kbd>L</kbd> 切换视图 · <kbd>T</kbd> 切换主题 · <kbd>←→</kbd> 翻页</p>
+  </aside>
+
+  <div class="ios-content" id="ios-content">
+    <noscript>
+      <div class="ios-notice">需要启用 JavaScript，并用 <code>node server.js</code> 以 HTTP 打开本站（首页要读取 <code>registry.json</code>）。</div>
+    </noscript>
+
+    <header class="ios-chrome" id="ios-chrome">
+      <div class="ios-statusbar" aria-hidden="true">
+        <span id="statusbar-time">9:41</span>
+        <span class="ios-statusbar-glyphs">
+          <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor" aria-hidden="true"><rect x="0" y="7" width="3" height="4" rx="1"/><rect x="4.5" y="5" width="3" height="6" rx="1"/><rect x="9" y="2.5" width="3" height="8.5" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg>
+          <svg width="16" height="11" viewBox="0 0 16 11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M1 3.4a10.4 10.4 0 0 1 14 0"/><path d="M3.6 6a6.6 6.6 0 0 1 8.8 0"/><path d="M6.2 8.5a2.9 2.9 0 0 1 3.6 0"/><circle cx="8" cy="10.2" r="0.6" fill="currentColor" stroke="none"/></svg>
+          <svg width="27" height="12" viewBox="0 0 27 12" fill="none" aria-hidden="true"><rect x="0.6" y="0.6" width="22" height="10.8" rx="3" stroke="currentColor" stroke-opacity=".42"/><rect x="2.4" y="2.4" width="17" height="7.2" rx="1.8" fill="currentColor" fill-opacity=".9"/><path d="M24.6 4.2v3.6c1.2-.4 1.2-3.2 0-3.6z" fill="currentColor" fill-opacity=".42"/></svg>
+        </span>
       </div>
-    </div>
-    <div class="header-tools">
-      <input class="search" id="search" type="search" placeholder="搜索页面…  (支持标题/描述/标签)" autocomplete="off">
-      <div class="view-toggle" role="group" aria-label="视图切换">
-        <button class="toggle-btn active" data-view="card" title="卡片视图">▦</button>
-        <button class="toggle-btn" data-view="list" title="列表视图">☰</button>
+
+      <div class="ios-chrome-row ios-navbar">
+        <span class="ios-navbar-title" id="navbar-title">AI 编程模型实验室</span>
+        <div class="ios-chrome-actions">
+          <button class="ios-icon-btn" id="btn-theme" type="button" aria-label="切换主题" title="切换主题">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M20.5 13.4A8.5 8.5 0 1 1 10.6 3.5a6.8 6.8 0 0 0 9.9 9.9z"/></svg>
+          </button>
+          <button class="ios-icon-btn" id="btn-settings" type="button" aria-label="设置" title="设置">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M4 7h11M19 7h1M4 12h5M13 12h7M4 17h11M19 17h1"/><circle cx="17" cy="7" r="2.1"/><circle cx="10.5" cy="12" r="2.1"/><circle cx="17" cy="17" r="2.1"/></svg>
+          </button>
+        </div>
       </div>
+
+      <div class="ios-large-title">
+        <h1 class="ios-h1" id="site-title">AI 编程模型实验室</h1>
+        <p class="ios-subtitle" id="site-subtitle">小参数 AI 编程模型的网页效果展示</p>
+      </div>
+
+      <div class="ios-searchbar" id="searchbar">
+        <span class="ios-search-icon" aria-hidden="true">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+        </span>
+        <input class="ios-search" id="search" type="search" placeholder="搜索页面标题 / 描述 / 标签" autocomplete="off" aria-label="搜索页面">
+        <button class="ios-search-clear" id="search-clear" type="button" hidden aria-label="清除搜索">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <button class="ios-search-pill" id="search-open" type="button" aria-label="搜索页面">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+        搜索
+      </button>
+
+      <nav class="ios-chips" id="category-bar" aria-label="分类筛选"></nav>
+
+      <div class="ios-controls" id="controls">
+        <div class="ios-segmented" id="view-toggle" role="group" aria-label="视图切换">
+          <button class="ios-seg-btn active" type="button" data-view="card" aria-pressed="true">图标</button>
+          <button class="ios-seg-btn" type="button" data-view="list" aria-pressed="false">列表</button>
+          <span class="ios-seg-thumb" aria-hidden="true"></span>
+        </div>
+        <button class="ios-pill-btn" id="sort-btn" type="button" aria-haspopup="menu">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M7 12h10M10 17h4"/></svg>
+          <span id="sort-btn-label">置顶优先</span>
+        </button>
+        <select class="ios-native-select" id="sort" aria-label="排序方式">
+          <option value="pinned-desc">置顶优先</option>
+          <option value="updated-desc">最近更新</option>
+          <option value="created-desc">创建时间</option>
+          <option value="title-asc">标题 A→Z</option>
+        </select>
+        <span class="ios-count" id="result-count" role="status" aria-live="polite"></span>
+      </div>
+    </header>
+
+    <main class="ios-main" id="ios-main">
+      <section class="ios-springboard" id="grid-card" aria-label="App 图标" tabindex="-1"></section>
+      <section class="ios-grouped hidden" id="grid-list" aria-label="App 列表"></section>
+      <div class="ios-page-dots" id="page-dots" aria-hidden="true"></div>
+      <div class="ios-more hidden" id="more-box">
+        <span class="ios-more-info" id="more-info"></span>
+        <button class="ios-btn" id="more-btn" type="button">加载更多</button>
+      </div>
+      <div class="ios-empty hidden" id="empty">
+        <div class="ios-empty-icon" aria-hidden="true">🫥</div>
+        <p>没有找到匹配的结果。</p>
+        <p class="ios-caption">试试清空搜索或切到「全部」分类。</p>
+      </div>
+    </main>
+
+    <footer class="ios-site-footer" id="site-footer">
+      由 Agent 客户端维护 · <a href="README.md">如何注册新页面 →</a>
+    </footer>
+  </div>
+
+  <nav class="ios-dock" id="dock" aria-label="Dock"></nav>
+</div>
+
+<!-- Spotlight（窄屏搜索浮层，PC 不显示） -->
+<div class="ios-spotlight" id="spotlight" role="dialog" aria-modal="true" aria-label="搜索页面" hidden>
+  <div class="ios-spotlight-bar">
+    <div class="ios-searchbar">
+      <span class="ios-search-icon" aria-hidden="true">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+      </span>
+      <input class="ios-search" id="spotlight-input" type="search" placeholder="搜索" autocomplete="off" aria-label="搜索页面">
+      <button class="ios-search-clear" id="spotlight-clear" type="button" hidden aria-label="清除搜索">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
     </div>
+    <button class="ios-btn-plain" id="spotlight-cancel" type="button">取消</button>
   </div>
-  <nav class="category-bar" id="category-bar"></nav>
-</header>
+  <div class="ios-spotlight-body" id="spotlight-body"></div>
+</div>
 
-<main class="wrap">
-  <section class="toolbar">
-    <div class="result-count" id="result-count"></div>
-    <div class="sort-box">
-      <label for="sort">排序</label>
-      <select id="sort">
-        <option value="pinned-desc">置顶优先</option>
-        <option value="updated-desc">最近更新</option>
-        <option value="created-desc">创建时间</option>
-        <option value="title-asc">标题 A→Z</option>
-      </select>
-    </div>
-  </section>
-
-  <section id="grid-card" class="view-card"></section>
-  <section id="grid-list" class="view-list hidden"></section>
-
-  <div class="more-box hidden" id="more-box">
-    <span class="more-info" id="more-info"></span>
-    <button class="more-btn" id="more-btn" type="button">加载更多</button>
-  </div>
-
-  <div class="empty hidden" id="empty">
-    <div class="empty-emoji">🫥</div>
-    <p>没有找到匹配的结果。</p>
-  </div>
-</main>
-
-<footer class="site-footer">
-  <p>由 Agent 客户端维护 · <a href="README.md" target="_blank" rel="noopener">如何注册新页面 →</a></p>
-</footer>
+<div class="ios-sheet-host" id="sheet-host"></div>
+<div class="ios-toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="assets/registry.js"></script>
-<script src="assets/app.js"></script>
+<script type="module" src="assets/home/main.js"></script>
 </body>
 </html>

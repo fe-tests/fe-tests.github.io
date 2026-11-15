@@ -1,0 +1,53 @@
+/* icons.js — 内联 SVG 图标（iOS 线性图标风格，stroke=currentColor，零依赖）。
+ * 用法：icons.chevron / icons.doc，尺寸由 CSS 控制（svg 无 width/height）。 */
+
+const S = (body, sw) =>
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="' + (sw || 1.8) +
+  '" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' + body + "</svg>";
+
+export const icons = {
+  chevron: S('<path d="M9.5 5l6.5 7-6.5 7"/>'),
+  chevronDown: S('<path d="M5 9l7 6.5L19 9"/>'),
+  arrowLeft: S('<path d="M14.5 5L8 12l6.5 7"/>'),
+  arrowRight: S('<path d="M9.5 5L16 12l-6.5 7"/>'),
+  open: S('<path d="M14 5h5v5M19 5l-8 8M18 14v4.5A1.5 1.5 0 0 1 16.5 20H6.5A1.5 1.5 0 0 1 5 18.5V8.5A1.5 1.5 0 0 1 6.5 7H11"/>'),
+  info: S('<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5M12 7.8v.2"/>'),
+  copy: S('<rect x="8.5" y="8.5" width="11" height="11" rx="2.5"/><path d="M15.5 5.5H6A1.5 1.5 0 0 0 4.5 7v9.5"/>'),
+  download: S('<path d="M12 4.5v10.5M7.5 11l4.5 4 4.5-4M4.5 19.5h15"/>'),
+  folder: S('<path d="M3.5 7.2A2.2 2.2 0 0 1 5.7 5h3.4l1.9 2.3h7.3A2.2 2.2 0 0 1 20.5 9.5v7.3A2.2 2.2 0 0 1 18.3 19H5.7a2.2 2.2 0 0 1-2.2-2.2z" fill="currentColor" fill-opacity=".16"/>'),
+  folderOpen: S('<path d="M3.5 8.5V17a2 2 0 0 0 2 2h13a2 2 0 0 0 1.9-1.4L22 11H8.6a2 2 0 0 0-1.9 1.4L3.5 19z"/><path d="M3.5 8.5V7a2 2 0 0 1 2-2h3.3l1.9 2.3h7.3a2 2 0 0 1 2 2v1.2"/>'),
+  doc: S('<path d="M6.5 3.5h7.2L19 8.8V20a1 1 0 0 1-1 1H6.5a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1z"/><path d="M13.5 3.6v5.4H19M8.2 12.5h7M8.2 15.5h7"/>'),
+  code: S('<path d="M9.2 9.5L6 12l3.2 2.5M14.8 9.5L18 12l-3.2 2.5M13 8.2l-2 7.6"/>'),
+  image: S('<rect x="3.5" y="5" width="17" height="14" rx="2.2"/><circle cx="9" cy="10" r="1.6"/><path d="M4.5 17l4.2-4.2a2 2 0 0 1 2.8 0l2 2 1.6-1.6a2 2 0 0 1 2.8 0l2.6 2.6"/>'),
+  audio: S('<path d="M10.5 18.2V6.4l8-1.6v11.4"/><circle cx="7.6" cy="18.2" r="2.9"/><circle cx="15.6" cy="16.4" r="2.9"/>'),
+  video: S('<rect x="3.5" y="6" width="12.5" height="12" rx="2.2"/><path d="M16 11l4.5-2.6v7.2L16 13z"/>'),
+  archive: S('<rect x="4" y="4" width="16" height="16" rx="2.2"/><path d="M9.5 4v3M12 4v3M9.5 7h2.5M9.5 12.5h5v4a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2z"/>'),
+  font: S('<path d="M5 19.5L10.2 4.5h3.6l5.2 15M7.4 14.5h9.2"/>'),
+  gear: S('<circle cx="12" cy="12" r="3.1"/><path d="M12 3.2v2.2M12 18.6v2.2M4.6 7.8l1.9 1.1M17.5 15.1l1.9 1.1M4.6 16.2l1.9-1.1M17.5 8.9l1.9-1.1"/>'),
+  gear2: S('<path d="M4 7h11M19 7h1M4 12h5M13 12h7M4 17h11M19 17h1"/><circle cx="17" cy="7" r="2.1"/><circle cx="10.5" cy="12" r="2.1"/><circle cx="17" cy="17" r="2.1"/>'),
+  check: S('<path d="M5 12.8l4.4 4.4L19 7.4"/>', 2.2),
+  plus: S('<path d="M12 5.5v13M5.5 12h13"/>', 2),
+  search: S('<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>'),
+  grid: S('<rect x="4" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.6"/>'),
+  list: S('<path d="M8 6.5h12M8 12h12M8 17.5h12M4.3 6.5h.01M4.3 12h.01M4.3 17.5h.01"/>'),
+  pin: S('<path d="M9 4h6l-.8 5.2 3 2.8H6.8l3-2.8z"/><path d="M12 12v7"/>'),
+  refresh: S('<path d="M19 12a7 7 0 1 1-2.4-5.3M19 4.5V10h-5.2"/>'),
+  share: S('<path d="M12 15.5V4.5M8.2 8L12 4.2 15.8 8M5.5 14v4.5a1.5 1.5 0 0 0 1.5 1.5h10a1.5 1.5 0 0 0 1.5-1.5V14"/>'),
+  home: S('<path d="M4.5 11.2L12 4.5l7.5 6.7V19a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5.5 19z"/>'),
+  clock: S('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3.2 2"/>'),
+  eye: S('<path d="M2.8 12S6.2 6 12 6s9.2 6 9.2 6-3.4 6-9.2 6-9.2-6-9.2-6z"/><circle cx="12" cy="12" r="2.6"/>'),
+  eyeOff: S('<path d="M4 4l16 16M9.5 6.4A9.6 9.6 0 0 1 12 6c5.8 0 9.2 6 9.2 6a13 13 0 0 1-3 3.5M6.5 8.2A13 13 0 0 0 2.8 12S6.2 18 12 18a9.4 9.4 0 0 0 3.3-.6"/>'),
+  sun: S('<circle cx="12" cy="12" r="4"/><path d="M12 3v2.2M12 18.8V21M3.5 12h2.2M18.3 12h2.2M6.1 6.1l1.6 1.6M16.3 16.3l1.6 1.6M6.1 17.9l1.6-1.6M16.3 7.7l1.6-1.6"/>'),
+  moon: S('<path d="M20.5 13.4A8.5 8.5 0 1 1 10.6 3.5a6.8 6.8 0 0 0 9.9 9.9z"/>'),
+  auto: S('<path d="M12 3.5v17M3.5 12h17"/>'),
+  contrast: S('<circle cx="12" cy="12" r="8.5"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor" stroke="none"/>'),
+  sort: S('<path d="M4 7h16M7 12h10M10 17h4"/>'),
+  ellipsis: S('<circle cx="6" cy="12" r="1.4" fill="currentColor"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/><circle cx="18" cy="12" r="1.4" fill="currentColor"/>'),
+  trash: S('<path d="M5.5 7.5h13M9 7.5V5.2h6V7.5M6.8 7.5l.8 12a1.4 1.4 0 0 0 1.4 1.3h6a1.4 1.4 0 0 0 1.4-1.3l.8-12"/>'),
+  x: S('<path d="M6 6l12 12M18 6L6 18"/>', 2.2),
+  warning: S('<path d="M12 4.5l8.5 15h-17z"/><path d="M12 10v4.2M12 17v.2"/>'),
+  file: S('<path d="M7 3.5h6.4L18 8v12.5H7z" fill="currentColor" fill-opacity=".10"/><path d="M13.2 3.6V8.2H18"/>'),
+  path: S('<path d="M9 6.5H6.2A2.2 2.2 0 0 0 4 8.7v6.6a2.2 2.2 0 0 0 2.2 2.2H9M15 6.5h2.8A2.2 2.2 0 0 1 20 8.7v6.6a2.2 2.2 0 0 1-2.2 2.2H15M11 12h2"/>'),
+  tag: S('<path d="M11.2 4.5H19v7.8l-7.6 7.6-7.4-7.4z"/><circle cx="15.4" cy="8.6" r="1.3"/>'),
+  star: S('<path d="M12 4.6l2.3 4.7 5.2.7-3.8 3.7.9 5.2L12 16.5l-4.6 2.4.9-5.2L4.5 10l5.2-.7z"/>'),
+};

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<!--
+  资源管理器（移动端叫「文件管理」）— 站点目录树只读浏览器。
+  创建：2026-11-15 10:45:16 · 由 tools/new-page.js 生成（--split：是），iOS 风格改版重写
+  数据源：./data/files.json（node tools/build-fs-manifest.js 生成）；缺失时回退用 registry.json 的页面目录。
+  依赖：../../assets/styles.css（iOS 设计系统）、../../assets/home/{icons,format,sheets}.js（共享浮层与图标）、../../assets/registry.js
+  只读：无重命名 / 删除 / 上传（站点是纯静态托管，服务器只允许 GET/HEAD）。
+-->
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#f2f2f7" id="theme-color-meta">
+<meta name="description" content="站点目录树只读浏览：目录导航、源码/文档/图片/音频预览。">
+<title>资源管理器</title>
+<link rel="stylesheet" href="../../assets/styles.css">
+<link rel="stylesheet" href="./css/main.css">
+<script>
+/* 主题初始化（读 localStorage，避免刷新闪烁）；与首页共用同一个 key */
+(function () {
+  try {
+    var s = JSON.parse(localStorage.getItem("iosHome.settings.v1") || "{}");
+    var t = (s.theme === "light" || s.theme === "dark") ? s.theme : "auto";
+    document.documentElement.dataset.theme = t;
+  } catch (e) { document.documentElement.dataset.theme = "auto"; }
+})();
+</script>
+</head>
+<body class="fm-body">
+<div class="ios-wallpaper" aria-hidden="true"></div>
+
+<div class="fm-app" id="fm-app">
+  <!-- 侧栏「位置」（≥1024px 常驻；窄屏为抽屉，由导航条「位置」按钮唤出） -->
+  <aside class="fm-sidebar" id="fm-sidebar" aria-label="位置">
+    <div class="fm-sidebar-head">
+      <a class="fm-brand" href="/">
+        <span class="ios-row-icon" style="--g1:var(--g-file-1);--g2:var(--g-file-2)" aria-hidden="true"></span>
+        <span class="fm-brand-title" id="fm-brand-title">资源管理器</span>
+      </a>
+      <button class="ios-icon-btn" id="fm-sidebar-close" type="button" aria-label="关闭位置面板" hidden></button>
+    </div>
+
+    <div class="ios-section">
+      <div class="ios-section-header">位置</div>
+      <div class="ios-list ios-sidebar-list ios-list-flush" id="fm-positions"></div>
+    </div>
+
+    <div class="ios-section">
+      <div class="ios-section-header">收藏</div>
+      <div class="ios-list ios-sidebar-list ios-list-flush" id="fm-favorites"></div>
+      <p class="ios-section-footer fm-fav-hint" id="fm-fav-hint">在文件上长按（右键）可加入收藏。</p>
+    </div>
+
+    <div class="ios-section">
+      <div class="ios-section-header">最近打开</div>
+      <div class="ios-list ios-sidebar-list ios-list-flush" id="fm-recent"></div>
+    </div>
+
+    <p class="fm-sidebar-foot">
+      只读浏览，不支持重命名 / 删除 / 上传。<br>
+      清单：node tools/build-fs-manifest.js
+    </p>
+  </aside>
+  <div class="fm-scrim" id="fm-scrim" hidden></div>
+
+  <div class="fm-content" id="fm-content">
+    <header class="fm-chrome">
+      <div class="ios-navbar">
+        <a class="ios-icon-btn" href="/" id="fm-home" aria-label="返回门户" title="返回门户"></a>
+        <button class="ios-icon-btn" id="fm-btn-positions" type="button" aria-label="位置" title="位置" hidden></button>
+        <span class="ios-navbar-title" id="fm-nav-title">资源管理器</span>
+        <div class="ios-chrome-actions">
+          <button class="ios-icon-btn" id="fm-btn-theme" type="button" aria-label="切换深浅色" title="切换深浅色"></button>
+          <button class="ios-icon-btn" id="fm-btn-sort" type="button" aria-label="排序" title="排序"></button>
+          <button class="ios-icon-btn" id="fm-btn-view" type="button" aria-label="切换视图" title="切换视图"></button>
+          <button class="ios-icon-btn" id="fm-btn-refresh" type="button" aria-label="刷新清单" title="刷新清单"></button>
+        </div>
+      </div>
+
+      <div class="ios-large-title">
+        <h1 class="ios-h1" id="fm-title">资源管理器</h1>
+        <p class="ios-subtitle" id="fm-subtitle">正在读取目录清单…</p>
+      </div>
+
+      <nav class="fm-crumb" id="fm-crumb" aria-label="路径导航"></nav>
+
+      <div class="ios-searchbar fm-searchbar" id="fm-searchbar">
+        <span class="ios-search-icon" aria-hidden="true"></span>
+        <input class="ios-search" id="fm-search" type="search" placeholder="搜索文件名 / 路径" autocomplete="off" aria-label="搜索文件">
+        <button class="ios-search-clear" id="fm-search-clear" type="button" hidden aria-label="清除搜索"></button>
+      </div>
+
+      <div class="fm-toolbar">
+        <button class="ios-pill-btn" id="fm-btn-up" type="button" disabled></button>
+        <span class="ios-count" id="fm-count" role="status" aria-live="polite"></span>
+      </div>
+    </header>
+
+    <div class="fm-notices" id="fm-notices" aria-live="polite"></div>
+
+    <main class="fm-main" id="fm-main">
+      <div class="ios-spinner" id="fm-loading" role="status" aria-label="加载中"></div>
+      <div class="ios-grouped hidden" id="fm-list"></div>
+      <div class="fm-grid hidden" id="fm-grid"></div>
+      <div class="ios-empty hidden" id="fm-empty"></div>
+    </main>
+
+    <footer class="fm-foot" id="fm-foot"></footer>
+  </div>
+
+  <!-- 移动端底部标签栏（iOS 文件 App 同款） -->
+  <nav class="fm-tabbar" id="fm-tabbar" aria-label="标签栏">
+    <button class="fm-tab active" type="button" data-tab="browse" aria-pressed="true"><span class="fm-tab-ico" aria-hidden="true"></span>浏览</button>
+    <button class="fm-tab" type="button" data-tab="recent" aria-pressed="false"><span class="fm-tab-ico" aria-hidden="true"></span>最近</button>
+    <button class="fm-tab" type="button" data-tab="search" aria-pressed="false"><span class="fm-tab-ico" aria-hidden="true"></span>搜索</button>
+    <a class="fm-tab" href="/" data-tab="home"><span class="fm-tab-ico" aria-hidden="true"></span>门户</a>
+  </nav>
+</div>
+
+<div class="ios-sheet-host" id="fm-sheet-host"></div>
+<div class="ios-toast" id="fm-toast" role="status" aria-live="polite"></div>
+
+<noscript><div class="ios-notice">需要启用 JavaScript，并用 <code>node server.js</code> 以 HTTP 打开本站。</div></noscript>
+
+<script src="../../assets/registry.js"></script>
+<script type="module" src="./js/main.js"></script>
+</body>
+</html>

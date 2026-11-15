@@ -1,0 +1,368 @@
+/* main.css — 资源管理器 / 文件管理页面布局（复用 assets/styles.css 的 iOS 设计系统与令牌）。
+ * 断点：<768 移动端（抽屉式侧栏 + 底部标签栏）；768–1023 平板（标签栏 + 面包屑）；≥1024 桌面（常驻侧栏，无标签栏）。
+ */
+
+:root {
+  --fm-tab-h: 56px;
+  --fm-side-w: 260px;
+}
+
+.fm-body { background: var(--bg-grouped); }
+
+.fm-app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+/* ------------------------------ 侧栏 ------------------------------ */
+
+.fm-sidebar {
+  display: none;
+  flex-direction: column;
+  position: fixed;
+  z-index: 58;
+  inset: 0 auto 0 0;
+  width: min(84vw, var(--fm-side-w));
+  padding: 12px 0 calc(20px + env(safe-area-inset-bottom));
+  gap: 6px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: var(--bg-grouped);
+  border-inline-end: 1px solid var(--separator);
+}
+
+.fm-sidebar-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px 10px;
+}
+
+.fm-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  color: var(--label);
+  font-size: var(--fs-17);
+  font-weight: 600;
+  text-decoration: none;
+}
+.fm-brand .ios-row-icon { width: 28px; height: 28px; border-radius: 8px; }
+.fm-brand-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.fm-sidebar .ios-section { padding: 0; }
+.fm-sidebar-foot {
+  margin: 14px 16px 0;
+  color: var(--label-tertiary);
+  font-size: var(--fs-12);
+  line-height: 1.5;
+}
+.fm-side-empty { color: var(--label-tertiary); font-size: var(--fs-13); }
+.fm-cell-label { color: var(--label-secondary); font-size: var(--fs-15); }
+
+.fm-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 57;
+  background: rgba(0, 0, 0, .32);
+  backdrop-filter: blur(1px);
+}
+
+/* ------------------------------ 内容区 ------------------------------ */
+
+.fm-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.fm-chrome {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  padding: 0 var(--pad, 16px) 8px;
+  background: var(--bg-grouped);
+}
+
+.fm-chrome .ios-navbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 4px 0;
+}
+.fm-chrome .ios-navbar-title {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  font-size: var(--fs-15);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ios-chrome-actions { display: flex; align-items: center; gap: 2px; }
+
+.fm-chrome .ios-large-title { padding: 2px 0 6px; }
+.fm-chrome .ios-large-title .ios-h1 { font-size: 28px; }
+
+.fm-searchbar { display: flex; margin: 2px 0 8px; }
+
+/* 面包屑 */
+.fm-crumb {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: 0 0 8px;
+  padding: 4px 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.fm-crumb[hidden] { display: none; }
+.fm-crumb::-webkit-scrollbar { display: none; }
+.fm-crumb-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--fill-2);
+  color: var(--label);
+  font: inherit;
+  font-size: var(--fs-13);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.fm-crumb-item:active { background: var(--fill); opacity: .6; }
+.fm-crumb-item.current { background: var(--tint-soft); color: var(--tint); font-weight: 600; }
+.fm-crumb-item svg { width: 13px; height: 13px; }
+.fm-crumb-sep { display: inline-flex; color: var(--label-tertiary); }
+.fm-crumb-sep svg { width: 12px; height: 12px; }
+
+.fm-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 2px 0 4px;
+}
+.fm-toolbar .ios-pill-btn { display: inline-flex; align-items: center; gap: 5px; }
+.fm-toolbar .ios-pill-btn[disabled] { opacity: .35; }
+.fm-count { color: var(--label-secondary); font-size: var(--fs-13); }
+
+.fm-notices { display: flex; flex-direction: column; gap: 8px; padding: 0 var(--pad, 16px); }
+.fm-notices:empty { display: none; }
+.fm-notice-close { width: 28px; height: 28px; margin-inline-start: auto; }
+
+/* 主区 */
+.fm-main {
+  flex: 1;
+  min-height: 0;
+  padding: 4px var(--pad, 16px) 24px;
+}
+.fm-main .ios-list { margin: 0 0 14px; }
+.fm-main .ios-section + .ios-section { margin-top: 6px; }
+
+.fm-row .fm-star { color: var(--warning); font-size: 12px; }
+.fm-size { color: var(--label-tertiary); font-size: var(--fs-12); font-variant-numeric: tabular-nums; }
+
+/* 图标视图 */
+.fm-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 14px 8px;
+  padding: 6px 0 0;
+}
+.fm-grid .ios-tile { padding: 6px 2px; }
+.fm-grid .ios-tile-icon { width: 60px; height: 60px; border-radius: 15px; }
+.fm-grid .ios-tile-label { font-size: var(--fs-12); }
+
+.fm-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  padding: 10px var(--pad, 16px) calc(16px + env(safe-area-inset-bottom));
+  color: var(--label-tertiary);
+}
+.fm-foot .ios-caption { color: var(--label-tertiary); }
+.fm-foot a { text-decoration: none; }
+.fm-foot a:active { opacity: .6; }
+
+/* ------------------------------ 底部标签栏 ------------------------------ */
+
+.fm-tabbar {
+  position: sticky;
+  bottom: 0;
+  z-index: 30;
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--separator);
+  background: var(--bg-material);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+}
+.fm-tab {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 44px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--label-secondary);
+  font: inherit;
+  font-size: var(--fs-11);
+  text-decoration: none;
+  cursor: pointer;
+}
+.fm-tab.active { color: var(--tint); }
+.fm-tab:active { opacity: .55; }
+.fm-tab-ico { display: inline-flex; }
+.fm-tab-ico svg { width: 21px; height: 21px; }
+@supports not (backdrop-filter: saturate(180%) blur(20px)) {
+  .fm-tabbar { background: var(--bg-grouped); }
+}
+
+/* ------------------------------ 预览浮层 ------------------------------ */
+
+.fm-preview-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.fm-preview-icon { width: 44px; height: 44px; border-radius: 11px; flex: 0 0 auto; }
+.fm-preview-name { font-size: var(--fs-17); font-weight: 600; word-break: break-all; }
+
+.fm-pre {
+  max-height: 46vh;
+  overflow: auto;
+  margin: 0 0 12px;
+  padding: 8px 0;
+  border-radius: var(--r-md);
+  background: var(--fill-2);
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12px;
+  line-height: 1.5;
+  tab-size: 2;
+}
+.fm-line { display: flex; gap: 8px; }
+.fm-line:hover { background: var(--fill); }
+.fm-lnno {
+  flex: 0 0 34px;
+  padding-right: 6px;
+  text-align: right;
+  color: var(--label-tertiary);
+  user-select: none;
+  font-variant-numeric: tabular-nums;
+}
+.fm-lntxt { flex: 1; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.fm-cap { margin: 0 0 10px; color: var(--label-secondary); font-size: var(--fs-12); }
+.fm-loading-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+
+.fm-image-box, .fm-media, .fm-frame-box {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 12px;
+  border-radius: var(--r-md);
+  background: var(--fill-2);
+  overflow: hidden;
+}
+.fm-image { max-width: 100%; max-height: 46vh; object-fit: contain; }
+.fm-media { padding: 10px; }
+.fm-media audio, .fm-media video { width: 100%; max-height: 46vh; }
+.fm-frame { width: 100%; height: 46vh; border: 0; background: #fff; }
+
+.fm-binary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 22px 12px;
+  margin-bottom: 12px;
+  border-radius: var(--r-md);
+  background: var(--fill-2);
+  text-align: center;
+}
+.fm-binary-ico { width: 60px; height: 60px; border-radius: 15px; display: inline-flex; align-items: center; justify-content: center; }
+.fm-binary-ico svg { width: 30px; height: 30px; }
+
+/* ------------------------------ 移动端（<768） ------------------------------ */
+
+body.fm-sidebar-open .fm-sidebar { display: flex; box-shadow: var(--shadow-lg, 0 12px 40px rgba(0, 0, 0, .22)); }
+body.fm-sidebar-open .fm-scrim { display: block; }
+body.fm-sidebar-open .fm-content { filter: saturate(.9); }
+
+.fm-content { padding-bottom: 8px; }
+.fm-app { padding-bottom: 0; }
+
+/* ------------------------------ 平板 ≥768 ------------------------------ */
+
+@media (min-width: 768px) {
+  :root { --pad: 20px; }
+  .fm-grid { grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 18px 12px; }
+  .fm-grid .ios-tile-icon { width: 68px; height: 68px; }
+  .fm-chrome .ios-large-title .ios-h1 { font-size: 32px; }
+}
+
+/* ------------------------------ 桌面 ≥1024 ------------------------------ */
+
+@media (min-width: 1024px) {
+  .fm-app {
+    display: grid;
+    grid-template-columns: var(--fm-side-w) minmax(0, 1fr);
+    align-items: start;
+    min-height: 100dvh;
+  }
+  .fm-sidebar {
+    display: block;
+    position: sticky;
+    top: 0;
+    inset: auto;
+    width: auto;
+    height: 100dvh;
+    padding-top: 16px;
+  }
+  .fm-scrim { display: none; }
+  .fm-tabbar { display: none; }
+  .fm-content { padding-bottom: 0; }
+  .fm-notices { padding: 0 24px; }
+  .fm-chrome { padding: 0 24px 8px; }
+  .fm-main { padding: 4px 24px 24px; }
+  .fm-foot { padding: 10px 24px 18px; }
+  .fm-grid { grid-template-columns: repeat(auto-fill, minmax(116px, 1fr)); }
+  .fm-pre { max-height: 56vh; }
+  .fm-frame { height: 56vh; }
+  .fm-image { max-height: 56vh; }
+}
+
+/* ------------------------------ 打印 / 高对比 / 减少动效 ------------------------------ */
+
+@media print {
+  .fm-sidebar, .fm-tabbar, .fm-chrome .ios-navbar, .fm-toolbar, .fm-notices { display: none; }
+  .fm-app { display: block; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fm-crumb-item, .fm-tab, .fm-grid .ios-tile { transition: none; }
+}
+
+@media (forced-colors: active) {
+  .fm-crumb-item, .fm-tab, .fm-pre, .fm-binary, .fm-image-box, .fm-frame-box {
+    border: 1px solid CanvasText;
+    forced-color-adjust: none;
+  }
+  .fm-tab.active { text-decoration: underline; }
+}
