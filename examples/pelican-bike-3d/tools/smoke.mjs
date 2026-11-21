@@ -280,6 +280,76 @@ group('落座装配：车上移到轮半径 + 腿长够得到踏板 + 骑行姿�
   ok(/rigBasis\.groundY = /.test(read('js/main.js')), 'main: 给相机提供地面高度基准');
 });
 
+/* ============================ 腿部链与传动咬合 ============================ */
+group('腿部链：髋→股→膝→胫→踝→蹼足 + 脚踏相位同源 + 轮/曲柄同向', () => {
+  const riderSrc = read('js/rider.js');
+  const pelSrc = read('js/pelican.js');
+  const bikeSrc = read('js/bike.js');
+  const thigh = Number((pelSrc.match(/^const THIGH = ([\d.]+);/m) || [])[1]);
+  const shin = Number((pelSrc.match(/^const SHIN = ([\d.]+);/m) || [])[1]);
+  const hipX = Number((pelSrc.match(/^const HIP_X = ([\d.-]+);/m) || [])[1]);
+  const hipY = Number((pelSrc.match(/^const HIP_Y = ([\d.-]+);/m) || [])[1]);
+  const splay = Number((pelSrc.match(/^const PEDAL_SPLAY = ([\d.]+);/m) || [])[1]);
+  const sole = Number((pelSrc.match(/^const FOOT_SOLE = ([\d.]+);/m) || [])[1]);
+  ok(thigh > 0 && shin > 0, 'pelican: 腿部链常数可解析（THIGH/SHIN/HIP/PEDAL_SPLAY）');
+  ok(Number.isFinite(hipX) && Number.isFinite(hipY) && splay > 0, `pelican: HIP=(${hipX},${hipY}) PEDAL_SPLAY=${splay} 解析成功`);
+  ok(sole > 0.02 && sole < 0.06, `pelican: FOOT_SOLE=${sole}（掌底深度，踏面与脚掌的间距）`);
+
+  /* ① 运动链：每一节都是上一节的子级 —— 少挂一层，腿段就落在组件外（视觉 = 双腿脱开） */
+  ok(/const hip = joint\(group, HIP_X, HIP_Y, side \* \(RIDE\.pedalZ - HIP_X\)\);/.test(pelSrc), 'pelican: 髋挂在组件根上（横向按脚踏平面摆放）');
+  ok(/const thighPivot = joint\(hip, 0, 0, 0\);/.test(pelSrc), 'pelican: 大腿枢轴 = 髋的子级');
+  ok(/const knee = joint\(thighPivot, 0, -THIGH, 0\);/.test(pelSrc), 'pelican: 膝 = 大腿枢轴的子级（股骨末端）');
+  ok(/const foot = joint\(knee, 0, -SHIN, 0\);/.test(pelSrc), 'pelican: 踝 = 膝的子级（胫骨末端）');
+
+  /* ② 关节链接体：圆柱端盖是平的，弯折后两段之间露缺口 = 用户看到的「双腿结构缺链接」 */
+  ok(/羽领：股根与躯干接合处/.test(pelSrc), 'pelican: 股根有羽领（大腿不裸露在躯干之外）');
+  ok(/膝链接（腿段的折点）/.test(pelSrc), 'pelican: 膝有链接体（折点不露缺口）');
+  ok(/踝链接/.test(pelSrc), 'pelican: 踝有链接体（胫骨与蹼足相接）');
+  ok(/hip\.rotation\.x = -side \* PEDAL_SPLAY;/.test(pelSrc), 'pelican: 整腿绕 X 外撇（脚落到脚踏平面上）');
+
+  /* ③ 腿 ↔ 脚踏同源：踏板目标由 config.pedalOffset 解算，与车上曲柄是同一套相位数学 */
+  ok(/import \{ RIDE, pedalOffset \} from '\.\/config\.js';/.test(pelSrc), 'pelican: 从 config import pedalOffset');
+  ok(/const off = pedalOffset\(leg\.side, phase, pr\);/.test(pelSrc), 'pelican: 踏板目标 = pedalOffset(leg.side, crankPhase)');
+  ok(/const crankL = mkArm\(RIDE\.pedalZ, 0\);/.test(bikeSrc), 'bike: 曲柄臂横向偏移取 RIDE.pedalZ（与腿的摆放同源）');
+  ok(/const crankR = mkArm\(-RIDE\.pedalZ, Math\.PI\);/.test(bikeSrc), 'bike: 另一侧曲柄臂相位差 π');
+
+  /* ④ 纯函数：pedalOffset 严格等于「臂静止朝 +Y、曲柄组绕 Z 转 CRANK_SIGN × 相位」的旋转 */
+  const L = cfg.RIDE.crankLen;
+  for (const ph of [0, 0.6, Math.PI / 2, 2.1, Math.PI, 5.0]) {
+    const arm = cfg.RIDE.CRANK_SIGN * ph;
+    const p = cfg.pedalOffset(1, ph, L);
+    near(p.x, -Math.sin(arm) * L, 1e-9, `pedalOffset(+1, ${ph.toFixed(2)}) x 与曲柄臂旋转一致`);
+    near(p.y, Math.cos(arm) * L, 1e-9, `pedalOffset(+1, ${ph.toFixed(2)}) y 与曲柄臂旋转一致`);
+    const q = cfg.pedalOffset(-1, ph, L);
+    near(q.x, -p.x, 1e-9, `pedalOffset(-1, ${ph.toFixed(2)}) 与 +1 侧反相（x）`);
+    near(q.y, -p.y, 1e-9, `pedalOffset(-1, ${ph.toFixed(2)}) 与 +1 侧反相（y）`);
+    ok(Math.abs(Math.hypot(p.x, p.y) - L) < 1e-9, `pedalOffset 半径恒为曲柄长（φ=${ph.toFixed(2)}）`);
+  }
+  ok(cfg.RIDE.CRANK_SIGN === -1, 'RIDE.CRANK_SIGN = −1（前进 = 轮顶朝前进方向走）');
+
+  /* ⑤ 整圈踏相位：腿 IK 不被夹 → 脚掌全程咬在踏板上（夹住 = 脚会脱开踏板绕圈） */
+  ok(/const ty = cy \+ off\.y \+ FOOT_SOLE - HIP_Y;/.test(pelSrc), 'pelican: IK 目标 = 踏面 + FOOT_SOLE（掌底踩踏面，不陷进踏板）');
+  const cx = -rider.SADDLE.x;
+  const cy = (cfg.RIDE.wheelR - 0.02 + 0.02) - rider.SADDLE.y;
+  let dmin = Infinity, dmax = 0, clamped = 0;
+  for (let i = 0; i < 64; i++) {
+    const o = cfg.pedalOffset(1, (i / 64) * Math.PI * 2, L);
+    const d = Math.hypot(cx + o.x - hipX, cy + o.y + sole - hipY);
+    dmin = Math.min(dmin, d); dmax = Math.max(dmax, d);
+    if (d > (thigh + shin) * 0.985 || d < (thigh + shin) * 0.42) clamped++;
+  }
+  ok(clamped === 0, `整圈踏相位 IK 不夹取 → 脚全程踩在踏板（d ∈ [${dmin.toFixed(3)}, ${dmax.toFixed(3)}]）`);
+  ok(dmax - dmin > 0.2, `踏相位让髋-踏距离摆动 ${(dmax - dmin).toFixed(2)} m（真在蹬圈，不是定死一点）`);
+  const dmid = (dmin + dmax) / 2;
+  ok(Math.abs(Math.sin(splay) * dmid + (cfg.RIDE.pedalZ - hipX) - cfg.RIDE.pedalZ) < 0.01,
+    `外撇角把脚踝送到脚踏平面（残差 ${(Math.abs(Math.sin(splay) * dmid - hipX)).toFixed(3)} m）`);
+
+  /* ⑥ 传动方向：链条把后轮/牙盘/曲柄串成同一转向，所以轮与曲柄共用 CRANK_SIGN */
+  ok(/bike\.crank\.rotation\.z = RIDE\.CRANK_SIGN \* state\.crankPhase;/.test(riderSrc), 'rider: 曲柄 = CRANK_SIGN × crankPhase');
+  ok(/bike\.wheelR\.rotation\.z = RIDE\.CRANK_SIGN \* state\.wheelPhase;/.test(riderSrc), 'rider: 后轮 = CRANK_SIGN × wheelPhase（与曲柄同向）');
+  ok(/bike\.wheelF\.rotation\.z = RIDE\.CRANK_SIGN \* state\.wheelPhase;/.test(riderSrc), 'rider: 前轮与后轮同向');
+});
+
 /* ============================ 相机 ============================ */
 group('7 档机位：局部参数 + 坐标架解算 + 鼠标偏移叠加', () => {
   const st = rider.createRideState(200);

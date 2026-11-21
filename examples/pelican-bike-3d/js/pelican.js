@@ -1,12 +1,14 @@
 /* 3D 鹈鹕海边骑行（pelican-bike-3d）· js/pelican.js —— 鹈鹕本体（驼背骑行姿态）
  * 组件局部坐标与自行车一致：前进 = +X，上 = +Y，右 = +Z；group 原点 = 髋部（坐在车座上）。
  * 结构：躯干 + 尾 + 双翼（收拢/展翅）+ S 形颈（5 节链）+ 头（冠羽/眼）+ 长喙（上喙/下喙铰接）+ 喉囊（弹性摆动）
- *      + 双腿两节 IK（脚踩踏板，踏板相位由 rider.js 传入）。
+ *      + 双腿链（髋 →〔股骨 + 羽领〕→ 膝链接 →〔胫骨 + 跗骨〕→ 踝链接 → 蹼足）两节 IK 踩踏板；
+ *        踏板位置与车上曲柄共用 config.pedalOffset() 的相位解算，腿与脚踏不会各自转。
  */
 'use strict';
 
 import { clamp, clamp01, lerp, TAU, damp } from './utils.js';
-import { RIDE } from './config.js';
+import { RIDE, pedalOffset } from './config.js';
+import { mergeGeos } from './meshkit.js';
 
 function joint(parent, x, y, z) {
   const g = new THREE.Group();
@@ -36,8 +38,13 @@ function cylX(r1, r2, len, seg) {
   return new THREE.CylinderGeometry(r1, r2, len, seg || 8).rotateZ(-Math.PI / 2);
 }
 
+/* 腿部链的装配常数（smoke 从源码解析这些来解装配方程，改动必须同步 smoke） */
 const THIGH = 0.42;
 const SHIN = 0.46;
+const HIP_X = 0.03;          // 髋在 pelican 局部坐标里的前后位置
+const HIP_Y = -0.14;         // 髋在 pelican 局部坐标里的高低（躯干下缘之内）
+const PEDAL_SPLAY = 0.05;    // 整腿外撇角：把脚送到脚踏的横向平面（±RIDE.pedalZ）
+const FOOT_SOLE = 0.037;     // 踝 → 蹼足掌底面的距离；IK 目标 = 踏面 + 这段，掌底「踩」在踏板上而不陷进去
 
 export function createPelican(THREE, kit) {
   const group = new THREE.Group();
@@ -146,28 +153,39 @@ export function createPelican(THREE, kit) {
   const pouchTip = addMesh(billLow, blob(0.075, 0.055, 0.055), kit.mat.pouch);
   pouchTip.position.set(0.20, -0.03, 0);
 
-  /* ---------- 双腿两节 IK（髋在躯干下方，脚落到踏板）---------- */
+  /* ---------- 双腿链：髋 →〔股骨 + 羽领〕→ 膝链接 →〔胫骨 + 跗骨〕→ 踝链接 → 蹼足 ----------
+   * 每一节之间都塞一个「链接体」：圆柱端盖是平的，绕关节弯折后两段之间会露出缺口 —— 观感上
+   * 就是「双腿结构缺链接」。鸟形腿的接法：股骨藏在羽领里（羽毛材质），肉眼可见的那颗「膝」
+   * 其实是踝关节（向后折，裸皮），胫段裸皮往下走，末端踝球接蹼足。
+   * 场景图层级 = 运动链：hip → thighPivot → knee → foot，与 update() 的两节 IK 一一对应。
+   * 同一材质的几块图元用 mergeGeos 烘成一份几何体（一条腿只占 3 个 draw call）。
+   */
   const legs = [];
   for (const side of [1, -1]) {
-    const hip = joint(group, 0.03, -0.14, side * 0.085);
+    // 髋在脚踏平面的内侧（ pedalZ − 0.03 ），靠外撇角把脚送到踏板上
+    const hip = joint(group, HIP_X, HIP_Y, side * (RIDE.pedalZ - HIP_X));
+    hip.rotation.x = -side * PEDAL_SPLAY;      // 绕 X 外撇：−Y 方向朝 ±Z 侧张开
     const thighPivot = joint(hip, 0, 0, 0);
-    const thigh = addMesh(thighPivot, cylX(0.052, 0.042, THIGH, 8), kit.mat.feather);
-    thigh.position.set(0, -THIGH / 2, 0);
+    addMesh(thighPivot, mergeGeos(THREE, [
+      { geo: cylX(0.052, 0.044, THIGH, 10), pos: [0, -THIGH / 2, 0] },
+      { geo: blob(0.096, 0.112, 0.096, 12), pos: [0, -0.03, 0] },   // 羽领：股根与躯干接合处
+    ]), kit.mat.feather);
     const knee = joint(thighPivot, 0, -THIGH, 0);
-    const shin = addMesh(knee, cylX(0.036, 0.026, SHIN, 8), kit.mat.leg);
-    shin.position.set(0, -SHIN / 2, 0);
-    // 脚：蹼足（掌 + 三趾 + 后趾）
+    addMesh(knee, mergeGeos(THREE, [
+      { geo: cylX(0.036, 0.027, SHIN, 9), pos: [0, -SHIN / 2, 0] },
+      { geo: blob(0.042, 0.052, 0.042, 10), pos: [0, 0, 0] },       // 膝链接（腿段的折点）
+      { geo: blob(0.032, 0.036, 0.032, 9), pos: [0, -SHIN, 0] },    // 踝链接
+    ]), kit.mat.leg);
+    // 脚 = 踝关节：蹼足（掌 + 三趾 + 后趾）烘成一份几何体
     const foot = joint(knee, 0, -SHIN, 0);
-    const palm = addMesh(foot, blob(0.075, 0.014, 0.055), kit.mat.leg);
-    palm.position.set(0.02, -0.006, 0);
+    const sole = [{ geo: blob(0.075, 0.014, 0.055), pos: [0.02, -0.012, 0] }];
     for (let i = 0; i < 3; i++) {
-      const toe = addMesh(foot, blob(0.075, 0.010, 0.020), kit.mat.leg);
-      toe.position.set(0.075, -0.008, (i - 1) * 0.028);
-      toe.rotation.y = (i - 1) * 0.28;
+      sole.push({ geo: blob(0.075, 0.011, 0.021), pos: [0.075, -0.014, (i - 1) * 0.028], rot: [0, (i - 1) * 0.28, 0] });
     }
-    const hind = addMesh(foot, blob(0.035, 0.010, 0.018), kit.mat.leg);
-    hind.position.set(-0.045, -0.006, 0);
-    legs.push({ hip: hip, knee: knee, foot: foot, side: side, phase: side > 0 ? 0 : Math.PI });
+    sole.push({ geo: blob(0.035, 0.011, 0.018), pos: [-0.045, -0.012, 0] });
+    addMesh(foot, mergeGeos(THREE, sole), kit.mat.leg);
+    // side 决定这一腿对应哪侧曲柄臂（+Z 腿 ↔ +pedalZ 的脚踏），target 每帧写踏板目标点，供复核
+    legs.push({ hip: hip, thighPivot: thighPivot, knee: knee, foot: foot, side: side, target: { x: 0, y: 0 } });
   }
 
   /* ---------- 状态与动画 ---------- */
@@ -271,14 +289,16 @@ export function createPelican(THREE, kit) {
     }
     st.headYaw = damp(st.headYaw, st.headYawTarget, 2.2, dt);
 
-    // 腿：两节 IK 踩踏板（踏板圆心/半径由 rider.js 以本组件局部坐标给出）
+    // 腿：两节 IK 踩踏板。踏板目标由 config.pedalOffset() 解算 —— 与车上曲柄/脚踏是**同一套相位
+    // 数学**，于是腿链在曲柄相位上，脚掌与脚踏一起转；腿自己算相位（各转各的）就会脱开踏板。
     const cx = s.pedalCx === undefined ? 0.09 : s.pedalCx;
     const cy = s.pedalCy === undefined ? -0.66 : s.pedalCy;
     const pr = s.pedalR === undefined ? RIDE.crankLen : s.pedalR;
     for (const leg of legs) {
-      const ph = phase + leg.phase;
-      const tx = cx + Math.cos(ph) * pr - 0.03;
-      const ty = cy + Math.sin(ph) * pr + 0.14;
+      const off = pedalOffset(leg.side, phase, pr);           // 这条腿对应那颗脚踏相对中轴的偏移
+      const tx = cx + off.x - HIP_X;                          // 解算在髋的局部平面内，目标要减去髋位置
+      const ty = cy + off.y + FOOT_SOLE - HIP_Y;               // + 掌底深度：踩在踏面上，不陷进踏板
+      leg.target.x = tx; leg.target.y = ty;                   // 留给 rider / 调试钩子复核「脚踩在踏板上」
       const d = clamp(Math.hypot(tx, ty), (THIGH + SHIN) * 0.42, (THIGH + SHIN) * 0.985);
       const phi = Math.atan2(tx, -ty);
       const cosA = clamp((THIGH * THIGH + d * d - SHIN * SHIN) / (2 * THIGH * d), -1, 1);
@@ -286,8 +306,8 @@ export function createPelican(THREE, kit) {
       const kx = Math.sin(th1) * THIGH, ky = -Math.cos(th1) * THIGH;
       const psi = Math.atan2(tx - kx, -(ty - ky));
       leg.hip.rotation.z = th1;
-      leg.knee.rotation.z = psi - th1;
-      leg.foot.rotation.z = -psi + 0.16 + Math.sin(ph) * 0.22;
+      leg.knee.rotation.z = psi - th1;                       // 膝（踝关节）向后折
+      leg.foot.rotation.z = -psi + 0.16 + (off.y / pr) * 0.22;   // 踝随踏相位：前冲抬趾、后压蹬平
     }
   }
 

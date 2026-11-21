@@ -76,7 +76,30 @@ export const RIDE = {
   bobAmp: 0.014,
   leanMax: 0.16,        // 弯道侧倾上限（rad）
   flapCooldown: 6.5,    // 展翅（阵风/爬坡）间隔下限 s
+  // 传动符号：前进 = 局部 +X，绕 Z 的负向旋转才让轮顶朝前进方向走 = 向前滚。
+  // 链条把后轮与牙盘串成同一转向，所以轮、曲柄必须用同一个符号，写一处即可。
+  CRANK_SIGN: -1,
+  pedalZ: 0.115,        // 脚踏中臂横向偏移（曲柄臂在 ±pedalZ；鹈鹕的脚要落到这两个平面上）
 };
+
+/**
+ * 曲柄相位 → 该侧脚踏相对中轴的偏移（组件局部平面，前进 = +X，上 = +Y）。
+ * 这是**曲柄 ↔ 脚踏 ↔ 鹈鹕腿**唯一的相位解算：bike.js 画曲柄、rider.js 转曲柄、
+ * pelican.js 的腿 IK 全部走这里，三方共用一条数学，腿才不会与脚踏脱开（脱开 = 缺链接）。
+ * 与 bike.js 的画法严格一致：曲柄臂静止指向 +Y，曲柄组绕 Z 转 CRANK_SIGN × 相位，
+ * 另一侧曲柄臂相位差 π。
+ * @param {number} side  +1 = 局部 +Z 那侧的曲柄臂（bike.js 的 crankL 在 +pedalZ），-1 = 另一侧
+ * @param {number} crankPhase  曲柄相位（rider 的 state.crankPhase）
+ * @param {number} len  曲柄长（RIDE.crankLen）
+ * @returns {{x:number, y:number, a:number}} 偏移 + 该臂在局部平面的方位角（atan2）
+ */
+export function pedalOffset(side, crankPhase, len) {
+  const L = Number.isFinite(len) ? len : RIDE.crankLen;
+  const arm = RIDE.CRANK_SIGN * crankPhase + (side > 0 ? 0 : Math.PI);   // 臂的转角（静止朝 +Y）
+  const x = -Math.sin(arm) * L;
+  const y = Math.cos(arm) * L;
+  return { x: x, y: y, a: Math.atan2(y, x) };
+}
 
 /* ============================ 世界分块 ============================ */
 export const WORLD = {

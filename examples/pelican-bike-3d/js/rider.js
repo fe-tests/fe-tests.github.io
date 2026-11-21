@@ -125,10 +125,11 @@ export function createRider(THREE, kit, opts) {
     posV.set(state.x, state.y + 0.03 + state.bob, state.z);
     group.position.copy(posV);
 
-    // 传动
-    bike.wheelR.rotation.z = state.wheelPhase;
-    bike.wheelF.rotation.z = state.wheelPhase;
-    bike.crank.rotation.z = -state.crankPhase;
+    // 传动：链条把后轮 → 牙盘 → 曲柄串成**同一个转向**，所以轮与曲柄共用 RIDE.CRANK_SIGN。
+    // 前进 = 局部 +X，绕 Z 的负向旋转才让轮顶朝前进方向走（写成正号就是「往前骑、轮子倒转」）。
+    bike.wheelR.rotation.z = RIDE.CRANK_SIGN * state.wheelPhase;
+    bike.wheelF.rotation.z = RIDE.CRANK_SIGN * state.wheelPhase;
+    bike.crank.rotation.z = RIDE.CRANK_SIGN * state.crankPhase;
     bike.steer.rotation.y = Math.sin(state.wheelPhase * 0.31) * 0.05 - state.lean * 0.25;
 
     // 阵风 → 展翅（顶风/上坡时更频繁）
@@ -143,6 +144,8 @@ export function createRider(THREE, kit, opts) {
     }
     state.gust = damp(state.gust, 0, 1.6, dt);
 
+    // 鹈鹕：crankPhase 同时喂给 bike.crank 与 pelican 的腿 IK（两边都走 config.pedalOffset），
+    // 腿链在脚踏上；这里只给「曲柄中轴在鹈鹕局部坐标里的位置」。
     pelican.update(dt, {
       time: state.elapsed,
       crankPhase: state.crankPhase,

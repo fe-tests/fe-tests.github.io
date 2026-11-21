@@ -340,6 +340,31 @@ async function boot() {
       scene: scene, renderer: renderer, rig: rigRef.ref, rider: world.rider,
       world: world, quality: quality, ui: ui, kit: kit.ref,
       snapRig: function (id) { rigRef.ref.setRig(id, true); },
+      /**
+       * 调试机位：把 rig.update 换成「贴在双腿/曲柄上」的固定取景（软渲染下截图要等几十秒，
+       * 而机位偏移会在 3.5 s 后自动归零 → 用鼠标偏移取特写必被拉回远景，所以这里直接冻住相机）。
+       * @param {boolean} on  true 启用 / false 还原巡游机位
+       * @param {number} k   镜头到取景中心的距离 m
+       * @param {number} side  横向偏移（+ = 骑行者右侧）
+       */
+      legCam: function (on, k, side) {
+        const rig = rigRef.ref;
+        if (!on) { if (rig.__tourUpdate) { rig.update = rig.__tourUpdate; rig.__tourUpdate = null; } return 'off'; }
+        if (!rig.__tourUpdate) rig.__tourUpdate = rig.update;
+        const d = Number.isFinite(k) ? k : 1.0;
+        const lat = Number.isFinite(side) ? side : 0.62;
+        rig.update = function (dt, basis) {
+          const F = basis.forward, R = basis.right, U = basis.up, P = basis.position;
+          const look = [P[0] + U[0] * 0.40 + F[0] * 0.06, P[1] + U[1] * 0.40 + F[1] * 0.06, P[2] + U[2] * 0.40 + F[2] * 0.06];
+          const cx = look[0] + R[0] * d * lat - F[0] * d * 0.72 + U[0] * d * 0.20;
+          const cy = look[1] + R[1] * d * lat - F[1] * d * 0.72 + U[1] * d * 0.20;
+          const cz = look[2] + R[2] * d * lat - F[2] * d * 0.72 + U[2] * d * 0.20;
+          rig.camera.position.set(cx, Math.max(cy, basis.groundY + 0.25), cz);
+          rig.camera.lookAt(look[0], look[1], look[2]);
+          if (Math.abs(rig.camera.fov - 36) > 0.01) { rig.camera.fov = 36; rig.camera.updateProjectionMatrix(); }
+        };
+        return 'legs-cam d=' + d + ' lat=' + lat;
+      },
       setTime: function (v, cyc) { timeOfDay = ((v % 1) + 1) % 1; cycling = !!cyc; },
       setTier: function (t) { quality.setTier(t, false); },
       jump: function (z) { world.rider.state.z = z; world.rider.state.s = z * 0.9; },
@@ -361,6 +386,26 @@ async function boot() {
             };
           });
         } catch (e) { return 'pick-fail:' + e.message; }
+      },
+      legs: function () {
+        // 腿部链复核：每只踝关节的世界位置 vs 它该踩的那颗脚踏（间隙稳定在 ~4 cm = 蹼足厚度）
+        const out = [];
+        const a = new THREE.Vector3(), b = new THREE.Vector3();
+        const pel = world.rider.pelican, bk = world.rider.bike;
+        for (const leg of pel.legs) {
+          leg.foot.getWorldPosition(a);
+          const ped = leg.side > 0 ? bk.pedalL : bk.pedalR;
+          ped.getWorldPosition(b);
+          out.push({
+            side: leg.side,
+            ankle: [+a.x.toFixed(3), +a.y.toFixed(3), +a.z.toFixed(3)],
+            pedal: [+b.x.toFixed(3), +b.y.toFixed(3), +b.z.toFixed(3)],
+            gap: +a.distanceTo(b).toFixed(3),
+            knee: +leg.knee.rotation.z.toFixed(2),
+            hip: +leg.hip.rotation.z.toFixed(2),
+          });
+        }
+        return out;
       },
       info: function () {
         const i = renderer.info.render;

@@ -150,6 +150,11 @@ say('· 就绪 ' + JSON.stringify(await valSafe('JSON.stringify(__pbike.info())'
 // 快速体检模式：只看统计与骨骼装配，不截图（PB_INFO_ONLY=1）
 if (process.env.PB_INFO_ONLY === '1') {
   say('· 体检 ' + JSON.stringify(await valSafe('JSON.stringify(__pbike.info())')));
+  for (let i = 0; i < 6; i++) {
+    await evSafe('__pbike.rig.tour.paused = true;');
+    await sleep(1500);
+    say('· 腿部链 ' + i + ' ' + JSON.stringify(await valSafe('JSON.stringify(__pbike.legs())')));
+  }
   const xys = (process.env.PB_PICKS || '0.22,0.22;0.55,0.12;0.8,0.3')
     .split(';').map((s) => s.split(',').map((v) => Number(v.trim()))).filter((a) => a.length === 2 && a.every(Number.isFinite));
   for (const xy of xys) {
@@ -190,9 +195,29 @@ await sleep(3000);
 await shot('00-entry');
 
 /* ---------- 各机位 ---------- */
-const TIME_BY_RIG = { follow: 0.30, side: 0.46, orbit: 0.42, seaside: 0.79, lowwheel: 0.52, cliff: 0.36, crane: 0.28, night: 0.965 };
+const TIME_BY_RIG = { follow: 0.30, side: 0.46, orbit: 0.42, seaside: 0.79, lowwheel: 0.52, cliff: 0.36, crane: 0.28, night: 0.965, legs: 0.46 };
 for (const rig of RIGS) {
   const t = TIME_BY_RIG[rig] === undefined ? 0.44 : TIME_BY_RIG[rig];
+  if (rig === 'legs') {
+    // 腿部特写：冻住相机贴到双腿/曲柄，同时打印「踝 ↔ 脚踏」间隙读数（腿链有没有咬住踏板）
+    await evSafe('__pbike.setTime(0.46, false); __pbike.snapRig("lowwheel");');
+    await sleep(3000);
+    say('· 腿部相机 ' + await valSafe('JSON.stringify(__pbike.legCam(true, 1.05, 0.62))'));
+    await sleep(4000);
+    say('· 腿部链 ' + JSON.stringify(await valSafe('JSON.stringify(__pbike.legs())')));
+    await shot('legs-closeup');
+    await evSafe('__pbike.legCam(true, 1.75, 0.95);');
+    await sleep(4000);
+    await shot('legs-mid');
+    // 腿部拾取：把画面上「这块颜色是谁画的」讲清楚（判断材质/图元归属，不靠猜）
+    const LP = (process.env.PB_LEG_PICKS || '0.35,0.18;0.506,0.376;0.59,0.488;0.49,0.68;0.55,0.545')
+      .split(';').map((s) => s.split(',').map((v) => Number(v))).filter((a) => a.length === 2 && a.every(Number.isFinite));
+    for (const xy of LP) {
+      say('· 拾取腿部 ' + xy[0] + ',' + xy[1] + ' ' + JSON.stringify(await valSafe('JSON.stringify(__pbike.pick(' + xy[0] + ',' + xy[1] + '))')));
+    }
+    await evSafe('__pbike.legCam(false);');
+    continue;
+  }
   if (rig === 'night') {
     // 夜间样片走跟拍机位：海边低机位在夜里会贴到路面灯罩下方，路灯光晕会糊满天空（见 devlog）
     await evSafe('__pbike.setTime(0.965, false); __pbike.snapRig("follow");');

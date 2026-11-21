@@ -105,8 +105,10 @@ export function createBike(THREE, kit) {
     crank.add(pivot);
     return { pivot: pivot, pedal: pedal };
   };
-  const crankL = mkArm(0.115, 0);
-  const crankR = mkArm(-0.115, Math.PI);
+  // 曲柄臂静止时朝 +Y，曲柄组绕 Z 转 RIDE.CRANK_SIGN × 相位；
+  // 脚踏相对中轴的偏移 = config.pedalOffset(side, crankPhase)（鹈鹕腿 IK 用的就是它）。
+  const crankL = mkArm(RIDE.pedalZ, 0);        // +Z 侧脚踏（鹈鹕 side=+1 的那条腿踩它）
+  const crankR = mkArm(-RIDE.pedalZ, Math.PI);  // −Z 侧脚踏（相位差 π）
   const cog = new THREE.Mesh(new THREE.TorusGeometry(0.052, 0.007, 5, 16).rotateY(Math.PI / 2), kit.mat.steel);
   cog.position.set(-axX, 0.03, -0.05);
   crank.add(cog);

@@ -55,7 +55,7 @@ node examples/pelican-bike-3d/tools/shot.mjs       # headless Chrome 截图复�
 | `js/ocean.js` | 自定义着色器海面：4 道世界波、双层滚动法线、菲涅尔、高光、碎浪、岸线泡沫（LUT）、手写雾 |
 | `js/sky.js` | 昼夜关键帧表 `sampleDay(t)`（纯函数）+ 天穹着色器（日/月/星/暖光）+ 太阳/半球光/月补光 |
 | `js/bike.js` | 自行车：管架、轮组、曲柄脚踏、车把、车篮（两条鱼）、前灯与光锥 |
-| `js/pelican.js` | 鹈鹕：喙与喉囊、S 颈链、头部稳定、翅膀展翅、两节腿 IK 踩踏板、眨眼与随机梳理 |
+| `js/pelican.js` | 鹈鹕：喙与喉囊、S 颈链、头部稳定、翅膀展翅、**双腿骨骼链**（髋→股骨+羽领→膝链接→胫骨→踝链接→蹼足）两节 IK 咬住脚踏、眨眼与随机梳理 |
 | `js/rider.js` | 骑行运动学（纯函数 `stepRide`/`frameOf`）+ 组装车与人，输出坐标架给相机 |
 | `js/camera.js` | 7 档机位在骑行者坐标架内的 `(az, el, r, tY, tLat, fov)` 解算 + 巡游 + 鼠标偏移叠加 |
 | `js/scenery.js` | 棕榈/松树/草丛/礁石/海鸥/云带/海岬/远山脊（`mergeGeos` 合并 + `InstancedMesh`） |
@@ -64,8 +64,8 @@ node examples/pelican-bike-3d/tools/shot.mjs       # headless Chrome 截图复�
 | `js/quality.js` | 三档画质 + FPS 自适应 + `localStorage` 偏好 |
 | `js/ui.js` | HUD 视图层：机位条、时间轴、画质档、调试读数、提示条、回退面板 |
 | `js/audio.js` | 程序化环境声：涌浪、风、胎噪、脚踏咔哒、海鸥叫、展翅 |
-| `tools/smoke.mjs` | 401 条纯 Node 断言（数学 + 接口钉 + 源码正则钉 + 全部 `js/*.js` 的 `node --check` + HTML/ui 对齐） |
-| `tools/shot.mjs` | CDP headless Chrome 截图（`?shot=1` 瞬移落位） |
+| `tools/smoke.mjs` | 454 条纯 Node 断言（数学 + 接口钉 + 源码正则钉 + 全部 `js/*.js` 的 `node --check` + HTML/ui 对齐） |
+| `tools/shot.mjs` | CDP headless Chrome 截图（`?shot=1` 瞬移落位；`shot.mjs legs` = 贴双腿特写 + 踝↔脚踏间隙读数） |
 
 ## 技术要点
 
@@ -79,8 +79,8 @@ node examples/pelican-bike-3d/tools/shot.mjs       # headless Chrome 截图复�
 
 ## 校验
 
-- `tools/smoke.mjs`（401 条，全部在纯 Node 跑）：道路/地形纯函数、海岸线求根、昼夜关键帧连续性与日夜符号、**昼夜调色板解析门**（正午天顶必须亮蓝、深夜天顶暗蓝、黄昏地平线暖色、关键帧色号 6 位十六进制）、骑行速度/侧倾夹取、坐标架严格正交（含坡道）、**落座装配门**（整车抬高 = 轮半径、`SADDLE.y` 反推、腿长与踏板可达距离不等式、躯干/头部姿态常数、IK 取号）、7 档机位局部参数与鼠标偏移解算（偏航 +π 换边、滚轮推拉改变距离）、`ui.js` 引用的每个 `id` 都在 `index.html` 里、时间预设与 `TIME.presets` 对齐、渲染层关键写法的正则钉（sRGB 线性化管线、GLSL 局部变量不重名、`setMount` 落座、canvas 构造器写法、远处 alpha 精灵关 mipmap）、对 18 个 `js/*.js` 逐个 `node --check`、utils 导出「用了必须 import」静态 lint。
-- `tools/shot.mjs`（headless Chrome + swiftshader）：默认截 跟拍 / 侧面 / 环绕 / 海边低机位 / 低机位轮周 / 夜景 六张 + 首屏 + 拖拽复核，并打印 drawCalls / tris / 控制台告警。
+- `tools/smoke.mjs`（454 条，全部在纯 Node 跑）：道路/地形纯函数、海岸线求根、昼夜关键帧连续性与日夜符号、**昼夜调色板解析门**（正午天顶必须亮蓝、深夜天顶暗蓝、黄昏地平线暖色、关键帧色号 6 位十六进制）、骑行速度/侧倾夹取、坐标架严格正交（含坡道）、**落座装配门**（整车抬高 = 轮半径、`SADDLE.y` 反推、腿长与踏板可达距离不等式、躯干/头部姿态常数、IK 取号）、**腿部链与传动咬合门**（腿链 4 层父子 + 膝/踝/羽领 3 个链接体、`config.pedalOffset()` 与曲柄臂旋转逐点一致、64 个踏相位 IK 全程不被夹、外撇角把脚踝送到脚踏平面、`RIDE.CRANK_SIGN` 让轮与曲柄同向）、7 档机位局部参数与鼠标偏移解算（偏航 +π 换边、滚轮推拉改变距离）、`ui.js` 引用的每个 `id` 都在 `index.html` 里、时间预设与 `TIME.presets` 对齐、渲染层关键写法的正则钉（sRGB 线性化管线、GLSL 局部变量不重名、`setMount` 落座、canvas 构造器写法、远处 alpha 精灵关 mipmap）、对 18 个 `js/*.js` 逐个 `node --check`、utils 导出「用了必须 import」静态 lint。
+- `tools/shot.mjs`（headless Chrome + swiftshader）：默认截 跟拍 / 侧面 / 环绕 / 海边低机位 / 低机位轮周 / 夜景 六张 + 首屏 + 拖拽复核，并打印 drawCalls / tris / 控制台告警；`node .../shot.mjs legs` 用 `__pbike.legCam()` 冻住相机取双腿特写，打印每腿「踝 ↔ 脚踏」间隙与膝/髋角。
 
 ## 已知限制
 

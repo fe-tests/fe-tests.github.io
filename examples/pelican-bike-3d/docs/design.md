@@ -74,7 +74,10 @@ input.js（指针/键） → camera.offset → quality.js（档位/自适应） 
 ### 4.5 骑行者（`rider.js`）
 - 纯函数 `stepRide(st, dt)`：坡度 → 目标速度 → 阻尼；里程推进；`wheelPhase`；`crankPhase = wheelPhase × 0.72`；曲率 → 侧倾目标（夹在 `±0.16 rad`）；`bob` 由踏频二倍频驱动。
 - `frameOf(st, lean)` 给组件坐标架：**局部 X = 前进、Y = 上、Z = 右**（`makeBasis` 烘成四元数）；侧倾让「上方向」朝右向偏移。
-- 鹈鹕腿是两节 IK（股 0.30 + 胫 0.32），踏板圆心/半径由 `rider` 以鹈鹕局部坐标传入；颈链 4 节 + 头部反向补偿（骑行时头稳定）；翅膀由阵风触发展翅。
+- 鹈鹕腿是**一条链**：`hip → thighPivot〔股骨 + 羽领〕→ knee〔膝链接球〕→ 胫骨 →〔踝链接球〕→ foot〔蹼足〕`，每节挂在上一节之下，与两节 IK 的解算一一对应；关节处都放「链接体」——圆柱端盖是平的，绕关节弯折后两段之间会露缺口，那就是「双腿结构缺链接」的观感来源。股骨藏羽领内（羽毛材质），可见的那颗「膝」是鸟类的踝关节（向后折，裸皮材质）。
+- **腿 ↔ 脚踏同源**：`config.pedalOffset(side, crankPhase, len)` 是「曲柄 → 脚踏 → 腿 IK 目标」唯一的相位解算。`bike.crank.rotation.z`、`RIDE.pedalZ` 的曲柄臂、鹈鹕踏板目标三处都读它，脚掌与脚踏一起转，不会各转各的（各转各的 = 脚脱开踏板绕圈）。髋横向摆位 = `RIDE.pedalZ − HIP_X`，整腿绕 X 外撇 `PEDAL_SPLAY`，把脚踝送到脚踏所在的横向平面。
+- 传动方向：前进 = 局部 +X，绕 Z 的**负向**旋转才让轮顶朝前进方向走；链条把后轮 / 牙盘 / 曲柄串成同一转向，所以 `wheelR`、`wheelF`、`crank` 统一用 `RIDE.CRANK_SIGN` 转（写成正号 = 往前骑、轮子倒转）。
+- 颈链 4 节 + 头部反向补偿（骑行时头稳定）；翅膀由阵风触发展翅。
 
 ### 4.6 机位系统（`camera.js`）
 - 每档机位在**骑行者坐标架**里表达：`(az, el, r, tY, tLat, fov, dwell)`，`az=0` 为正后方，`az>0` 为骑行者右侧（海在左 → 负值看海）。
@@ -122,8 +125,8 @@ input.js（指针/键） → camera.offset → quality.js（档位/自适应） 
 
 ## 8. 校验口径
 
-- `tools/smoke.mjs`：纯 Node，401 条断言。覆盖道路/地形/岸线纯函数、昼夜关键帧连续性与日夜符号、**调色板解析门**（正午天顶亮蓝/深夜暗蓝/黄昏地平线暖色/色号格式）、骑行速度与侧倾夹取、坐标架严格正交（含坡道后仰）、**落座装配门**（`bikeY = 轮半径`、`SADDLE.y` 反推、腿长 vs 踏板可达距离不等式、躯干/头部姿态常数、IK 取号）、7 档机位局部参数与 `cameraPoseOf` 解算（偏航 +π 换边、滚轮推拉、俯仰夹取不产生 NaN）、`ui.js` 引用的每个 id 在 `index.html` 中存在、时间预设与 `TIME.presets` 一致、渲染层关键写法的正则钉（sRGB→线性 色彩管线、GLSL 局部声明不重名、`setMount` 落座、canvas 构造器写法、audio 不自动播放）、对 18 个 `js/*.js` 逐个 `node --check`、utils 导出「用了就必须 import」的静态 lint。
-- `tools/shot.mjs`：headless Chrome（swiftshader）截图；因软渲染 ~1 fps、机位缓动是 dt 驱动，探针走 `?shot=1` 的 `window.__pbike.snapRig(id)` **瞬移落位**，不数按键帧。
+- `tools/smoke.mjs`：纯 Node，454 条断言。覆盖道路/地形/岸线纯函数、昼夜关键帧连续性与日夜符号、**调色板解析门**（正午天顶亮蓝/深夜暗蓝/黄昏地平线暖色/色号格式）、骑行速度与侧倾夹取、坐标架严格正交（含坡道后仰）、**落座装配门**（`bikeY = 轮半径`、`SADDLE.y` 反推、腿长 vs 踏板可达距离不等式、躯干/头部姿态常数、IK 取号）、**腿部链与传动咬合门**（腿链 `hip → thighPivot → knee → foot` 4 层父子、羽领/膝/踝 3 个链接体、`pedalOffset()` 与曲柄臂旋转逐点一致、64 个踏相位 IK 不被夹、外撇角送到脚踏平面、`CRANK_SIGN` 轮/曲柄同向）、7 档机位局部参数与 `cameraPoseOf` 解算（偏航 +π 换边、滚轮推拉、俯仰夹取不产生 NaN）、`ui.js` 引用的每个 id 在 `index.html` 中存在、时间预设与 `TIME.presets` 一致、渲染层关键写法的正则钉（sRGB→线性 色彩管线、GLSL 局部声明不重名、`setMount` 落座、canvas 构造器写法、audio 不自动播放）、对 18 个 `js/*.js` 逐个 `node --check`、utils 导出「用了就必须 import」的静态 lint。
+- `tools/shot.mjs`：headless Chrome（swiftshader）截图；因软渲染 ~1 fps、机位缓动是 dt 驱动，探针走 `?shot=1` 的 `window.__pbike.snapRig(id)` **瞬移落位**，不数按键帧。`shot.mjs legs` 用 `__pbike.legCam(true, d, lat)` 冻住相机贴双腿取景（机位偏移 3.5 s 后自动归零，靠鼠标偏移取特写必被拉回远景），并打印 `__pbike.legs()` 的「踝 ↔ 脚踏世界坐标 / 间隙 / 膝角 / 髋角」。
 
 ## 9. 风险与取舍
 
