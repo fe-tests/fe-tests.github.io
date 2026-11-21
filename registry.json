@@ -369,6 +369,19 @@
       "thumbnail": null,
       "createdAt": "2026-11-15 10:45:16",
       "updatedAt": "2026-11-15 10:45:16"
+    },
+    {
+      "title": "3D 鹈鹕海边骑行",
+      "description": "Three.js 海岸公路 3D 骑行动画：鹈鹕骑自行车沿海边公路前进，镜头自动环绕切机位，鼠标可自由调视角。",
+      "url": "examples/pelican-bike-3d/index.html",
+      "category": "experiment",
+      "emoji": "🐦",
+      "tags": ["threejs","3d","demo","鹈鹕","海岸","动画","移动端","触控"],
+      "status": "stable",
+      "pinned": false,
+      "thumbnail": null,
+      "createdAt": "2026-11-20 23:01:17",
+      "updatedAt": "2026-11-20 23:01:17"
     }
   ]
 }

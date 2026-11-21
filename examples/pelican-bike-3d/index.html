@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<!--
+  3D 鹈鹕海边骑行（pelican-bike-3d）· 页面入口
+  创建：2026-11-20 23:01:17 · 由 tools/new-page.js 生成（--split：是），随后整体改写
+  文档：README.md（用法）· docs/design.md（设计）· docs/devlog.md（开发过程）· docs/assets.md（程序化素材台账）
+  依赖：Three.js r128（本地 ../../assets/vendor/three/r128/three.min.js，登记见 assets/vendor/README.md）
+        r128 min 包不含 examples/jsm，故 OrbitControls / Water / Sky 全部自实现。
+  路径约定：返回门户 href="/"；顶级共享资源 ../../assets/...；页面自身文件 ./js/... ./css/...
+  已拆分：入口只留骨架与样式，逻辑在 ./js/*.js（ES module，需 HTTP 访问，不能 file:// 直开）
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0b1522">
+<title>3D 鹈鹕海边骑行</title>
+<link rel="stylesheet" href="./css/main.css">
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; font-family: system-ui, "PingFang SC", "Microsoft YaHei", sans-serif; background: #0b1522; color: #e9eef5;
+    overflow: hidden; touch-action: none; overscroll-behavior: none; }
+  #gl { position: fixed; inset: 0; display: block; width: 100%; height: 100%; cursor: grab; }
+  #gl.dragging { cursor: grabbing; }
+
+  /* 返回门户（移动端也够点） */
+  .back { position: fixed; top: calc(8px + env(safe-area-inset-top)); left: calc(8px + env(safe-area-inset-left)); z-index: 30;
+    display: inline-flex; align-items: center; height: 32px; padding: 0 12px; color: #eaf3ff; text-decoration: none; font-size: 13px;
+    background: rgba(8,18,30,.46); border: 1px solid rgba(180,214,255,.26); border-radius: 999px; backdrop-filter: blur(6px); }
+  .back:hover { background: rgba(8,18,30,.72); text-decoration: none; }
+
+  /* ------------------------------ 加载面板 ------------------------------ */
+  #loading { position: fixed; inset: 0; z-index: 44; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 16px; background: radial-gradient(120% 90% at 50% 32%, #14324c 0%, #08131f 72%); transition: opacity .55s ease; }
+  #loading.gone { opacity: 0; pointer-events: none; }
+  #loading h1 { font-size: 25px; margin: 0; letter-spacing: .16em; color: #eaf3ff; font-weight: 600; }
+  #loading .sub { font-size: 12px; color: #8fb0cc; letter-spacing: .22em; }
+  #load-bar { width: min(430px, 74vw); height: 4px; background: rgba(180,214,255,.16); border-radius: 999px; overflow: hidden; }
+  #load-pct { height: 100%; width: 0; background: linear-gradient(90deg,#4fb3ff,#a9e0ff); transition: width .28s ease; }
+  #load-msg { font-size: 12px; color: #7d97ad; min-height: 1.2em; }
+
+  /* ------------------------------ HUD ------------------------------ */
+  #hud { position: fixed; inset: 0; z-index: 20; pointer-events: none; }
+  #hud.hide .keep { opacity: 0; }
+  #hud.hide .rigbar { opacity: 1; }
+  .keep { transition: opacity .3s; }
+  .dbg { position: fixed; top: calc(8px + env(safe-area-inset-top)); right: calc(8px + env(safe-area-inset-right)); display: flex; gap: 8px;
+    font: 11px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; color: #cfe0f2; background: rgba(6,14,24,.5); padding: 4px 10px; border-radius: 8px; }
+  .statbar { position: fixed; top: calc(44px + env(safe-area-inset-top)); right: calc(8px + env(safe-area-inset-right)); display: flex; gap: 8px;
+    font: 11px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; color: #bcd2e8; background: rgba(6,14,24,.42); padding: 3px 10px; border-radius: 8px; }
+  .statbar b { color: #ffd48a; font-weight: 700; }
+  .rigname { position: fixed; top: calc(46px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
+    font-size: 13px; letter-spacing: .16em; color: #eaf3ff; background: rgba(8,18,30,.44); padding: 4px 16px; border-radius: 999px; }
+  .rigname i { font-style: normal; color: #9fd0ff; font-size: 11px; margin-left: 8px; }
+  .rigname i.manual { color: #ffc46b; }
+
+  /* 机位条：左下（7 档 + 巡游开关） */
+  .rigbar { position: fixed; left: calc(12px + env(safe-area-inset-left)); bottom: calc(12px + env(safe-area-inset-bottom));
+    display: flex; flex-wrap: wrap; gap: 6px; max-width: min(560px, 62vw); pointer-events: auto; transition: opacity .3s; }
+  .rigbar button { min-width: 48px; height: 34px; font-size: 12px; color: #e9eef5; background: rgba(8,18,30,.5);
+    border: 1px solid rgba(180,214,255,.24); border-radius: 8px; }
+  .rigbar button.on { color: #04202f; background: linear-gradient(180deg,#bfe4ff,#7cc4ff); border-color: rgba(190,228,255,.75); font-weight: 700; }
+  .rigbar button:active { background: rgba(120,190,255,.34); }
+
+  /* 右下：画质档 + 昼夜 + 音效 */
+  .side { position: fixed; right: calc(12px + env(safe-area-inset-right)); bottom: calc(12px + env(safe-area-inset-bottom));
+    display: flex; flex-direction: column; align-items: flex-end; gap: 8px; pointer-events: auto; }
+  .side .row { display: flex; gap: 6px; }
+  .side button { min-width: 44px; height: 30px; font-size: 12px; color: #e9eef5; background: rgba(8,18,30,.5);
+    border: 1px solid rgba(180,214,255,.24); border-radius: 8px; }
+  .side button.on { color: #04202f; background: linear-gradient(180deg,#bfe4ff,#7cc4ff); border-color: rgba(190,228,255,.75); font-weight: 700; }
+  #clockbox { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: rgba(6,14,24,.46);
+    border: 1px solid rgba(180,214,255,.2); border-radius: 10px; font-size: 11px; color: #cfe0f2; }
+  #clockbox input { width: 116px; }
+  #clock-label { min-width: 62px; text-align: center; font-variant-numeric: tabular-nums; color: #ffd48a; }
+
+  /* 提示 / 键位面板 */
+  #toast { position: fixed; left: 50%; bottom: calc(92px + env(safe-area-inset-bottom)); transform: translateX(-50%) translateY(8px);
+    max-width: 84vw; padding: 9px 18px; font-size: 13px; color: #04202f; background: linear-gradient(180deg,#cfe9ff,#8ec8ff);
+    border-radius: 999px; opacity: 0; transition: opacity .3s ease, transform .3s ease; }
+  #toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+  #keys { position: fixed; left: 50%; top: 50%; transform: translate(-50%,-50%); z-index: 34; width: min(560px, 92vw);
+    padding: 20px 22px; background: rgba(8,18,30,.9); border: 1px solid rgba(180,214,255,.22); border-radius: 16px;
+    backdrop-filter: blur(8px); display: none; pointer-events: auto; }
+  #keys.on { display: block; }
+  #keys h2 { margin: 0 0 10px; font-size: 16px; }
+  #keys dl { display: grid; grid-template-columns: 92px 1fr; gap: 6px 10px; margin: 0; font-size: 12.5px; line-height: 1.55; }
+  #keys dt { color: #9fd0ff; font-family: ui-monospace, Menlo, monospace; }
+  #keys dd { margin: 0; color: #cfdbe8; }
+  #keys .foot { margin-top: 12px; font-size: 11.5px; color: #7d97ad; }
+
+  /* ------------------------------ 降级面板（不得白屏）------------------------------ */
+  #fallback { position: fixed; inset: 0; z-index: 50; display: none; align-items: center; justify-content: center; padding: 24px; background: #0a1420; }
+  #fallback.on { display: flex; }
+  .fb-box { max-width: 620px; padding: 22px; background: #10202f; border: 1px solid #24405a; border-radius: 16px; }
+  .fb-title { font-size: 18px; margin: 0 0 12px; color: #eaf3ff; }
+  .fb-lines { margin: 0 0 14px; padding-left: 20px; font-size: 13px; line-height: 1.9; color: #b3c6d8; }
+  .fb-actions { display: flex; gap: 10px; }
+  .fb-box button { height: 40px; padding: 0 18px; font-size: 14px; color: #04202f; background: #bfe4ff; border: 0; border-radius: 10px; }
+  .fb-hint { margin-top: 14px; font-size: 12px; color: #7d97ad; }
+
+  @media (max-width: 640px) {
+    .dbg { font-size: 10px; padding: 3px 8px; }
+    .statbar { top: calc(40px + env(safe-area-inset-top)); font-size: 10px; }
+    .rigname { top: calc(40px + env(safe-area-inset-top)); font-size: 12px; }
+    .rigbar { max-width: 70vw; gap: 5px; }
+    .rigbar button { min-width: 44px; height: 36px; }
+    #clockbox input { width: 88px; }
+  }
+</style>
+</head>
+<body>
+<canvas id="gl" aria-label="3D 海岸骑行场景"></canvas>
+<a class="back" href="/">← 门户</a>
+
+<div id="hud">
+  <div class="dbg keep"><span id="dbg-fps">-- fps</span><span id="dbg-calls">draw --</span><span id="dbg-tris">-- tris</span><span id="dbg-level">--</span></div>
+  <div class="statbar keep">里程 <b id="st-dist">0.00</b> km · <b id="st-speed">0</b> km/h · 时刻 <b id="st-clock">10:41</b></div>
+  <div class="rigname keep" id="rig-name">跟拍<i id="rig-mode">自动</i></div>
+
+  <div class="rigbar" id="rigbar"><!-- 机位按钮由 ui.js 按 config.RIGS 生成 --></div>
+
+  <div class="side">
+    <div id="clockbox" class="keep">
+      <span id="clock-label">10:24</span>
+      <input id="time-slider" type="range" min="0" max="1000" value="445" aria-label="时刻">
+      <button type="button" data-time="0.235">黎明</button>
+      <button type="button" data-time="0.5">正午</button>
+      <button type="button" data-time="0.79">黄昏</button>
+      <button type="button" data-time="0.96">夜</button>
+      <button type="button" id="btn-cycle" class="on" title="昼夜循环（N）">循环</button>
+    </div>
+    <div class="row keep">
+      <button type="button" id="btn-audio" title="环境音（M）">🔇 音效</button>
+      <button type="button" id="btn-help" title="键位（?）">?</button>
+    </div>
+    <div class="row levels keep" id="levels">
+      <button type="button" data-level="low">流畅</button>
+      <button type="button" data-level="mid">标准</button>
+      <button type="button" data-level="high">精细</button>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+</div>
+
+<div id="keys">
+  <h2>🐦 3D 鹈鹕海边骑行 · 操作</h2>
+  <dl>
+    <dt>左键拖拽</dt><dd>绕骑行者转视角（环绕）</dd>
+    <dt>滚轮</dt><dd>推拉镜头（2.2–38 m）</dd>
+    <dt>右键/中键拖拽</dt><dd>平移取景目标</dd>
+    <dt>1 – 7</dt><dd>直选机位（跟拍 / 侧拍 / 特写 / 高吊 / 环绕 / 海边 / 崖顶）</dd>
+    <dt>空格 / Tab</dt><dd>下一个机位</dd>
+    <dt>P / A</dt><dd>暂停巡游 / 自动巡游开关</dd>
+    <dt>[ ]</dt><dd>时刻倒退 / 前进（按住加速）</dd>
+    <dt>N</dt><dd>昼夜循环开关</dd>
+    <dt>R</dt><dd>视角偏移归零</dd>
+    <dt>H / M / ?</dt><dd>隐藏 HUD / 环境音 / 本面板</dd>
+  </dl>
+  <div class="foot">拖拽后停手 3.5 s，镜头自动接回巡游。本页面是<b>动画展示</b>，不含玩法与计分。
+    触屏：单指拖 = 视角，双指捏 = 推拉。</div>
+</div>
+
+<!-- 加载面板 -->
+<div id="loading">
+  <h1>海边公路</h1>
+  <div class="sub">PELICAN ON THE COAST ROAD · 3D</div>
+  <div id="load-bar"><div id="load-pct"></div></div>
+  <div id="load-msg">正在准备…</div>
+</div>
+
+<!-- 降级面板：依赖缺失 / 无 WebGL 时显示（文案写本地路径与修复办法） -->
+<div id="fallback">
+  <div class="fb-box">
+    <h2 class="fb-title">无法启动 3D 场景</h2>
+    <ul class="fb-lines"></ul>
+    <div class="fb-actions"></div>
+    <p class="fb-hint">本页面须经 HTTP 访问（ES module 在 file:// 下受 CORS 限制）：站点根目录执行 <code>node server.js</code>，
+      再打开 <code>http://localhost:39977/examples/pelican-bike-3d/</code></p>
+  </div>
+</div>
+
+<!-- 依赖：Three.js r128（本地文件，登记见 assets/vendor/README.md）。
+     main.js 里先探测 typeof THREE === 'undefined' 再使用；缺失时走 #fallback 面板。 -->
+<script src="../../assets/vendor/three/r128/three.min.js"></script>
+<script type="module" src="./js/main.js"></script>
+</body>
+</html>

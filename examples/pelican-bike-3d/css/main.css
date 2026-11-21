@@ -1,0 +1,28 @@
+/* 3D 鹈鹕海边骑行（pelican-bike-3d）· css/main.css
+ * 首屏关键样式（画布 / HUD / 面板）留在 index.html 的 <style> 里；本文件放补充样式与媒体查询。 */
+
+/* 滑块：把 range 的默认外观压成与 HUD 同色的一根细线（各内核前缀不同，故逐条写） */
+#time-slider { -webkit-appearance: none; appearance: none; height: 3px; border-radius: 999px;
+  background: linear-gradient(90deg, #24506f, #6fb6e8 42%, #ffd48a 70%, #24384f); outline: none; }
+#time-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 13px; height: 13px; border-radius: 50%;
+  background: #eaf3ff; border: 1px solid rgba(6,14,24,.6); box-shadow: 0 1px 4px rgba(0,0,0,.4); cursor: pointer; }
+#time-slider::-moz-range-thumb { width: 13px; height: 13px; border-radius: 50%; background: #eaf3ff; border: 1px solid rgba(6,14,24,.6); }
+#time-slider::-moz-range-track { height: 3px; border-radius: 999px; background: transparent; }
+
+/* 触屏：把右侧控件收得更紧凑，避免压住机位条 */
+body.touch .rigbar { max-width: 62vw; }
+body.touch #clockbox { padding: 5px 8px; gap: 6px; }
+body.touch .side button { height: 34px; }
+
+/* 隐藏 HUD 时（H）：只留机位条，右侧整块收起，保证移动端还能切档 */
+#hud.hide #clockbox, #hud.hide .side .row.keep { opacity: 0; pointer-events: none; }
+
+/* 高对比 / 减少动效：巡游与过渡由 js 侧关闭，这里只做视觉降噪 */
+@media (prefers-reduced-motion: reduce) {
+  #loading, #toast, .keep, .rigname { transition: none; }
+}
+
+@media (max-width: 420px) {
+  .rigname { letter-spacing: .08em; }
+  #keys dl { grid-template-columns: 78px 1fr; font-size: 12px; }
+}

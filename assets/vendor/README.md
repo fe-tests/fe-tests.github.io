@@ -18,7 +18,7 @@ assets/vendor/
 
 | 库 | 版本 | 本地路径 | 大小 | SHA-256 | 许可证 | 下载来源（下载日期） | 使用页面 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Three.js | r128 | `three/r128/three.min.js` | 603,445 B | `9274bbcec8d96168626c732b5d31c775aa8cfb7eaa0599bec0c175908a2c1ce2` | MIT | `https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js`（2026-10-31，与 `https://unpkg.com/three@0.128.0/build/three.min.js` 逐字节一致） | `3d-shoot-game`、`solar-system-3d`、`mahjong-3d`、`rubik-3d` |
+| Three.js | r128 | `three/r128/three.min.js` | 603,445 B | `9274bbcec8d96168626c732b5d31c775aa8cfb7eaa0599bec0c175908a2c1ce2` | MIT | `https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js`（2026-10-31，与 `https://unpkg.com/three@0.128.0/build/three.min.js` 逐字节一致） | `3d-shoot-game`、`solar-system-3d`、`mahjong-3d`、`rubik-3d`、`forbidden-city`、`pelican-bike-3d` |
 
 > 校验记录：`three.min.js` 内含 `const e="128"`（`THREE.REVISION === "128"`），与登记版本一致。
 
